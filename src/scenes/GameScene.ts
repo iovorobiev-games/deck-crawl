@@ -28,7 +28,6 @@ export class GameScene extends Phaser.Scene {
   private combatOverlay: Phaser.GameObjects.Rectangle | null = null;
   private fightBtn: Phaser.GameObjects.Container | null = null;
   private gridBgGraphics!: Phaser.GameObjects.Graphics;
-  private gameRoot!: Phaser.GameObjects.Container;
 
   constructor() {
     super({ key: "GameScene" });
@@ -36,7 +35,6 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor(0x0e0e1a);
-    this.gameRoot = this.add.container(0, 0);
 
     this.player = new Player(10);
     this.deck = new Deck(deckConfig);
@@ -48,33 +46,11 @@ export class GameScene extends Phaser.Scene {
     this.createExploreButton();
     this.createPlayerView();
 
-    this.gameRoot.add([
-      this.gridBgGraphics,
-      this.deckVisual,
-      this.deckText,
-      this.exploreBtn,
-      this.playerView,
-    ]);
-
     // Draw initial 3 cards
     this.drawAndPlaceCards(3);
 
     this.player.on("hpChanged", () => this.updatePlayerStats());
     this.player.on("goldChanged", () => this.updateHUD());
-
-    this.updateGameRoot();
-    this.scale.on("resize", () => this.updateGameRoot());
-  }
-
-  private updateGameRoot(): void {
-    const w = this.scale.gameSize.width;
-    const h = this.scale.gameSize.height;
-    const s = Math.min(w / GAME_W, h / GAME_H);
-    this.gameRoot.setScale(s);
-    this.gameRoot.setPosition(
-      (w - GAME_W * s) / 2,
-      (h - GAME_H * s) / 2
-    );
   }
 
   private createHUD(): void {
@@ -163,7 +139,7 @@ export class GameScene extends Phaser.Scene {
 
     this.exploreBtn.setSize(70, 28);
     this.exploreBtn.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, 70, 28),
+      new Phaser.Geom.Rectangle(-35, -14, 70, 28),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -196,7 +172,6 @@ export class GameScene extends Phaser.Scene {
         370,
         this.player.fateDeckCards
       );
-      this.gameRoot.add(this.fateDeckPopup);
       this.fateDeckPopup.once("destroy", () => {
         this.fateDeckPopup = null;
       });
@@ -232,7 +207,6 @@ export class GameScene extends Phaser.Scene {
       // Stagger reveal
       this.time.delayedCall(index * 150, () => {
         const card = new Card(this, pos.x, pos.y, cardData);
-        this.gameRoot.add(card);
         this.grid.placeCard(slot.col, slot.row, card);
         card.reveal();
         this.setupCardInteraction(card);
@@ -312,7 +286,6 @@ export class GameScene extends Phaser.Scene {
     this.combatOverlay.setDepth(50);
     this.combatOverlay.setInteractive();
     this.combatOverlay.on("pointerdown", () => this.exitCombatMode());
-    this.gameRoot.add(this.combatOverlay);
 
     // Create FIGHT button below the monster card
     const btnW = 80;
@@ -339,7 +312,7 @@ export class GameScene extends Phaser.Scene {
 
     this.fightBtn.setSize(btnW, btnH);
     this.fightBtn.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
+      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -362,8 +335,6 @@ export class GameScene extends Phaser.Scene {
     this.fightBtn.on("pointerdown", () => {
       this.executeCombat(card);
     });
-
-    this.gameRoot.add(this.fightBtn);
 
     // Slide fate deck up
     this.playerView.slideFateDeckUp(this);
@@ -421,7 +392,6 @@ export class GameScene extends Phaser.Scene {
     const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
     fateCard.setDepth(200);
     fateCard.setScale(0.3);
-    this.gameRoot.add(fateCard);
 
     const fateBg = this.add.graphics();
     fateBg.fillStyle(0x1a1a2e, 1);
@@ -627,8 +597,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showGameOver(): void {
-    const screen = new GameOverScreen(this);
-    this.gameRoot.add(screen);
+    new GameOverScreen(this);
+
   }
 
   private disableExploreButton(): void {
