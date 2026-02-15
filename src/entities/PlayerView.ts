@@ -13,6 +13,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
   private hpText!: Phaser.GameObjects.Text;
   private powerText!: Phaser.GameObjects.Text;
   private agilityText!: Phaser.GameObjects.Text;
+  private fateDeckGfx!: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -30,21 +31,21 @@ export class PlayerView extends Phaser.GameObjects.Container {
   }
 
   private createFateDeckStack(): void {
-    const gfx = this.scene.add.graphics();
+    this.fateDeckGfx = this.scene.add.graphics();
     // Draw 2 offset card backs behind the portrait
     for (let i = 0; i < 2; i++) {
       const ox = (2 - i) * 2;
       const oy = (2 - i) * 2;
-      gfx.fillStyle(STACK_BG, 1);
-      gfx.fillRoundedRect(
+      this.fateDeckGfx.fillStyle(STACK_BG, 1);
+      this.fateDeckGfx.fillRoundedRect(
         -CARD_W / 2 + ox,
         -CARD_H / 2 + oy,
         CARD_W,
         CARD_H,
         CORNER_R
       );
-      gfx.lineStyle(1, STACK_BORDER, 0.8);
-      gfx.strokeRoundedRect(
+      this.fateDeckGfx.lineStyle(1, STACK_BORDER, 0.8);
+      this.fateDeckGfx.strokeRoundedRect(
         -CARD_W / 2 + ox,
         -CARD_H / 2 + oy,
         CARD_W,
@@ -52,7 +53,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
         CORNER_R
       );
     }
-    this.add(gfx);
+    this.add(this.fateDeckGfx);
   }
 
   private createPortrait(): void {
@@ -139,6 +140,42 @@ export class PlayerView extends Phaser.GameObjects.Container {
   updateStats(player: Player): void {
     this.hpText.setText(`\u2665${player.hp}`);
     this.powerText.setText(`\u2694${player.power}`);
+    this.powerText.setColor("#ffaa44");
     this.agilityText.setText(`\u25C6${player.agility}`);
+  }
+
+  slideFateDeckUp(scene: Phaser.Scene): void {
+    scene.tweens.add({
+      targets: this.fateDeckGfx,
+      y: this.fateDeckGfx.y - 20,
+      duration: 300,
+      ease: "Power2",
+    });
+  }
+
+  slideFateDeckDown(scene: Phaser.Scene): void {
+    scene.tweens.add({
+      targets: this.fateDeckGfx,
+      y: 0,
+      duration: 300,
+      ease: "Power2",
+    });
+  }
+
+  getFateDeckWorldPos(): { x: number; y: number } {
+    const worldMatrix = this.getWorldTransformMatrix();
+    return {
+      x: worldMatrix.tx,
+      y: worldMatrix.ty - 20,
+    };
+  }
+
+  showTempPower(value: number): void {
+    this.powerText.setText(`\u2694${value}`);
+    this.powerText.setColor("#ffff44");
+  }
+
+  restorePower(player: Player): void {
+    this.updateStats(player);
   }
 }

@@ -2,9 +2,11 @@ import Phaser from "phaser";
 import { Card, CARD_W, CARD_H } from "../entities/Card";
 import { PlayerView } from "../entities/PlayerView";
 import { FateDeckPopup } from "../entities/FateDeckPopup";
+import { GameOverScreen } from "../entities/GameOverScreen";
 import { Deck } from "../systems/Deck";
 import { Grid, COLS, ROWS } from "../systems/Grid";
 import { Player } from "../systems/Player";
+import { CardType } from "../entities/CardData";
 import { deckConfig } from "../data/deckConfig";
 
 const GAME_W = 960;
@@ -22,6 +24,10 @@ export class GameScene extends Phaser.Scene {
   private playerView!: PlayerView;
   private fateDeckPopup: FateDeckPopup | null = null;
   private isResolving = false;
+  private combatMonster: Card | null = null;
+  private combatOverlay: Phaser.GameObjects.Rectangle | null = null;
+  private fightBtn: Phaser.GameObjects.Container | null = null;
+  private gridBgGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: "GameScene" });
@@ -63,6 +69,7 @@ export class GameScene extends Phaser.Scene {
 
   private createGridBackground(): void {
     const gfx = this.add.graphics();
+    this.gridBgGraphics = gfx;
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const pos = this.grid.worldPos(c, r);
@@ -231,13 +238,366 @@ export class GameScene extends Phaser.Scene {
     const cell = this.grid.findCard(card);
     if (!cell) return;
 
+    if (card.cardData.type === CardType.Monster) {
+      this.enterCombatMode(card);
+      return;
+    }
+
     this.isResolving = true;
     this.grid.removeCard(cell.col, cell.row);
 
     card.resolve(() => {
       this.isResolving = false;
-      // Future: trigger card effect based on card.cardData.type
     });
+  }
+
+  private enterCombatMode(card: Card): void {
+    this.isResolving = true;
+    this.combatMonster = card;
+
+    // Dim other grid cards
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && gridCard !== card) {
+          gridCard.setAlpha(0.3);
+        }
+      }
+    }
+
+    // Dim grid background, deck visual, HUD, explore button
+    this.gridBgGraphics.setAlpha(0.3);
+    this.deckVisual.setAlpha(0.3);
+    this.deckText.setAlpha(0.3);
+    this.exploreBtn.setAlpha(0.3);
+
+    // Bring monster to top
+    card.setDepth(100);
+
+    // Create clickable overlay behind fight button (to cancel combat)
+    this.combatOverlay = this.add.rectangle(
+      GAME_W / 2,
+      GAME_H / 2,
+      GAME_W,
+      GAME_H,
+      0x000000,
+      0.01
+    );
+    this.combatOverlay.setDepth(50);
+    this.combatOverlay.setInteractive();
+    this.combatOverlay.on("pointerdown", () => this.exitCombatMode());
+
+    // Create FIGHT button below the monster card
+    const btnW = 80;
+    const btnH = 30;
+    this.fightBtn = this.add.container(card.x, card.y + CARD_H / 2 + 24);
+    this.fightBtn.setDepth(110);
+
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0xcc3333, 1);
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    btnBg.lineStyle(2, 0xff5555, 0.8);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    this.fightBtn.add(btnBg);
+
+    const btnText = this.add
+      .text(0, 0, "FIGHT", {
+        fontSize: "16px",
+        fontFamily: "monospace",
+        color: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.fightBtn.add(btnText);
+
+    this.fightBtn.setSize(btnW, btnH);
+    this.fightBtn.setInteractive(
+      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
+      Phaser.Geom.Rectangle.Contains
+    );
+
+    this.fightBtn.on("pointerover", () => {
+      btnBg.clear();
+      btnBg.fillStyle(0xee4444, 1);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.lineStyle(2, 0xff5555, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    });
+
+    this.fightBtn.on("pointerout", () => {
+      btnBg.clear();
+      btnBg.fillStyle(0xcc3333, 1);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.lineStyle(2, 0xff5555, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    });
+
+    this.fightBtn.on("pointerdown", () => {
+      this.executeCombat(card);
+    });
+
+    // Slide fate deck up
+    this.playerView.slideFateDeckUp(this);
+  }
+
+  private exitCombatMode(): void {
+    // Remove overlay and fight button
+    if (this.combatOverlay) {
+      this.combatOverlay.destroy();
+      this.combatOverlay = null;
+    }
+    if (this.fightBtn) {
+      this.fightBtn.destroy();
+      this.fightBtn = null;
+    }
+
+    // Restore all grid card alphas
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard) gridCard.setAlpha(1);
+      }
+    }
+
+    // Restore HUD alphas
+    this.gridBgGraphics.setAlpha(1);
+    this.deckVisual.setAlpha(1);
+    this.deckText.setAlpha(1);
+    this.exploreBtn.setAlpha(1);
+
+    // Reset monster depth
+    if (this.combatMonster) {
+      this.combatMonster.setDepth(0);
+    }
+
+    // Slide fate deck down
+    this.playerView.slideFateDeckDown(this);
+
+    this.isResolving = false;
+    this.combatMonster = null;
+  }
+
+  private executeCombat(monsterCard: Card): void {
+    // Disable fight button and overlay clicks during combat
+    if (this.fightBtn) this.fightBtn.disableInteractive();
+    if (this.combatOverlay) this.combatOverlay.disableInteractive();
+
+    // Step 1: Draw & reveal fate card
+    const modifier = this.player.drawFateCard();
+    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+
+    // Create fate card visual
+    const fateCardW = 50;
+    const fateCardH = 70;
+    const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
+    fateCard.setDepth(200);
+    fateCard.setScale(0.3);
+
+    const fateBg = this.add.graphics();
+    fateBg.fillStyle(0x1a1a2e, 1);
+    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateBg.lineStyle(1, 0x4444aa, 0.8);
+    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateCard.add(fateBg);
+
+    let modColor: string;
+    let modLabel: string;
+    if (modifier > 0) {
+      modColor = "#44dd88";
+      modLabel = `+${modifier}`;
+    } else if (modifier < 0) {
+      modColor = "#ff5555";
+      modLabel = `${modifier}`;
+    } else {
+      modColor = "#888888";
+      modLabel = "0";
+    }
+
+    const modText = this.add
+      .text(0, 0, modLabel, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: modColor,
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    fateCard.add(modText);
+
+    // Animate fate card appearing above player
+    const targetX = this.playerView.x - 70;
+    const targetY = this.playerView.y - 60;
+
+    this.tweens.add({
+      targets: fateCard,
+      x: targetX,
+      y: targetY,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 500,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        // Step 2: After a brief hold, fly fate card into player portrait
+        this.time.delayedCall(300, () => {
+          const modifiedPower = Math.max(0, this.player.power + modifier);
+
+          this.tweens.add({
+            targets: fateCard,
+            x: this.playerView.x,
+            y: this.playerView.y,
+            scaleX: 0,
+            scaleY: 0,
+            duration: 300,
+            ease: "Power2",
+            onComplete: () => {
+              fateCard.destroy();
+              this.playerView.showTempPower(modifiedPower);
+
+              // Step 3: Player attacks monster
+              this.time.delayedCall(100, () => {
+                const origX = this.playerView.x;
+                const origY = this.playerView.y;
+                const attackX = origX + (monsterCard.x - origX) * 0.6;
+                const attackY = origY + (monsterCard.y - origY) * 0.6;
+
+                this.tweens.add({
+                  targets: this.playerView,
+                  x: attackX,
+                  y: attackY,
+                  duration: 250,
+                  ease: "Power2",
+                  onComplete: () => {
+                    // Hit effect: shake monster
+                    const newMonsterValue = Math.max(0, monsterCard.cardData.value - modifiedPower);
+                    monsterCard.updateValue(newMonsterValue);
+
+                    this.tweens.add({
+                      targets: monsterCard,
+                      x: monsterCard.x + 5,
+                      duration: 50,
+                      yoyo: true,
+                      repeat: 3,
+                      onComplete: () => {
+                        // Return player to original position
+                        this.tweens.add({
+                          targets: this.playerView,
+                          x: origX,
+                          y: origY,
+                          duration: 250,
+                          ease: "Power2",
+                          onComplete: () => {
+                            // Step 4: Monster counterattack (if alive)
+                            if (newMonsterValue > 0) {
+                              this.monsterCounterattack(monsterCard, origX, origY, modifier);
+                            } else {
+                              this.combatCleanup(monsterCard, modifier);
+                            }
+                          },
+                        });
+                      },
+                    });
+                  },
+                });
+              });
+            },
+          });
+        });
+      },
+    });
+  }
+
+  private monsterCounterattack(
+    monsterCard: Card,
+    playerOrigX: number,
+    playerOrigY: number,
+    fateModifier: number
+  ): void {
+    const monsterOrigX = monsterCard.x;
+    const monsterOrigY = monsterCard.y;
+    const attackX = monsterOrigX + (playerOrigX - monsterOrigX) * 0.6;
+    const attackY = monsterOrigY + (playerOrigY - monsterOrigY) * 0.6;
+
+    this.tweens.add({
+      targets: monsterCard,
+      x: attackX,
+      y: attackY,
+      duration: 250,
+      ease: "Power2",
+      onComplete: () => {
+        // Hit player
+        this.player.takeDamage(monsterCard.cardData.value);
+
+        // Flash player portrait
+        this.tweens.add({
+          targets: this.playerView,
+          alpha: 0.3,
+          duration: 80,
+          yoyo: true,
+          repeat: 2,
+          onComplete: () => {
+            // Return monster to position
+            this.tweens.add({
+              targets: monsterCard,
+              x: monsterOrigX,
+              y: monsterOrigY,
+              duration: 250,
+              ease: "Power2",
+              onComplete: () => {
+                this.combatCleanup(monsterCard, fateModifier);
+              },
+            });
+          },
+        });
+      },
+    });
+  }
+
+  private combatCleanup(monsterCard: Card, fateModifier: number): void {
+    // Remove overlay and fight button
+    if (this.combatOverlay) {
+      this.combatOverlay.destroy();
+      this.combatOverlay = null;
+    }
+    if (this.fightBtn) {
+      this.fightBtn.destroy();
+      this.fightBtn = null;
+    }
+
+    // Remove monster from grid
+    const cell = this.grid.findCard(monsterCard);
+    if (cell) this.grid.removeCard(cell.col, cell.row);
+
+    monsterCard.resolve(() => {
+      // Shuffle fate card back
+      this.player.shuffleFateCardBack(fateModifier);
+
+      // Restore alphas
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const gridCard = this.grid.getCardAt(c, r);
+          if (gridCard) gridCard.setAlpha(1);
+        }
+      }
+      this.gridBgGraphics.setAlpha(1);
+      this.deckVisual.setAlpha(1);
+      this.deckText.setAlpha(1);
+      this.exploreBtn.setAlpha(1);
+
+      // Slide fate deck down and restore power display
+      this.playerView.slideFateDeckDown(this);
+      this.playerView.restorePower(this.player);
+
+      this.isResolving = false;
+      this.combatMonster = null;
+
+      // Check game over
+      if (this.player.hp <= 0) {
+        this.showGameOver();
+      }
+    });
+  }
+
+  private showGameOver(): void {
+    new GameOverScreen(this);
   }
 
   private disableExploreButton(): void {
