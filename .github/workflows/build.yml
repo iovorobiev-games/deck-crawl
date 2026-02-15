@@ -1,6 +1,9 @@
 name: Build
 
 on:
+  push:
+    branches: [master]
+  pull_request:
   workflow_call:
 
 jobs:
@@ -24,5 +27,5 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: html${{ github.head_ref }}.${{ github.sha }}
+          name: html-${{ github.event_name == 'pull_request' && github.event.number || github.ref_name }}-${{ github.sha }}
           path: dist/
