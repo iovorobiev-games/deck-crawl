@@ -1,8 +1,9 @@
 import Phaser from "phaser";
 import { Card, CARD_W, CARD_H } from "../entities/Card";
-import { CardData } from "../entities/CardData";
+import { PlayerView } from "../entities/PlayerView";
+import { FateDeckPopup } from "../entities/FateDeckPopup";
 import { Deck } from "../systems/Deck";
-import { Grid, CellPos } from "../systems/Grid";
+import { Grid, COLS, ROWS } from "../systems/Grid";
 import { Player } from "../systems/Player";
 import { deckConfig } from "../data/deckConfig";
 
@@ -13,12 +14,13 @@ export class GameScene extends Phaser.Scene {
   private player!: Player;
   private deck!: Deck;
   private grid!: Grid;
-  private hpText!: Phaser.GameObjects.Text;
   private deckText!: Phaser.GameObjects.Text;
   private exploreBtn!: Phaser.GameObjects.Container;
   private exploreBtnBg!: Phaser.GameObjects.Graphics;
   private exploreBtnText!: Phaser.GameObjects.Text;
   private deckVisual!: Phaser.GameObjects.Graphics;
+  private playerView!: PlayerView;
+  private fateDeckPopup: FateDeckPopup | null = null;
   private isResolving = false;
 
   constructor() {
@@ -28,7 +30,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(0x0e0e1a);
 
-    this.player = new Player(20);
+    this.player = new Player(10);
     this.deck = new Deck(deckConfig);
     this.grid = new Grid(GAME_W, GAME_H);
 
@@ -36,39 +38,33 @@ export class GameScene extends Phaser.Scene {
     this.createGridBackground();
     this.createDeckVisual();
     this.createExploreButton();
+    this.createPlayerView();
 
     // Draw initial 3 cards
     this.drawAndPlaceCards(3);
 
-    this.player.on("hpChanged", () => this.updateHUD());
+    this.player.on("hpChanged", () => this.updatePlayerStats());
     this.player.on("goldChanged", () => this.updateHUD());
   }
 
   private createHUD(): void {
-    this.hpText = this.add.text(20, 16, "", {
-      fontSize: "16px",
-      fontFamily: "monospace",
-      color: "#ee5555",
-    });
-
-    this.deckText = this.add.text(GAME_W - 20, 16, "", {
-      fontSize: "16px",
+    this.deckText = this.add.text(90, 44, "", {
+      fontSize: "14px",
       fontFamily: "monospace",
       color: "#aaaacc",
-    }).setOrigin(1, 0);
+    });
 
     this.updateHUD();
   }
 
   private updateHUD(): void {
-    this.hpText.setText(`\u2665 HP: ${this.player.hp}/${this.player.maxHp}`);
     this.deckText.setText(`Deck: ${this.deck.remaining} cards`);
   }
 
   private createGridBackground(): void {
     const gfx = this.add.graphics();
-    for (let r = 0; r < 4; r++) {
-      for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
         const pos = this.grid.worldPos(c, r);
         gfx.fillStyle(0x1a1a2e, 0.3);
         gfx.fillRoundedRect(
@@ -99,26 +95,26 @@ export class GameScene extends Phaser.Scene {
     this.deckVisual.clear();
     if (this.deck.isEmpty) return;
 
-    const baseX = GAME_W - 90;
-    const baseY = GAME_H - 140;
+    const baseX = 16;
+    const baseY = 16;
     // Stacked card backs
     const layers = Math.min(3, Math.ceil(this.deck.remaining / 5));
     for (let i = 0; i < layers; i++) {
       const offset = i * 2;
       this.deckVisual.fillStyle(0x2a2a4e, 1);
-      this.deckVisual.fillRoundedRect(baseX - offset, baseY - offset, 50, 70, 6);
+      this.deckVisual.fillRoundedRect(baseX + offset, baseY + offset, 50, 70, 6);
       this.deckVisual.lineStyle(1, 0x4444aa, 0.8);
-      this.deckVisual.strokeRoundedRect(baseX - offset, baseY - offset, 50, 70, 6);
+      this.deckVisual.strokeRoundedRect(baseX + offset, baseY + offset, 50, 70, 6);
     }
     // Pattern on top card
     this.deckVisual.lineStyle(1, 0x5555bb, 0.5);
     const topOff = (layers - 1) * 2;
-    this.deckVisual.strokeRect(baseX - topOff + 8, baseY - topOff + 10, 34, 50);
+    this.deckVisual.strokeRect(baseX + topOff + 8, baseY + topOff + 10, 34, 50);
   }
 
   private createExploreButton(): void {
-    const btnX = GAME_W - 65;
-    const btnY = GAME_H - 40;
+    const btnX = 40;
+    const btnY = 110;
 
     this.exploreBtn = this.add.container(btnX, btnY);
 
@@ -134,9 +130,9 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.exploreBtn.add(this.exploreBtnText);
 
-    this.exploreBtn.setSize(110, 36);
+    this.exploreBtn.setSize(70, 28);
     this.exploreBtn.setInteractive(
-      new Phaser.Geom.Rectangle(-55, -18, 110, 36),
+      new Phaser.Geom.Rectangle(-35, -14, 70, 28),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -152,9 +148,31 @@ export class GameScene extends Phaser.Scene {
   private drawExploreButtonBg(color: number): void {
     this.exploreBtnBg.clear();
     this.exploreBtnBg.fillStyle(color, 1);
-    this.exploreBtnBg.fillRoundedRect(-55, -18, 110, 36, 6);
+    this.exploreBtnBg.fillRoundedRect(-35, -14, 70, 28, 6);
     this.exploreBtnBg.lineStyle(1, 0x6688ee, 0.6);
-    this.exploreBtnBg.strokeRoundedRect(-55, -18, 110, 36, 6);
+    this.exploreBtnBg.strokeRoundedRect(-35, -14, 70, 28, 6);
+  }
+
+  private createPlayerView(): void {
+    this.playerView = new PlayerView(this, GAME_W / 2, 475);
+    this.playerView.updateStats(this.player);
+
+    this.playerView.on("pointerdown", () => {
+      if (this.fateDeckPopup) return;
+      this.fateDeckPopup = new FateDeckPopup(
+        this,
+        GAME_W / 2,
+        370,
+        this.player.fateDeckCards
+      );
+      this.fateDeckPopup.once("destroy", () => {
+        this.fateDeckPopup = null;
+      });
+    });
+  }
+
+  private updatePlayerStats(): void {
+    this.playerView.updateStats(this.player);
   }
 
   private onExplore(): void {

@@ -1,0 +1,35 @@
+name: Build and Deploy
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
+  deploy:
+    name: Deploy to itch.io
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: html${{ github.head_ref }}.${{ github.sha }}
+          path: ./build
+
+      - name: Zip build
+        run: zip -r build.zip build/
+
+      - name: Upload to itch.io
+        uses: Ayowel/butler-to-itch@v1
+        with:
+          butler_key: ${{ secrets.BUTLER_CREDENTIALS }}
+          itch_user: ${{ vars.ITCH_USER }}
+          itch_game: ${{ vars.ITCH_GAME }}
+          version: ${{ github.ref_name }}
+          files: |
+            build.zip

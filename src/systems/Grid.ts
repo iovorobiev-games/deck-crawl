@@ -1,7 +1,7 @@
 import { Card, CARD_W, CARD_H } from "../entities/Card";
 
-const COLS = 4;
-const ROWS = 4;
+export const COLS = 5;
+export const ROWS = 3;
 const GAP = 8;
 
 export interface CellPos {
@@ -18,7 +18,7 @@ export class Grid {
     const gridW = COLS * CARD_W + (COLS - 1) * GAP;
     const gridH = ROWS * CARD_H + (ROWS - 1) * GAP;
     this.originX = (screenW - gridW) / 2 + CARD_W / 2;
-    this.originY = (screenH - gridH) / 2 + CARD_H / 2;
+    this.originY = (screenH - gridH) / 2 + CARD_H / 2 - 40;
 
     for (let r = 0; r < ROWS; r++) {
       this.cells[r] = [];
