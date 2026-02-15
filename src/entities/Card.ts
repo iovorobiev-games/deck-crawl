@@ -18,7 +18,7 @@ export class Card extends Phaser.GameObjects.Container {
     this.setSize(CARD_W, CARD_H);
     this.createVisual();
     this.setInteractive(
-      new Phaser.Geom.Rectangle(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H),
+      new Phaser.Geom.Rectangle(0, 0, CARD_W, CARD_H),
       Phaser.Geom.Rectangle.Contains
     );
     scene.add.existing(this);

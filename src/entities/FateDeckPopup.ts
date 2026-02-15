@@ -22,8 +22,8 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
     const backdrop = scene.add.rectangle(
       GAME_W / 2,
       GAME_H / 2,
-      GAME_W,
-      GAME_H,
+      GAME_W * 4,
+      GAME_H * 4,
       0x000000,
       0.4
     );
@@ -123,7 +123,7 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
 
     container.setSize(CARD_W, CARD_H);
     container.setInteractive(
-      new Phaser.Geom.Rectangle(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H),
+      new Phaser.Geom.Rectangle(0, 0, CARD_W, CARD_H),
       Phaser.Geom.Rectangle.Contains
     );
 
