@@ -12,8 +12,8 @@ export class GameOverScreen extends Phaser.GameObjects.Container {
     const backdrop = scene.add.rectangle(
       GAME_W / 2,
       GAME_H / 2,
-      GAME_W,
-      GAME_H,
+      GAME_W * 4,
+      GAME_H * 4,
       0x000000,
       0.7
     );
@@ -54,7 +54,7 @@ export class GameOverScreen extends Phaser.GameObjects.Container {
 
     btn.setSize(btnW, btnH);
     btn.setInteractive(
-      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
+      new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
       Phaser.Geom.Rectangle.Contains
     );
 

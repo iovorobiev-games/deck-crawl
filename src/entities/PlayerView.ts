@@ -23,7 +23,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
 
     this.setSize(CARD_W, CARD_H);
     this.setInteractive(
-      new Phaser.Geom.Rectangle(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H),
+      new Phaser.Geom.Rectangle(0, 0, CARD_W, CARD_H),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -163,10 +163,9 @@ export class PlayerView extends Phaser.GameObjects.Container {
   }
 
   getFateDeckWorldPos(): { x: number; y: number } {
-    const worldMatrix = this.getWorldTransformMatrix();
     return {
-      x: worldMatrix.tx,
-      y: worldMatrix.ty - 20,
+      x: this.x,
+      y: this.y - 20,
     };
   }
 
