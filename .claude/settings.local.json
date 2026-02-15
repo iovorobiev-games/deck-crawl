@@ -1,7 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr:*)",
+      "Bash(echo:*)",
+      "Bash(where:*)",
+      "Bash(test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx vite build:*)",
+      "Bash(timeout 5 npm run dev:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(start http://localhost:5175/)",
+      "Bash(npx:*)",
+      "Bash(node -e:*)"
     ]
   }
 }
