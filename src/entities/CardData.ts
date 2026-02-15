@@ -7,11 +7,14 @@ export enum CardType {
   Event = "Event",
 }
 
+export type EquipSlot = "weapon" | "armour" | "head" | "backpack";
+
 export interface CardData {
   type: CardType;
   name: string;
   value: number;
   description: string;
+  slot?: EquipSlot;
 }
 
 export const CardColorMap: Record<CardType, number> = {
