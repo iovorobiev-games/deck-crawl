@@ -163,9 +163,10 @@ export class PlayerView extends Phaser.GameObjects.Container {
   }
 
   getFateDeckWorldPos(): { x: number; y: number } {
+    const worldMatrix = this.getWorldTransformMatrix();
     return {
-      x: this.x,
-      y: this.y - 20,
+      x: worldMatrix.tx,
+      y: worldMatrix.ty - 20,
     };
   }
 

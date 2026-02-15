@@ -304,8 +304,8 @@ export class GameScene extends Phaser.Scene {
     this.combatOverlay = this.add.rectangle(
       GAME_W / 2,
       GAME_H / 2,
-      GAME_W * 4,
-      GAME_H * 4,
+      GAME_W,
+      GAME_H,
       0x000000,
       0.01
     );
