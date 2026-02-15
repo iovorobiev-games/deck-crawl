@@ -36,4 +36,16 @@ export class Player extends Phaser.Events.EventEmitter {
     this.gold += amount;
     this.emit("goldChanged", this.gold);
   }
+
+  drawFateCard(): number {
+    return this.fateDeck.splice(0, 1)[0];
+  }
+
+  shuffleFateCardBack(modifier: number): void {
+    this.fateDeck.push(modifier);
+    for (let i = this.fateDeck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.fateDeck[i], this.fateDeck[j]] = [this.fateDeck[j], this.fateDeck[i]];
+    }
+  }
 }

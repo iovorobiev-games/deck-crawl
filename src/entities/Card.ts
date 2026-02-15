@@ -94,6 +94,13 @@ export class Card extends Phaser.GameObjects.Container {
     });
   }
 
+  updateValue(newValue: number): void {
+    this.cardData.value = newValue;
+    if (this.valueText) {
+      this.valueText.setText(String(newValue));
+    }
+  }
+
   setHighlight(on: boolean): void {
     if (on) {
       this.bg.clear();
