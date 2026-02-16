@@ -13,6 +13,8 @@ export class Deck {
           value: entry.value,
           description: entry.description,
           slot: entry.slot,
+          lockDifficulty: entry.lockDifficulty,
+          trapDamage: entry.trapDamage,
         });
       }
     }
