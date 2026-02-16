@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { CardData, CardColorMap } from "./CardData";
+import { CardData, CardType, CardColorMap } from "./CardData";
 
 export const CARD_W = 100;
 export const CARD_H = 110;
@@ -7,10 +7,12 @@ const CORNER_R = 8;
 
 export class Card extends Phaser.GameObjects.Container {
   cardData: CardData;
+  guardedLoot: Card | null = null;
   private bg!: Phaser.GameObjects.Graphics;
   private nameText!: Phaser.GameObjects.Text;
   private typeText!: Phaser.GameObjects.Text;
   private valueText!: Phaser.GameObjects.Text;
+  private trapText!: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, x: number, y: number, data: CardData) {
     super(scene, x, y);
@@ -54,7 +56,24 @@ export class Card extends Phaser.GameObjects.Container {
     }).setOrigin(0.5);
     this.add(this.nameText);
 
-    if (this.cardData.value > 0) {
+    if (this.cardData.type === CardType.Chest && this.cardData.lockDifficulty != null) {
+      this.valueText = this.scene.add.text(0, CARD_H / 2 - 20, `\u{1F512}${this.cardData.lockDifficulty}`, {
+        fontSize: "16px",
+        fontFamily: "monospace",
+        color: "#fff",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.add(this.valueText);
+
+      if (this.cardData.trapDamage != null) {
+        this.trapText = this.scene.add.text(-CARD_W / 2 + 8, CARD_H / 2 - 18, `\u2665-${this.cardData.trapDamage}`, {
+          fontSize: "10px",
+          fontFamily: "monospace",
+          color: "#ff6666",
+        }).setOrigin(0, 0.5);
+        this.add(this.trapText);
+      }
+    } else if (this.cardData.value > 0) {
       this.valueText = this.scene.add.text(0, CARD_H / 2 - 20, String(this.cardData.value), {
         fontSize: "18px",
         fontFamily: "monospace",
@@ -99,6 +118,22 @@ export class Card extends Phaser.GameObjects.Container {
     if (this.valueText) {
       this.valueText.setText(String(newValue));
     }
+  }
+
+  /** Restrict hit area to only the bottom peekHeight pixels (the visible peek region). */
+  setPeekHitArea(peekHeight: number): void {
+    this.setInteractive(
+      new Phaser.Geom.Rectangle(0, CARD_H / 2 - peekHeight / 2, CARD_W, peekHeight),
+      Phaser.Geom.Rectangle.Contains
+    );
+  }
+
+  /** Restore the default full-card hit area. */
+  restoreFullHitArea(): void {
+    this.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, CARD_W, CARD_H),
+      Phaser.Geom.Rectangle.Contains
+    );
   }
 
   setHighlight(on: boolean): void {

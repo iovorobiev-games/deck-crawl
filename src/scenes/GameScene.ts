@@ -8,11 +8,12 @@ import { Deck } from "../systems/Deck";
 import { Grid, COLS, ROWS } from "../systems/Grid";
 import { Player } from "../systems/Player";
 import { Inventory, SLOT_DEFS } from "../systems/Inventory";
-import { CardType } from "../entities/CardData";
-import { deckConfig } from "../data/deckConfig";
+import { CardType, CardData } from "../entities/CardData";
+import { deckConfig, lootPool } from "../data/deckConfig";
 
 const GAME_W = 960;
 const GAME_H = 540;
+const TREASURE_OFFSET_Y = 28;
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -36,6 +37,11 @@ export class GameScene extends Phaser.Scene {
   private dragStartPos: { x: number; y: number } | null = null;
   private dragOrigGridPos: { col: number; row: number } | null = null;
   private isDragging = false;
+  private guardedByMonster: Map<Card, Card> = new Map();
+  private crackingChest: Card | null = null;
+  private chestOverlay: Phaser.GameObjects.Rectangle | null = null;
+  private crackBtn: Phaser.GameObjects.Container | null = null;
+  private chestLoot: Map<Card, { lootData: CardData; cardBack: Phaser.GameObjects.Container }> = new Map();
 
   constructor() {
     super({ key: "GameScene" });
@@ -215,16 +221,92 @@ export class GameScene extends Phaser.Scene {
       [emptySlots[i], emptySlots[j]] = [emptySlots[j], emptySlots[i]];
     }
 
-    drawn.forEach((cardData, index) => {
-      const slot = emptySlots[index];
-      const pos = this.grid.worldPos(slot.col, slot.row);
+    // Pre-plan: determine which monsters claim existing loot or generate new loot
+    const claimedSet = new Set<Card>();
+    interface PlacementPlan {
+      cardData: CardData;
+      slot: { col: number; row: number };
+      existingLoot?: Card;       // existing grid loot to claim
+      generatedLoot?: CardData;  // new loot to generate
+    }
+    const plans: PlacementPlan[] = [];
 
-      // Stagger reveal
+    for (let i = 0; i < drawn.length; i++) {
+      const cardData = drawn[i];
+      const slot = emptySlots[i];
+      const plan: PlacementPlan = { cardData, slot };
+
+      if (cardData.type === CardType.Monster) {
+        const existing = this.findUnguardedLootOnGrid(claimedSet);
+        if (existing) {
+          claimedSet.add(existing);
+          plan.existingLoot = existing;
+          // Monster takes over the loot's grid slot
+          const lootCell = this.grid.findCard(existing);
+          if (lootCell) {
+            plan.slot = { col: lootCell.col, row: lootCell.row };
+          }
+        } else {
+          plan.generatedLoot = this.pickRandomLoot();
+        }
+      }
+
+      plans.push(plan);
+    }
+
+    // Execute with staggered reveals
+    plans.forEach((plan, index) => {
       this.time.delayedCall(index * 150, () => {
-        const card = new Card(this, pos.x, pos.y, cardData);
-        this.grid.placeCard(slot.col, slot.row, card);
-        card.reveal();
-        this.setupCardInteraction(card);
+        const pos = this.grid.worldPos(plan.slot.col, plan.slot.row);
+
+        if (plan.cardData.type === CardType.Monster) {
+          let lootCard: Card;
+
+          if (plan.existingLoot) {
+            // Claim existing loot card: remove from grid, reposition as peek above monster
+            lootCard = plan.existingLoot;
+            const lootCell = this.grid.findCard(lootCard);
+            if (lootCell) this.grid.removeCard(lootCell.col, lootCell.row);
+            lootCard.setPosition(pos.x, pos.y - TREASURE_OFFSET_Y);
+            lootCard.setDepth(5);
+          } else {
+            // Generate new loot card at peek position above monster
+            lootCard = new Card(this, pos.x, pos.y - TREASURE_OFFSET_Y, plan.generatedLoot!);
+            lootCard.setDepth(5);
+            lootCard.reveal();
+          }
+
+          // Create monster on top
+          const monsterCard = new Card(this, pos.x, pos.y, plan.cardData);
+          monsterCard.setDepth(10);
+          this.grid.placeCard(plan.slot.col, plan.slot.row, monsterCard);
+          monsterCard.reveal();
+
+          // Link monster and loot
+          monsterCard.guardedLoot = lootCard;
+          this.guardedByMonster.set(lootCard, monsterCard);
+
+          this.setupGuardedLootInteraction(lootCard, monsterCard);
+          this.setupCardInteraction(monsterCard);
+        } else if (plan.cardData.type === CardType.Chest) {
+          // Create face-down loot card back behind chest
+          const lootData = this.pickRandomLoot();
+          const cardBack = this.createCardBack(pos.x, pos.y - TREASURE_OFFSET_Y);
+          cardBack.setDepth(5);
+
+          const chestCard = new Card(this, pos.x, pos.y, plan.cardData);
+          chestCard.setDepth(10);
+          this.grid.placeCard(plan.slot.col, plan.slot.row, chestCard);
+          chestCard.reveal();
+
+          this.chestLoot.set(chestCard, { lootData, cardBack });
+          this.setupCardInteraction(chestCard);
+        } else {
+          const card = new Card(this, pos.x, pos.y, plan.cardData);
+          this.grid.placeCard(plan.slot.col, plan.slot.row, card);
+          card.reveal();
+          this.setupCardInteraction(card);
+        }
       });
     });
 
@@ -234,6 +316,66 @@ export class GameScene extends Phaser.Scene {
     if (this.deck.isEmpty) {
       this.disableExploreButton();
     }
+  }
+
+  private findUnguardedLootOnGrid(alreadyClaimed: Set<Card>): Card | null {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (
+          card &&
+          (card.cardData.type === CardType.Treasure ||
+            card.cardData.type === CardType.Potion ||
+            card.cardData.type === CardType.Scroll) &&
+          !this.guardedByMonster.has(card) &&
+          !alreadyClaimed.has(card)
+        ) {
+          return card;
+        }
+      }
+    }
+    return null;
+  }
+
+  private pickRandomLoot(): CardData {
+    const entry = lootPool[Math.floor(Math.random() * lootPool.length)];
+    return { ...entry };
+  }
+
+  private setupGuardedLootInteraction(lootCard: Card, monsterCard: Card): void {
+    // Hover reveals full card by raising depth above monster (no movement = no twitching)
+    lootCard.on("pointerover", () => {
+      if (this.isResolving) return;
+      lootCard.setDepth(15);
+    });
+    lootCard.on("pointerout", () => {
+      lootCard.setDepth(5);
+    });
+  }
+
+  private freeGuardedLoot(lootCard: Card, cellPos: { col: number; row: number }): void {
+    // Clear guard links
+    this.guardedByMonster.delete(lootCard);
+
+    // Remove all existing listeners from guarded interaction
+    lootCard.removeAllListeners();
+
+    const targetPos = this.grid.worldPos(cellPos.col, cellPos.row);
+    lootCard.setAlpha(1);
+
+    this.tweens.add({
+      targets: lootCard,
+      x: targetPos.x,
+      y: targetPos.y,
+      duration: 400,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        lootCard.setDepth(0);
+        lootCard.restoreFullHitArea();
+        this.grid.placeCard(cellPos.col, cellPos.row, lootCard);
+        this.setupCardInteraction(lootCard);
+      },
+    });
   }
 
   private isEquippable(card: Card): boolean {
@@ -253,6 +395,7 @@ export class GameScene extends Phaser.Scene {
     });
     card.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.isResolving) return;
+      if (this.guardedByMonster.has(card)) return;
       if (this.isEquippable(card)) {
         this.dragStartPos = { x: pointer.x, y: pointer.y };
         this.dragCard = card;
@@ -486,6 +629,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (card.cardData.type === CardType.Chest) {
+      this.enterChestMode(card);
+      return;
+    }
+
     this.isResolving = true;
     this.grid.removeCard(cell.col, cell.row);
 
@@ -504,8 +652,22 @@ export class GameScene extends Phaser.Scene {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && gridCard !== card) {
           gridCard.setAlpha(0.3);
+          // Also dim guarded loot on non-combat monsters
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(0.3);
+            gridCard.guardedLoot.disableInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(0.3);
         }
       }
+    }
+
+    // Dim the combat monster's own guarded loot
+    if (card.guardedLoot) {
+      card.guardedLoot.setAlpha(0.3);
+      card.guardedLoot.setDepth(3);
+      card.guardedLoot.disableInteractive();
     }
 
     // Dim grid background, deck visual, HUD, explore button
@@ -594,11 +756,20 @@ export class GameScene extends Phaser.Scene {
       this.fightBtn = null;
     }
 
-    // Restore all grid card alphas
+    // Restore all grid card alphas, guarded loot, and chest loot
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const gridCard = this.grid.getCardAt(c, r);
-        if (gridCard) gridCard.setAlpha(1);
+        if (gridCard) {
+          gridCard.setAlpha(1);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(1);
+            gridCard.guardedLoot.setDepth(5);
+            gridCard.guardedLoot.setInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+        }
       }
     }
 
@@ -610,7 +781,12 @@ export class GameScene extends Phaser.Scene {
 
     // Reset monster depth
     if (this.combatMonster) {
-      this.combatMonster.setDepth(0);
+      this.combatMonster.setDepth(10);
+      if (this.combatMonster.guardedLoot) {
+        this.combatMonster.guardedLoot.setAlpha(1);
+        this.combatMonster.guardedLoot.setDepth(5);
+        this.combatMonster.guardedLoot.setInteractive();
+      }
     }
 
     // Slide fate deck down
@@ -805,19 +981,32 @@ export class GameScene extends Phaser.Scene {
       this.fightBtn = null;
     }
 
-    // Remove monster from grid
+    // Capture guarded loot info before monster resolves
+    const guardedLoot = monsterCard.guardedLoot;
     const cell = this.grid.findCard(monsterCard);
+    const cellPos = cell ? { col: cell.col, row: cell.row } : null;
+
+    // Remove monster from grid
     if (cell) this.grid.removeCard(cell.col, cell.row);
 
     monsterCard.resolve(() => {
       // Shuffle fate card back
       this.player.shuffleFateCardBack(fateModifier);
 
-      // Restore alphas
+      // Restore alphas for all grid cards, guarded loot, and chest loot
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const gridCard = this.grid.getCardAt(c, r);
-          if (gridCard) gridCard.setAlpha(1);
+          if (gridCard) {
+            gridCard.setAlpha(1);
+            if (gridCard.guardedLoot) {
+              gridCard.guardedLoot.setAlpha(1);
+              gridCard.guardedLoot.setDepth(5);
+              gridCard.guardedLoot.setInteractive();
+            }
+            const chestLootInfo = this.chestLoot.get(gridCard);
+            if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+          }
         }
       }
       this.gridBgGraphics.setAlpha(1);
@@ -829,6 +1018,11 @@ export class GameScene extends Phaser.Scene {
       this.playerView.slideFateDeckDown(this);
       this.playerView.restorePower(this.player, this.inventory.powerBonus);
 
+      // Free the guarded loot into the now-empty grid slot
+      if (guardedLoot && cellPos) {
+        this.freeGuardedLoot(guardedLoot, cellPos);
+      }
+
       this.isResolving = false;
       this.combatMonster = null;
 
@@ -837,6 +1031,353 @@ export class GameScene extends Phaser.Scene {
         this.showGameOver();
       }
     });
+  }
+
+  private enterChestMode(card: Card): void {
+    this.isResolving = true;
+    this.crackingChest = card;
+
+    // Dim other grid cards
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && gridCard !== card) {
+          gridCard.setAlpha(0.3);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(0.3);
+            gridCard.guardedLoot.disableInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(0.3);
+        }
+      }
+    }
+
+    // Dim the chest's own loot card back
+    const ownLoot = this.chestLoot.get(card);
+    if (ownLoot) ownLoot.cardBack.setAlpha(0.3);
+
+    // Dim grid background, deck visual, HUD, explore button
+    this.gridBgGraphics.setAlpha(0.3);
+    this.deckVisual.setAlpha(0.3);
+    this.deckText.setAlpha(0.3);
+    this.exploreBtn.setAlpha(0.3);
+
+    // Bring chest to top
+    card.setDepth(100);
+
+    // Create clickable overlay behind crack button (to cancel)
+    this.chestOverlay = this.add.rectangle(
+      GAME_W / 2,
+      GAME_H / 2,
+      GAME_W,
+      GAME_H,
+      0x000000,
+      0.01
+    );
+    this.chestOverlay.setDepth(50);
+    this.chestOverlay.setInteractive();
+    this.chestOverlay.on("pointerdown", () => this.exitChestMode());
+
+    // Create CRACK button below chest
+    const btnW = 80;
+    const btnH = 30;
+    this.crackBtn = this.add.container(card.x, card.y + CARD_H / 2 + 24);
+    this.crackBtn.setDepth(110);
+
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0x88664d, 1);
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    btnBg.lineStyle(2, 0xaa8866, 0.8);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    this.crackBtn.add(btnBg);
+
+    const btnText = this.add
+      .text(0, 0, "CRACK", {
+        fontSize: "16px",
+        fontFamily: "monospace",
+        color: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.crackBtn.add(btnText);
+
+    this.crackBtn.setSize(btnW, btnH);
+    this.crackBtn.setInteractive(
+      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
+      Phaser.Geom.Rectangle.Contains
+    );
+
+    this.crackBtn.on("pointerover", () => {
+      btnBg.clear();
+      btnBg.fillStyle(0xaa8866, 1);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.lineStyle(2, 0xaa8866, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    });
+
+    this.crackBtn.on("pointerout", () => {
+      btnBg.clear();
+      btnBg.fillStyle(0x88664d, 1);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.lineStyle(2, 0xaa8866, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    });
+
+    this.crackBtn.on("pointerdown", () => {
+      this.executeCrack(card);
+    });
+
+    // Slide fate deck up
+    this.playerView.slideFateDeckUp(this);
+  }
+
+  private exitChestMode(): void {
+    if (this.chestOverlay) {
+      this.chestOverlay.destroy();
+      this.chestOverlay = null;
+    }
+    if (this.crackBtn) {
+      this.crackBtn.destroy();
+      this.crackBtn = null;
+    }
+
+    // Restore all grid card alphas, guarded loot, and chest loot
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard) {
+          gridCard.setAlpha(1);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(1);
+            gridCard.guardedLoot.setDepth(5);
+            gridCard.guardedLoot.setInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+        }
+      }
+    }
+
+    // Restore HUD alphas
+    this.gridBgGraphics.setAlpha(1);
+    this.deckVisual.setAlpha(1);
+    this.deckText.setAlpha(1);
+    this.exploreBtn.setAlpha(1);
+
+    // Reset chest depth
+    if (this.crackingChest) {
+      this.crackingChest.setDepth(10);
+    }
+
+    // Slide fate deck down
+    this.playerView.slideFateDeckDown(this);
+
+    this.isResolving = false;
+    this.crackingChest = null;
+  }
+
+  private executeCrack(chestCard: Card): void {
+    if (this.crackBtn) this.crackBtn.disableInteractive();
+    if (this.chestOverlay) this.chestOverlay.disableInteractive();
+
+    const modifier = this.player.drawFateCard();
+    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+
+    // Create fate card visual
+    const fateCardW = 50;
+    const fateCardH = 70;
+    const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
+    fateCard.setDepth(200);
+    fateCard.setScale(0.3);
+
+    const fateBg = this.add.graphics();
+    fateBg.fillStyle(0x1a1a2e, 1);
+    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateBg.lineStyle(1, 0x4444aa, 0.8);
+    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateCard.add(fateBg);
+
+    let modColor: string;
+    let modLabel: string;
+    if (modifier > 0) {
+      modColor = "#44dd88";
+      modLabel = `+${modifier}`;
+    } else if (modifier < 0) {
+      modColor = "#ff5555";
+      modLabel = `${modifier}`;
+    } else {
+      modColor = "#888888";
+      modLabel = "0";
+    }
+
+    const modText = this.add
+      .text(0, 0, modLabel, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: modColor,
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    fateCard.add(modText);
+
+    // Animate fate card appearing above player
+    const targetX = this.playerView.x - 70;
+    const targetY = this.playerView.y - 60;
+
+    this.tweens.add({
+      targets: fateCard,
+      x: targetX,
+      y: targetY,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 500,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        this.time.delayedCall(300, () => {
+          const modifiedAgility = Math.max(0, this.player.agility + modifier);
+
+          this.tweens.add({
+            targets: fateCard,
+            x: this.playerView.x,
+            y: this.playerView.y,
+            scaleX: 0,
+            scaleY: 0,
+            duration: 300,
+            ease: "Power2",
+            onComplete: () => {
+              fateCard.destroy();
+              this.playerView.showTempAgility(modifiedAgility);
+
+              this.time.delayedCall(300, () => {
+                const lockDifficulty = chestCard.cardData.lockDifficulty ?? 0;
+                const success = modifiedAgility >= lockDifficulty;
+
+                if (success) {
+                  this.chestCleanup(chestCard, modifier);
+                } else {
+                  const trapDamage = chestCard.cardData.trapDamage ?? 0;
+                  if (trapDamage > 0) {
+                    this.player.takeDamage(trapDamage);
+                    // Flash player portrait
+                    this.tweens.add({
+                      targets: this.playerView,
+                      alpha: 0.3,
+                      duration: 80,
+                      yoyo: true,
+                      repeat: 2,
+                      onComplete: () => {
+                        this.chestCleanup(chestCard, modifier);
+                      },
+                    });
+                  } else {
+                    this.chestCleanup(chestCard, modifier);
+                  }
+                }
+              });
+            },
+          });
+        });
+      },
+    });
+  }
+
+  private chestCleanup(chestCard: Card, fateModifier: number): void {
+    if (this.chestOverlay) {
+      this.chestOverlay.destroy();
+      this.chestOverlay = null;
+    }
+    if (this.crackBtn) {
+      this.crackBtn.destroy();
+      this.crackBtn = null;
+    }
+
+    const lootInfo = this.chestLoot.get(chestCard);
+    const cell = this.grid.findCard(chestCard);
+    const cellPos = cell ? { col: cell.col, row: cell.row } : null;
+
+    if (cell) this.grid.removeCard(cell.col, cell.row);
+    this.chestLoot.delete(chestCard);
+
+    chestCard.resolve(() => {
+      this.player.shuffleFateCardBack(fateModifier);
+
+      // Restore alphas
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const gridCard = this.grid.getCardAt(c, r);
+          if (gridCard) {
+            gridCard.setAlpha(1);
+            if (gridCard.guardedLoot) {
+              gridCard.guardedLoot.setAlpha(1);
+              gridCard.guardedLoot.setDepth(5);
+              gridCard.guardedLoot.setInteractive();
+            }
+            const chestLootInfo = this.chestLoot.get(gridCard);
+            if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+          }
+        }
+      }
+      this.gridBgGraphics.setAlpha(1);
+      this.deckVisual.setAlpha(1);
+      this.deckText.setAlpha(1);
+      this.exploreBtn.setAlpha(1);
+
+      this.playerView.slideFateDeckDown(this);
+      this.playerView.restoreAgility(this.player);
+
+      // Reveal loot card
+      if (lootInfo && cellPos) {
+        lootInfo.cardBack.destroy();
+        const targetPos = this.grid.worldPos(cellPos.col, cellPos.row);
+        const lootCard = new Card(this, targetPos.x, targetPos.y, lootInfo.lootData);
+        lootCard.setScale(0, 1);
+        this.grid.placeCard(cellPos.col, cellPos.row, lootCard);
+
+        this.tweens.add({
+          targets: lootCard,
+          scaleX: 1,
+          duration: 300,
+          ease: "Back.easeOut",
+          onComplete: () => {
+            this.setupCardInteraction(lootCard);
+            this.isResolving = false;
+            this.crackingChest = null;
+          },
+        });
+      } else {
+        this.isResolving = false;
+        this.crackingChest = null;
+      }
+
+      if (this.player.hp <= 0) {
+        this.showGameOver();
+      }
+    });
+  }
+
+  private createCardBack(x: number, y: number): Phaser.GameObjects.Container {
+    const container = this.add.container(x, y);
+    const gfx = this.add.graphics();
+    gfx.fillStyle(0x2a2a4e, 1);
+    gfx.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
+    gfx.lineStyle(1, 0x4444aa, 0.8);
+    gfx.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
+    gfx.lineStyle(1, 0x5555bb, 0.5);
+    gfx.strokeRect(-CARD_W / 2 + 12, -CARD_H / 2 + 15, CARD_W - 24, CARD_H - 30);
+    container.add(gfx);
+
+    const questionMark = this.add
+      .text(0, 0, "?", {
+        fontSize: "24px",
+        fontFamily: "monospace",
+        color: "#5555bb",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    container.add(questionMark);
+
+    return container;
   }
 
   private showGameOver(): void {
