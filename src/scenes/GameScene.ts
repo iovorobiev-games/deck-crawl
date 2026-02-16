@@ -3,9 +3,11 @@ import { Card, CARD_W, CARD_H } from "../entities/Card";
 import { PlayerView } from "../entities/PlayerView";
 import { FateDeckPopup } from "../entities/FateDeckPopup";
 import { GameOverScreen } from "../entities/GameOverScreen";
+import { InventoryView } from "../entities/InventoryView";
 import { Deck } from "../systems/Deck";
 import { Grid, COLS, ROWS } from "../systems/Grid";
 import { Player } from "../systems/Player";
+import { Inventory, SLOT_DEFS } from "../systems/Inventory";
 import { CardType } from "../entities/CardData";
 import { deckConfig } from "../data/deckConfig";
 
@@ -28,7 +30,12 @@ export class GameScene extends Phaser.Scene {
   private combatOverlay: Phaser.GameObjects.Rectangle | null = null;
   private fightBtn: Phaser.GameObjects.Container | null = null;
   private gridBgGraphics!: Phaser.GameObjects.Graphics;
-  private gameRoot!: Phaser.GameObjects.Container;
+  private inventory!: Inventory;
+  private inventoryView!: InventoryView;
+  private dragCard: Card | null = null;
+  private dragStartPos: { x: number; y: number } | null = null;
+  private dragOrigGridPos: { col: number; row: number } | null = null;
+  private isDragging = false;
 
   constructor() {
     super({ key: "GameScene" });
@@ -36,45 +43,29 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor(0x0e0e1a);
-    this.gameRoot = this.add.container(0, 0);
 
     this.player = new Player(10);
     this.deck = new Deck(deckConfig);
     this.grid = new Grid(GAME_W, GAME_H);
+
+    this.inventory = new Inventory();
 
     this.createHUD();
     this.createGridBackground();
     this.createDeckVisual();
     this.createExploreButton();
     this.createPlayerView();
+    this.inventoryView = new InventoryView(this, this.inventory);
+    this.setupSlotDiscard();
 
-    this.gameRoot.add([
-      this.gridBgGraphics,
-      this.deckVisual,
-      this.deckText,
-      this.exploreBtn,
-      this.playerView,
-    ]);
+    this.inventory.on("statsChanged", () => this.updatePlayerStats());
+
 
     // Draw initial 3 cards
     this.drawAndPlaceCards(3);
 
     this.player.on("hpChanged", () => this.updatePlayerStats());
     this.player.on("goldChanged", () => this.updateHUD());
-
-    this.updateGameRoot();
-    this.scale.on("resize", () => this.updateGameRoot());
-  }
-
-  private updateGameRoot(): void {
-    const w = this.scale.gameSize.width;
-    const h = this.scale.gameSize.height;
-    const s = Math.min(w / GAME_W, h / GAME_H);
-    this.gameRoot.setScale(s);
-    this.gameRoot.setPosition(
-      (w - GAME_W * s) / 2,
-      (h - GAME_H * s) / 2
-    );
   }
 
   private createHUD(): void {
@@ -163,7 +154,7 @@ export class GameScene extends Phaser.Scene {
 
     this.exploreBtn.setSize(70, 28);
     this.exploreBtn.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, 70, 28),
+      new Phaser.Geom.Rectangle(-35, -14, 70, 28),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -196,7 +187,6 @@ export class GameScene extends Phaser.Scene {
         370,
         this.player.fateDeckCards
       );
-      this.gameRoot.add(this.fateDeckPopup);
       this.fateDeckPopup.once("destroy", () => {
         this.fateDeckPopup = null;
       });
@@ -204,7 +194,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updatePlayerStats(): void {
-    this.playerView.updateStats(this.player);
+    this.playerView.updateStats(this.player, this.inventory.powerBonus);
   }
 
   private onExplore(): void {
@@ -232,7 +222,6 @@ export class GameScene extends Phaser.Scene {
       // Stagger reveal
       this.time.delayedCall(index * 150, () => {
         const card = new Card(this, pos.x, pos.y, cardData);
-        this.gameRoot.add(card);
         this.grid.placeCard(slot.col, slot.row, card);
         card.reveal();
         this.setupCardInteraction(card);
@@ -247,17 +236,245 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private isEquippable(card: Card): boolean {
+    return (
+      (card.cardData.type === CardType.Treasure ||
+        card.cardData.type === CardType.Potion) &&
+      !!card.cardData.slot
+    );
+  }
+
   private setupCardInteraction(card: Card): void {
     card.on("pointerover", () => {
-      if (!this.isResolving) card.setHighlight(true);
+      if (!this.isResolving && !this.isDragging) card.setHighlight(true);
     });
     card.on("pointerout", () => {
       card.setHighlight(false);
     });
-    card.on("pointerdown", () => {
+    card.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.isResolving) return;
-      this.resolveCard(card);
+      if (this.isEquippable(card)) {
+        this.dragStartPos = { x: pointer.x, y: pointer.y };
+        this.dragCard = card;
+
+        // Use scene-level listeners for drag detection (card pointermove
+        // only fires while pointer is over the card's hit area)
+        const onMoveDetect = (p: Phaser.Input.Pointer) => {
+          if (!this.dragStartPos || this.isDragging) return;
+          const dx = p.x - this.dragStartPos.x;
+          const dy = p.y - this.dragStartPos.y;
+          if (Math.sqrt(dx * dx + dy * dy) > 8) {
+            this.input.off("pointermove", onMoveDetect);
+            this.input.off("pointerup", onUpDetect);
+            this.beginDrag(card);
+          }
+        };
+        const onUpDetect = () => {
+          this.input.off("pointermove", onMoveDetect);
+          this.input.off("pointerup", onUpDetect);
+          if (this.dragCard === card && !this.isDragging) {
+            this.dragCard = null;
+            this.dragStartPos = null;
+            this.resolveCard(card);
+          }
+        };
+        this.input.on("pointermove", onMoveDetect);
+        this.input.on("pointerup", onUpDetect);
+      } else {
+        this.resolveCard(card);
+      }
     });
+  }
+
+  private toWorldCoords(pointer: Phaser.Input.Pointer): { x: number; y: number } {
+    return { x: pointer.x, y: pointer.y };
+  }
+
+  private beginDrag(card: Card): void {
+    this.isDragging = true;
+    this.isResolving = true;
+    card.setHighlight(false);
+
+    const cell = this.grid.findCard(card);
+    if (cell) {
+      this.dragOrigGridPos = { col: cell.col, row: cell.row };
+      this.grid.removeCard(cell.col, cell.row);
+    }
+
+    card.setDepth(500);
+    card.setScale(0.85);
+
+    // Show slot highlights immediately
+    for (const def of SLOT_DEFS) {
+      this.inventoryView.setSlotHighlight(
+        def.name,
+        this.inventory.canEquip(def.name, card.cardData) ? "valid" : "invalid"
+      );
+    }
+
+    const onMove = (pointer: Phaser.Input.Pointer) => {
+      const world = this.toWorldCoords(pointer);
+      card.setPosition(world.x, world.y);
+
+      // Update slot highlights — bright when hovered, dim otherwise
+      const hit = this.inventoryView.getSlotAtPoint(world.x, world.y);
+      for (const def of SLOT_DEFS) {
+        const canEquip = this.inventory.canEquip(def.name, card.cardData);
+        if (hit === def.name) {
+          this.inventoryView.setSlotHighlight(def.name, canEquip ? "valid" : "invalid");
+        } else {
+          this.inventoryView.setSlotHighlight(def.name, canEquip ? "valid_dim" : "invalid_dim");
+        }
+      }
+    };
+
+    const onUp = (pointer: Phaser.Input.Pointer) => {
+      this.input.off("pointermove", onMove);
+      this.input.off("pointerup", onUp);
+
+      const world = this.toWorldCoords(pointer);
+      const slotName = this.inventoryView.getSlotAtPoint(world.x, world.y);
+
+      if (slotName && this.inventory.canEquip(slotName, card.cardData)) {
+        // Equip item
+        const previous = this.inventory.equip(slotName, card.cardData);
+        if (previous) {
+          const slotPos = this.inventoryView.getSlotWorldPos(slotName);
+          if (slotPos) {
+            this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
+          }
+        }
+        card.disableInteractive();
+        card.resolve(() => {
+          this.finishDrag();
+        });
+      } else {
+        // Snap back to grid
+        this.snapBackToGrid(card);
+      }
+
+      this.inventoryView.clearAllHighlights();
+    };
+
+    this.input.on("pointermove", onMove);
+    this.input.on("pointerup", onUp);
+  }
+
+  private snapBackToGrid(card: Card): void {
+    if (!this.dragOrigGridPos) {
+      this.finishDrag();
+      return;
+    }
+    const pos = this.grid.worldPos(this.dragOrigGridPos.col, this.dragOrigGridPos.row);
+    this.tweens.add({
+      targets: card,
+      x: pos.x,
+      y: pos.y,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: "Power2",
+      onComplete: () => {
+        if (this.dragOrigGridPos) {
+          this.grid.placeCard(this.dragOrigGridPos.col, this.dragOrigGridPos.row, card);
+        }
+        card.setDepth(0);
+        this.finishDrag();
+      },
+    });
+  }
+
+  private finishDrag(): void {
+    this.dragCard = null;
+    this.dragStartPos = null;
+    this.dragOrigGridPos = null;
+    this.isDragging = false;
+    this.isResolving = false;
+  }
+
+  private setupSlotDiscard(): void {
+    for (const def of SLOT_DEFS) {
+      const container = this.inventoryView.getSlotContainer(def.name);
+      if (!container) continue;
+
+      container.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+        if (this.isResolving || this.isDragging) return;
+        const item = this.inventory.getItem(def.name);
+        if (!item) return;
+
+        const startPos = { x: pointer.x, y: pointer.y };
+        let ghost: Phaser.GameObjects.Container | null = null;
+        let dragging = false;
+
+        const onMove = (p: Phaser.Input.Pointer) => {
+          const dx = p.x - startPos.x;
+          const dy = p.y - startPos.y;
+
+          if (!dragging && Math.sqrt(dx * dx + dy * dy) > 12) {
+            dragging = true;
+            ghost = this.inventoryView.createDragGhost(item);
+            ghost.setDepth(500);
+            this.add.existing(ghost);
+            this.inventoryView.setSlotContentAlpha(def.name, 0.3);
+            // Show initial slot highlights
+            for (const slotDef of SLOT_DEFS) {
+              const canEquip = this.inventory.canEquip(slotDef.name, item);
+              this.inventoryView.setSlotHighlight(slotDef.name, canEquip ? "valid_dim" : "invalid_dim");
+            }
+          }
+
+          if (dragging && ghost) {
+            const world = this.toWorldCoords(p);
+            ghost.setPosition(world.x, world.y);
+            // Update highlights — bright when hovered, dim otherwise
+            const hit = this.inventoryView.getSlotAtPoint(world.x, world.y);
+            for (const slotDef of SLOT_DEFS) {
+              const canEquip = this.inventory.canEquip(slotDef.name, item);
+              if (hit === slotDef.name) {
+                this.inventoryView.setSlotHighlight(slotDef.name, canEquip ? "valid" : "invalid");
+              } else {
+                this.inventoryView.setSlotHighlight(slotDef.name, canEquip ? "valid_dim" : "invalid_dim");
+              }
+            }
+          }
+        };
+        const onUp = (p: Phaser.Input.Pointer) => {
+          this.input.off("pointermove", onMove);
+          this.input.off("pointerup", onUp);
+          if (!dragging || !ghost) return;
+
+          const world = this.toWorldCoords(p);
+          const overSlot = this.inventoryView.getSlotAtPoint(world.x, world.y);
+
+          this.inventoryView.clearAllHighlights();
+
+          if (overSlot === def.name) {
+            // Dropped back on same slot — cancel
+            ghost.destroy();
+            this.inventoryView.setSlotContentAlpha(def.name, 1);
+          } else if (overSlot && this.inventory.canEquip(overSlot, item)) {
+            // Dropped on a compatible slot — move item
+            ghost.destroy();
+            this.inventoryView.setSlotContentAlpha(def.name, 1);
+            const displaced = this.inventory.unequip(def.name);
+            const previous = this.inventory.equip(overSlot, item);
+            if (previous) {
+              const slotPos = this.inventoryView.getSlotWorldPos(overSlot);
+              if (slotPos) {
+                this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
+              }
+            }
+          } else {
+            // Dropped elsewhere — discard
+            this.inventory.unequip(def.name);
+            ghost.destroy();
+            this.inventoryView.playDissolveAt(this, world.x, world.y, item);
+          }
+        };
+        this.input.on("pointermove", onMove);
+        this.input.on("pointerup", onUp);
+      });
+    }
   }
 
   private resolveCard(card: Card): void {
@@ -312,7 +529,6 @@ export class GameScene extends Phaser.Scene {
     this.combatOverlay.setDepth(50);
     this.combatOverlay.setInteractive();
     this.combatOverlay.on("pointerdown", () => this.exitCombatMode());
-    this.gameRoot.add(this.combatOverlay);
 
     // Create FIGHT button below the monster card
     const btnW = 80;
@@ -339,7 +555,7 @@ export class GameScene extends Phaser.Scene {
 
     this.fightBtn.setSize(btnW, btnH);
     this.fightBtn.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
+      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -362,8 +578,6 @@ export class GameScene extends Phaser.Scene {
     this.fightBtn.on("pointerdown", () => {
       this.executeCombat(card);
     });
-
-    this.gameRoot.add(this.fightBtn);
 
     // Slide fate deck up
     this.playerView.slideFateDeckUp(this);
@@ -421,7 +635,6 @@ export class GameScene extends Phaser.Scene {
     const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
     fateCard.setDepth(200);
     fateCard.setScale(0.3);
-    this.gameRoot.add(fateCard);
 
     const fateBg = this.add.graphics();
     fateBg.fillStyle(0x1a1a2e, 1);
@@ -468,7 +681,7 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         // Step 2: After a brief hold, fly fate card into player portrait
         this.time.delayedCall(300, () => {
-          const modifiedPower = Math.max(0, this.player.power + modifier);
+          const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier);
 
           this.tweens.add({
             targets: fateCard,
@@ -614,7 +827,7 @@ export class GameScene extends Phaser.Scene {
 
       // Slide fate deck down and restore power display
       this.playerView.slideFateDeckDown(this);
-      this.playerView.restorePower(this.player);
+      this.playerView.restorePower(this.player, this.inventory.powerBonus);
 
       this.isResolving = false;
       this.combatMonster = null;
@@ -627,8 +840,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showGameOver(): void {
-    const screen = new GameOverScreen(this);
-    this.gameRoot.add(screen);
+    new GameOverScreen(this);
+
   }
 
   private disableExploreButton(): void {

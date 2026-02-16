@@ -12,6 +12,7 @@ export class Deck {
           name: entry.name,
           value: entry.value,
           description: entry.description,
+          slot: entry.slot,
         });
       }
     }

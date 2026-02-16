@@ -137,10 +137,11 @@ export class PlayerView extends Phaser.GameObjects.Container {
     );
   }
 
-  updateStats(player: Player): void {
+  updateStats(player: Player, equipPowerBonus = 0): void {
     this.hpText.setText(`\u2665${player.hp}`);
-    this.powerText.setText(`\u2694${player.power}`);
-    this.powerText.setColor("#ffaa44");
+    const totalPower = player.power + equipPowerBonus;
+    this.powerText.setText(`\u2694${totalPower}`);
+    this.powerText.setColor(equipPowerBonus > 0 ? "#ffdd44" : "#ffaa44");
     this.agilityText.setText(`\u25C6${player.agility}`);
   }
 
@@ -175,7 +176,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.powerText.setColor("#ffff44");
   }
 
-  restorePower(player: Player): void {
-    this.updateStats(player);
+  restorePower(player: Player, equipPowerBonus = 0): void {
+    this.updateStats(player, equipPowerBonus);
   }
 }
