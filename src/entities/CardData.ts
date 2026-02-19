@@ -6,6 +6,7 @@ export enum CardType {
   Scroll = "Scroll",
   Event = "Event",
   Chest = "Chest",
+  Door = "Door",
 }
 
 export type EquipSlot = "weapon" | "armour" | "head" | "backpack";
@@ -18,6 +19,9 @@ export interface CardData {
   slot?: EquipSlot;
   lockDifficulty?: number;
   trapDamage?: number;
+  isKey?: boolean;
+  isBoss?: boolean;
+  deckLevel?: number;
 }
 
 export const CardColorMap: Record<CardType, number> = {
@@ -28,4 +32,5 @@ export const CardColorMap: Record<CardType, number> = {
   [CardType.Scroll]: 0x3366cc,
   [CardType.Event]: 0x8833aa,
   [CardType.Chest]: 0x88664d,
+  [CardType.Door]: 0x6644aa,
 };

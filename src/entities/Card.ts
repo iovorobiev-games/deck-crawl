@@ -73,6 +73,12 @@ export class Card extends Phaser.GameObjects.Container {
         }).setOrigin(0, 0.5);
         this.add(this.trapText);
       }
+    } else if (this.cardData.type === CardType.Door) {
+      this.valueText = this.scene.add.text(0, CARD_H * 0.28, "\u{1F512}", {
+        fontSize: "22px",
+        fontFamily: "monospace",
+      }).setOrigin(0.5);
+      this.add(this.valueText);
     } else if (this.cardData.value > 0) {
       this.valueText = this.scene.add.text(0, CARD_H / 2 - 20, String(this.cardData.value), {
         fontSize: "18px",
@@ -117,6 +123,21 @@ export class Card extends Phaser.GameObjects.Container {
     this.cardData.value = newValue;
     if (this.valueText) {
       this.valueText.setText(String(newValue));
+    }
+  }
+
+  markDoorOpened(): void {
+    this.bg.clear();
+    this.bg.fillStyle(0x2a1a4e, 1);
+    this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
+    this.bg.lineStyle(3, 0xeeddff, 1);
+    this.bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
+    this.bg.fillStyle(0xaa88ff, 1);
+    this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, 28, { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 });
+
+    this.nameText.setText("OPENED!");
+    if (this.valueText) {
+      this.valueText.setText("\u{1F513}");
     }
   }
 

@@ -9,7 +9,9 @@ import { Grid, COLS, ROWS } from "../systems/Grid";
 import { Player } from "../systems/Player";
 import { Inventory, SLOT_DEFS } from "../systems/Inventory";
 import { CardType, CardData } from "../entities/CardData";
-import { deckConfig, lootPool } from "../data/deckConfig";
+import { lootPool } from "../data/deckConfig";
+import { dungeonConfig, DungeonLevel } from "../data/dungeonConfig";
+import { WinScreen } from "../entities/WinScreen";
 
 const GAME_W = 960;
 const GAME_H = 540;
@@ -42,6 +44,11 @@ export class GameScene extends Phaser.Scene {
   private chestOverlay: Phaser.GameObjects.Rectangle | null = null;
   private crackBtn: Phaser.GameObjects.Container | null = null;
   private chestLoot: Map<Card, { lootData: CardData; cardBack: Phaser.GameObjects.Container }> = new Map();
+  private currentLevelIndex = 0;
+  private dungeonLevels!: DungeonLevel[];
+  private currentLevelKey: CardData | null = null;
+  private levelIndicator!: Phaser.GameObjects.Text;
+  private levelFlavorText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: "GameScene" });
@@ -51,8 +58,11 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(0x0e0e1a);
 
     this.player = new Player(10);
-    this.deck = new Deck(deckConfig);
     this.grid = new Grid(GAME_W, GAME_H);
+
+    this.dungeonLevels = dungeonConfig.levels;
+    this.currentLevelIndex = 0;
+    this.initLevel(0);
 
     this.inventory = new Inventory();
 
@@ -61,11 +71,11 @@ export class GameScene extends Phaser.Scene {
     this.createDeckVisual();
     this.createExploreButton();
     this.createPlayerView();
+    this.createLevelIndicator();
     this.inventoryView = new InventoryView(this, this.inventory);
     this.setupSlotDiscard();
 
     this.inventory.on("statsChanged", () => this.updatePlayerStats());
-
 
     // Draw initial 3 cards
     this.drawAndPlaceCards(3);
@@ -199,6 +209,36 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private initLevel(levelIndex: number): void {
+    const level = this.dungeonLevels[levelIndex];
+    this.deck = Deck.fromDungeonLevel(level);
+    this.currentLevelKey = { ...level.key, isKey: true, deckLevel: levelIndex + 1 };
+  }
+
+  private createLevelIndicator(): void {
+    this.levelIndicator = this.add.text(GAME_W / 2, 12, "", {
+      fontSize: "14px",
+      fontFamily: "monospace",
+      color: "#ddaa22",
+      fontStyle: "bold",
+    }).setOrigin(0.5, 0);
+
+    this.levelFlavorText = this.add.text(GAME_W / 2, 30, "", {
+      fontSize: "10px",
+      fontFamily: "monospace",
+      color: "#8888aa",
+      fontStyle: "italic",
+    }).setOrigin(0.5, 0);
+
+    this.updateLevelIndicator();
+  }
+
+  private updateLevelIndicator(): void {
+    const level = this.dungeonLevels[this.currentLevelIndex];
+    this.levelIndicator.setText(`Level ${this.currentLevelIndex + 1}: ${level.name}`);
+    this.levelFlavorText.setText(level.flavorText);
+  }
+
   private updatePlayerStats(): void {
     this.playerView.updateStats(this.player, this.inventory.powerBonus);
   }
@@ -237,17 +277,22 @@ export class GameScene extends Phaser.Scene {
       const plan: PlacementPlan = { cardData, slot };
 
       if (cardData.type === CardType.Monster) {
-        const existing = this.findUnguardedLootOnGrid(claimedSet);
-        if (existing) {
-          claimedSet.add(existing);
-          plan.existingLoot = existing;
-          // Monster takes over the loot's grid slot
-          const lootCell = this.grid.findCard(existing);
-          if (lootCell) {
-            plan.slot = { col: lootCell.col, row: lootCell.row };
-          }
+        if (cardData.isBoss && this.currentLevelKey) {
+          plan.generatedLoot = this.currentLevelKey;
+          this.currentLevelKey = null;
         } else {
-          plan.generatedLoot = this.pickRandomLoot();
+          const existing = this.findUnguardedLootOnGrid(claimedSet);
+          if (existing) {
+            claimedSet.add(existing);
+            plan.existingLoot = existing;
+            // Monster takes over the loot's grid slot
+            const lootCell = this.grid.findCard(existing);
+            if (lootCell) {
+              plan.slot = { col: lootCell.col, row: lootCell.row };
+            }
+          } else {
+            plan.generatedLoot = this.pickRandomLoot();
+          }
         }
       }
 
@@ -301,6 +346,11 @@ export class GameScene extends Phaser.Scene {
 
           this.chestLoot.set(chestCard, { lootData, cardBack });
           this.setupCardInteraction(chestCard);
+        } else if (plan.cardData.type === CardType.Door) {
+          const doorCard = new Card(this, pos.x, pos.y, plan.cardData);
+          this.grid.placeCard(plan.slot.col, plan.slot.row, doorCard);
+          doorCard.reveal();
+          this.setupDoorInteraction(doorCard);
         } else {
           const card = new Card(this, pos.x, pos.y, plan.cardData);
           this.grid.placeCard(plan.slot.col, plan.slot.row, card);
@@ -319,6 +369,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private findUnguardedLootOnGrid(alreadyClaimed: Set<Card>): Card | null {
+    const keyCards: Card[] = [];
+    const nonKeyCards: Card[] = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const card = this.grid.getCardAt(c, r);
@@ -330,11 +382,15 @@ export class GameScene extends Phaser.Scene {
           !this.guardedByMonster.has(card) &&
           !alreadyClaimed.has(card)
         ) {
-          return card;
+          if (card.cardData.isKey) {
+            keyCards.push(card);
+          } else {
+            nonKeyCards.push(card);
+          }
         }
       }
     }
-    return null;
+    return keyCards[0] ?? nonKeyCards[0] ?? null;
   }
 
   private pickRandomLoot(): CardData {
@@ -469,6 +525,20 @@ export class GameScene extends Phaser.Scene {
           this.inventoryView.setSlotHighlight(def.name, canEquip ? "valid_dim" : "invalid_dim");
         }
       }
+
+      // Highlight door card if dragging a key
+      if (card.cardData.isKey) {
+        const doorCard = this.findDoorOnGrid();
+        if (doorCard) {
+          const dx = world.x - doorCard.x;
+          const dy = world.y - doorCard.y;
+          if (Math.abs(dx) < CARD_W / 2 && Math.abs(dy) < CARD_H / 2) {
+            doorCard.setHighlight(true);
+          } else {
+            doorCard.setHighlight(false);
+          }
+        }
+      }
     };
 
     const onUp = (pointer: Phaser.Input.Pointer) => {
@@ -476,6 +546,26 @@ export class GameScene extends Phaser.Scene {
       this.input.off("pointerup", onUp);
 
       const world = this.toWorldCoords(pointer);
+
+      // Check if key dropped on door
+      if (card.cardData.isKey) {
+        const doorCard = this.findDoorOnGrid();
+        if (doorCard) {
+          const dx = world.x - doorCard.x;
+          const dy = world.y - doorCard.y;
+          if (Math.abs(dx) < CARD_W / 2 && Math.abs(dy) < CARD_H / 2) {
+            doorCard.setHighlight(false);
+            this.inventoryView.clearAllHighlights();
+            card.resolve(() => {
+              this.finishDrag();
+              this.openDoor(doorCard);
+            });
+            return;
+          }
+          doorCard.setHighlight(false);
+        }
+      }
+
       const slotName = this.inventoryView.getSlotAtPoint(world.x, world.y);
 
       if (slotName && this.inventory.canEquip(slotName, card.cardData)) {
@@ -579,6 +669,20 @@ export class GameScene extends Phaser.Scene {
                 this.inventoryView.setSlotHighlight(slotDef.name, canEquip ? "valid_dim" : "invalid_dim");
               }
             }
+
+            // Highlight door card if dragging a key from inventory
+            if (item.isKey) {
+              const doorCard = this.findDoorOnGrid();
+              if (doorCard) {
+                const ddx = world.x - doorCard.x;
+                const ddy = world.y - doorCard.y;
+                if (Math.abs(ddx) < CARD_W / 2 && Math.abs(ddy) < CARD_H / 2) {
+                  doorCard.setHighlight(true);
+                } else {
+                  doorCard.setHighlight(false);
+                }
+              }
+            }
           }
         };
         const onUp = (p: Phaser.Input.Pointer) => {
@@ -587,6 +691,25 @@ export class GameScene extends Phaser.Scene {
           if (!dragging || !ghost) return;
 
           const world = this.toWorldCoords(p);
+
+          // Check if key dropped on door from inventory
+          if (item.isKey) {
+            const doorCard = this.findDoorOnGrid();
+            if (doorCard) {
+              const ddx = world.x - doorCard.x;
+              const ddy = world.y - doorCard.y;
+              if (Math.abs(ddx) < CARD_W / 2 && Math.abs(ddy) < CARD_H / 2) {
+                doorCard.setHighlight(false);
+                this.inventoryView.clearAllHighlights();
+                this.inventory.unequip(def.name);
+                ghost.destroy();
+                this.openDoor(doorCard);
+                return;
+              }
+              doorCard.setHighlight(false);
+            }
+          }
+
           const overSlot = this.inventoryView.getSlotAtPoint(world.x, world.y);
 
           this.inventoryView.clearAllHighlights();
@@ -634,6 +757,18 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (card.cardData.type === CardType.Door) {
+      // Shake the door card as a hint that a key is needed
+      this.tweens.add({
+        targets: card,
+        x: card.x + 3,
+        duration: 50,
+        yoyo: true,
+        repeat: 2,
+      });
+      return;
+    }
+
     this.isResolving = true;
     this.grid.removeCard(cell.col, cell.row);
 
@@ -670,11 +805,13 @@ export class GameScene extends Phaser.Scene {
       card.guardedLoot.disableInteractive();
     }
 
-    // Dim grid background, deck visual, HUD, explore button
+    // Dim grid background, deck visual, HUD, explore button, level indicator
     this.gridBgGraphics.setAlpha(0.3);
     this.deckVisual.setAlpha(0.3);
     this.deckText.setAlpha(0.3);
     this.exploreBtn.setAlpha(0.3);
+    this.levelIndicator.setAlpha(0.3);
+    this.levelFlavorText.setAlpha(0.3);
 
     // Bring monster to top
     card.setDepth(100);
@@ -778,6 +915,8 @@ export class GameScene extends Phaser.Scene {
     this.deckVisual.setAlpha(1);
     this.deckText.setAlpha(1);
     this.exploreBtn.setAlpha(1);
+    this.levelIndicator.setAlpha(1);
+    this.levelFlavorText.setAlpha(1);
 
     // Reset monster depth
     if (this.combatMonster) {
@@ -1013,6 +1152,8 @@ export class GameScene extends Phaser.Scene {
       this.deckVisual.setAlpha(1);
       this.deckText.setAlpha(1);
       this.exploreBtn.setAlpha(1);
+      this.levelIndicator.setAlpha(1);
+      this.levelFlavorText.setAlpha(1);
 
       // Slide fate deck down and restore power display
       this.playerView.slideFateDeckDown(this);
@@ -1057,11 +1198,13 @@ export class GameScene extends Phaser.Scene {
     const ownLoot = this.chestLoot.get(card);
     if (ownLoot) ownLoot.cardBack.setAlpha(0.3);
 
-    // Dim grid background, deck visual, HUD, explore button
+    // Dim grid background, deck visual, HUD, explore button, level indicator
     this.gridBgGraphics.setAlpha(0.3);
     this.deckVisual.setAlpha(0.3);
     this.deckText.setAlpha(0.3);
     this.exploreBtn.setAlpha(0.3);
+    this.levelIndicator.setAlpha(0.3);
+    this.levelFlavorText.setAlpha(0.3);
 
     // Bring chest to top
     card.setDepth(100);
@@ -1164,6 +1307,8 @@ export class GameScene extends Phaser.Scene {
     this.deckVisual.setAlpha(1);
     this.deckText.setAlpha(1);
     this.exploreBtn.setAlpha(1);
+    this.levelIndicator.setAlpha(1);
+    this.levelFlavorText.setAlpha(1);
 
     // Reset chest depth
     if (this.crackingChest) {
@@ -1322,6 +1467,8 @@ export class GameScene extends Phaser.Scene {
       this.deckVisual.setAlpha(1);
       this.deckText.setAlpha(1);
       this.exploreBtn.setAlpha(1);
+      this.levelIndicator.setAlpha(1);
+      this.levelFlavorText.setAlpha(1);
 
       this.playerView.slideFateDeckDown(this);
       this.playerView.restoreAgility(this.player);
@@ -1380,9 +1527,135 @@ export class GameScene extends Phaser.Scene {
     return container;
   }
 
+  private setupDoorInteraction(doorCard: Card): void {
+    doorCard.on("pointerover", () => {
+      if (!this.isResolving && !this.isDragging) doorCard.setHighlight(true);
+    });
+    doorCard.on("pointerout", () => {
+      doorCard.setHighlight(false);
+    });
+    doorCard.on("pointerdown", () => {
+      if (this.isResolving) return;
+      // Shake the door as a hint that a key is needed
+      this.tweens.add({
+        targets: doorCard,
+        x: doorCard.x + 3,
+        duration: 50,
+        yoyo: true,
+        repeat: 2,
+      });
+    });
+  }
+
+  private findDoorOnGrid(): Card | null {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (card && card.cardData.type === CardType.Door) {
+          return card;
+        }
+      }
+    }
+    return null;
+  }
+
+  private openDoor(doorCard: Card): void {
+    this.isResolving = true;
+    doorCard.markDoorOpened();
+
+    this.time.delayedCall(600, () => {
+      const cell = this.grid.findCard(doorCard);
+      if (cell) this.grid.removeCard(cell.col, cell.row);
+      doorCard.destroy();
+
+      this.clearGrid(() => {
+        if (this.currentLevelIndex >= this.dungeonLevels.length - 1) {
+          this.showWinScreen();
+          return;
+        }
+
+        this.currentLevelIndex++;
+        const nextLevel = this.dungeonLevels[this.currentLevelIndex];
+
+        // Build next level's cards and merge into current deck
+        const tempDeck = Deck.fromDungeonLevel(nextLevel);
+        const newCards = tempDeck.draw(tempDeck.remaining);
+        this.deck.mergeCards(newCards);
+
+        this.currentLevelKey = { ...nextLevel.key, isKey: true, deckLevel: this.currentLevelIndex + 1 };
+
+        // Update HUD
+        this.updateHUD();
+        this.updateDeckVisual();
+        this.updateLevelIndicator();
+
+        // Re-enable explore button
+        this.enableExploreButton();
+
+        this.isResolving = false;
+        this.drawAndPlaceCards(3);
+      });
+    });
+  }
+
+  private clearGrid(onComplete: () => void): void {
+    const cards = this.grid.getAllCards();
+    const toDestroy: Phaser.GameObjects.GameObject[] = [...cards];
+
+    // Collect associated objects
+    for (const card of cards) {
+      if (card.guardedLoot) {
+        toDestroy.push(card.guardedLoot);
+      }
+      const chestInfo = this.chestLoot.get(card);
+      if (chestInfo) {
+        toDestroy.push(chestInfo.cardBack);
+      }
+    }
+
+    // Clear tracking maps
+    this.guardedByMonster.clear();
+    this.chestLoot.clear();
+
+    if (toDestroy.length === 0) {
+      onComplete();
+      return;
+    }
+
+    let completed = 0;
+    toDestroy.forEach((obj, i) => {
+      this.time.delayedCall(i * 80, () => {
+        this.tweens.add({
+          targets: obj,
+          alpha: 0,
+          scaleX: 0,
+          scaleY: 0,
+          duration: 300,
+          ease: "Power2",
+          onComplete: () => {
+            obj.destroy();
+            completed++;
+            if (completed === toDestroy.length) {
+              onComplete();
+            }
+          },
+        });
+      });
+    });
+  }
+
+  private showWinScreen(): void {
+    new WinScreen(this, this.player, this.inventory);
+  }
+
   private showGameOver(): void {
     new GameOverScreen(this);
+  }
 
+  private enableExploreButton(): void {
+    this.drawExploreButtonBg(0x3355aa);
+    this.exploreBtnText.setText("EXPLORE");
+    this.exploreBtnText.setColor("#ffffff");
   }
 
   private disableExploreButton(): void {

@@ -61,6 +61,21 @@ export class Grid {
     return this.cells[row]?.[col] ?? null;
   }
 
+  /** Remove and return all cards currently on the grid */
+  getAllCards(): Card[] {
+    const cards: Card[] = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.cells[r][c];
+        if (card) {
+          cards.push(card);
+          this.cells[r][c] = null;
+        }
+      }
+    }
+    return cards;
+  }
+
   /** Find which cell a card belongs to */
   findCard(card: Card): CellPos | null {
     for (let r = 0; r < ROWS; r++) {
