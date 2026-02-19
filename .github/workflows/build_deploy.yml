@@ -32,4 +32,4 @@ jobs:
           itch_game: ${{ vars.ITCH_GAME }}
           version: ${{ github.ref_name }}
           files: |
-            build.zip
+            web  build.zip
