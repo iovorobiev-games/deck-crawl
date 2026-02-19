@@ -12,6 +12,7 @@ export enum CardType {
 export type EquipSlot = "weapon" | "armour" | "head" | "backpack";
 
 export interface CardData {
+  id: string;
   type: CardType;
   name: string;
   value: number;

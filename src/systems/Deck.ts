@@ -1,6 +1,7 @@
 import { CardData } from "../entities/CardData";
 import { DeckEntry } from "../data/deckConfig";
 import { DungeonLevel } from "../data/dungeonConfig";
+import { getCard } from "../data/cardRegistry";
 
 export class Deck {
   private cards: CardData[] = [];
@@ -13,18 +14,7 @@ export class Deck {
   private expandEntries(config: DeckEntry[]): void {
     for (const entry of config) {
       for (let i = 0; i < entry.count; i++) {
-        this.cards.push({
-          type: entry.type,
-          name: entry.name,
-          value: entry.value,
-          description: entry.description,
-          slot: entry.slot,
-          lockDifficulty: entry.lockDifficulty,
-          trapDamage: entry.trapDamage,
-          isKey: entry.isKey,
-          isBoss: entry.isBoss,
-          deckLevel: entry.deckLevel,
-        });
+        this.cards.push(getCard(entry.id));
       }
     }
   }
@@ -32,8 +22,10 @@ export class Deck {
   static fromDungeonLevel(level: DungeonLevel): Deck {
     const deck = new Deck([]);
     deck.expandEntries(level.cards);
-    deck.expandEntries([{ ...level.boss, isBoss: true }]);
-    deck.cards.push({ ...level.door });
+    const bossCard = getCard(level.boss);
+    bossCard.isBoss = true;
+    deck.cards.push(bossCard);
+    deck.cards.push(getCard(level.door));
     deck.shuffle();
     return deck;
   }
