@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Preview production build:** `npm run preview`
 - **Type-check only:** `npx tsc --noEmit`
 
-No test framework is configured yet.
+ALWAYS use ui-test skill to verify changes manually.
 
 ## Architecture
 
