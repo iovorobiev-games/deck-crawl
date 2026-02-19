@@ -11,6 +11,7 @@ import { Inventory, SLOT_DEFS } from "../systems/Inventory";
 import { CardType, CardData } from "../entities/CardData";
 import { lootPool } from "../data/deckConfig";
 import { dungeonConfig, DungeonLevel } from "../data/dungeonConfig";
+import { getCard } from "../data/cardRegistry";
 import { WinScreen } from "../entities/WinScreen";
 
 const GAME_W = 960;
@@ -212,7 +213,7 @@ export class GameScene extends Phaser.Scene {
   private initLevel(levelIndex: number): void {
     const level = this.dungeonLevels[levelIndex];
     this.deck = Deck.fromDungeonLevel(level);
-    this.currentLevelKey = { ...level.key, isKey: true, deckLevel: levelIndex + 1 };
+    this.currentLevelKey = getCard(level.key);
   }
 
   private createLevelIndicator(): void {
@@ -394,8 +395,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private pickRandomLoot(): CardData {
-    const entry = lootPool[Math.floor(Math.random() * lootPool.length)];
-    return { ...entry };
+    const id = lootPool[Math.floor(Math.random() * lootPool.length)];
+    return getCard(id);
   }
 
   private setupGuardedLootInteraction(lootCard: Card, monsterCard: Card): void {
@@ -1582,7 +1583,7 @@ export class GameScene extends Phaser.Scene {
         const newCards = tempDeck.draw(tempDeck.remaining);
         this.deck.mergeCards(newCards);
 
-        this.currentLevelKey = { ...nextLevel.key, isKey: true, deckLevel: this.currentLevelIndex + 1 };
+        this.currentLevelKey = getCard(nextLevel.key);
 
         // Update HUD
         this.updateHUD();
