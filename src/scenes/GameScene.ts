@@ -44,6 +44,9 @@ export class GameScene extends Phaser.Scene {
   private chestOverlay: Phaser.GameObjects.Rectangle | null = null;
   private crackBtn: Phaser.GameObjects.Container | null = null;
   private chestLoot: Map<Card, { lootData: CardData; cardBack: Phaser.GameObjects.Container }> = new Map();
+  private disarmingTrap: Card | null = null;
+  private trapOverlay: Phaser.GameObjects.Rectangle | null = null;
+  private disarmBtn: Phaser.GameObjects.Container | null = null;
   private currentLevelIndex = 0;
   private dungeonLevels!: DungeonLevel[];
   private currentLevelKey: CardData | null = null;
@@ -175,10 +178,10 @@ export class GameScene extends Phaser.Scene {
     );
 
     this.exploreBtn.on("pointerover", () => {
-      if (!this.deck.isEmpty) this.drawExploreButtonBg(0x4466cc);
+      if (!this.deck.isEmpty && !this.hasTrapsOnGrid()) this.drawExploreButtonBg(0x4466cc);
     });
     this.exploreBtn.on("pointerout", () => {
-      this.drawExploreButtonBg(this.deck.isEmpty ? 0x333344 : 0x3355aa);
+      this.updateExploreButton();
     });
     this.exploreBtn.on("pointerdown", () => this.onExplore());
   }
@@ -244,7 +247,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onExplore(): void {
-    if (this.deck.isEmpty || this.isResolving) return;
+    if (this.deck.isEmpty || this.isResolving || this.hasTrapsOnGrid()) return;
     this.drawAndPlaceCards(3);
   }
 
@@ -356,6 +359,9 @@ export class GameScene extends Phaser.Scene {
           this.grid.placeCard(plan.slot.col, plan.slot.row, card);
           card.reveal();
           this.setupCardInteraction(card);
+          if (plan.cardData.type === CardType.Trap) {
+            this.updateExploreButton();
+          }
         }
       });
     });
@@ -363,9 +369,7 @@ export class GameScene extends Phaser.Scene {
     this.updateHUD();
     this.updateDeckVisual();
 
-    if (this.deck.isEmpty) {
-      this.disableExploreButton();
-    }
+    this.updateExploreButton();
   }
 
   private findUnguardedLootOnGrid(alreadyClaimed: Set<Card>): Card | null {
@@ -757,6 +761,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (card.cardData.type === CardType.Trap) {
+      this.enterTrapMode(card);
+      return;
+    }
+
     if (card.cardData.type === CardType.Door) {
       // Shake the door card as a hint that a key is needed
       this.tweens.add({
@@ -933,6 +942,7 @@ export class GameScene extends Phaser.Scene {
 
     this.isResolving = false;
     this.combatMonster = null;
+    this.updateExploreButton();
   }
 
   private executeCombat(monsterCard: Card): void {
@@ -1166,6 +1176,7 @@ export class GameScene extends Phaser.Scene {
 
       this.isResolving = false;
       this.combatMonster = null;
+      this.updateExploreButton();
 
       // Check game over
       if (this.player.hp <= 0) {
@@ -1320,6 +1331,7 @@ export class GameScene extends Phaser.Scene {
 
     this.isResolving = false;
     this.crackingChest = null;
+    this.updateExploreButton();
   }
 
   private executeCrack(chestCard: Card): void {
@@ -1490,11 +1502,13 @@ export class GameScene extends Phaser.Scene {
             this.setupCardInteraction(lootCard);
             this.isResolving = false;
             this.crackingChest = null;
+            this.updateExploreButton();
           },
         });
       } else {
         this.isResolving = false;
         this.crackingChest = null;
+        this.updateExploreButton();
       }
 
       if (this.player.hp <= 0) {
@@ -1590,7 +1604,7 @@ export class GameScene extends Phaser.Scene {
         this.updateLevelIndicator();
 
         // Re-enable explore button
-        this.enableExploreButton();
+        this.updateExploreButton();
 
         this.isResolving = false;
         this.drawAndPlaceCards(3);
@@ -1662,5 +1676,332 @@ export class GameScene extends Phaser.Scene {
     this.drawExploreButtonBg(0x333344);
     this.exploreBtnText.setText("EMPTY");
     this.exploreBtnText.setColor("#666666");
+  }
+
+  private hasTrapsOnGrid(): boolean {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (card && card.cardData.type === CardType.Trap) return true;
+      }
+    }
+    return false;
+  }
+
+  private updateExploreButton(): void {
+    if (this.deck.isEmpty) {
+      this.drawExploreButtonBg(0x333344);
+      this.exploreBtnText.setText("EMPTY");
+      this.exploreBtnText.setColor("#666666");
+    } else if (this.hasTrapsOnGrid()) {
+      this.drawExploreButtonBg(0x664422);
+      this.exploreBtnText.setText("TRAPPED");
+      this.exploreBtnText.setColor("#dd8833");
+    } else {
+      this.drawExploreButtonBg(0x3355aa);
+      this.exploreBtnText.setText("EXPLORE");
+      this.exploreBtnText.setColor("#ffffff");
+    }
+  }
+
+  private enterTrapMode(card: Card): void {
+    this.isResolving = true;
+    this.disarmingTrap = card;
+
+    // Dim other grid cards
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && gridCard !== card) {
+          gridCard.setAlpha(0.3);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(0.3);
+            gridCard.guardedLoot.disableInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(0.3);
+        }
+      }
+    }
+
+    // Dim grid background, deck visual, HUD, explore button, level indicator
+    this.gridBgGraphics.setAlpha(0.3);
+    this.deckVisual.setAlpha(0.3);
+    this.deckText.setAlpha(0.3);
+    this.exploreBtn.setAlpha(0.3);
+    this.levelIndicator.setAlpha(0.3);
+    this.levelFlavorText.setAlpha(0.3);
+
+    // Bring trap to top
+    card.setDepth(100);
+
+    // Create clickable overlay behind disarm button (to cancel)
+    this.trapOverlay = this.add.rectangle(
+      GAME_W / 2,
+      GAME_H / 2,
+      GAME_W,
+      GAME_H,
+      0x000000,
+      0.01
+    );
+    this.trapOverlay.setDepth(50);
+    this.trapOverlay.setInteractive();
+    this.trapOverlay.on("pointerdown", () => this.exitTrapMode());
+
+    // Create DISARM button below trap card
+    const btnW = 80;
+    const btnH = 30;
+    this.disarmBtn = this.add.container(card.x, card.y + CARD_H / 2 + 24);
+    this.disarmBtn.setDepth(110);
+
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0xdd8833, 1);
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    btnBg.lineStyle(2, 0xffaa55, 0.8);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    this.disarmBtn.add(btnBg);
+
+    const btnText = this.add
+      .text(0, 0, "DISARM", {
+        fontSize: "14px",
+        fontFamily: "monospace",
+        color: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.disarmBtn.add(btnText);
+
+    this.disarmBtn.setSize(btnW, btnH);
+    this.disarmBtn.setInteractive(
+      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
+      Phaser.Geom.Rectangle.Contains
+    );
+
+    this.disarmBtn.on("pointerover", () => {
+      btnBg.clear();
+      btnBg.fillStyle(0xffaa55, 1);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.lineStyle(2, 0xffaa55, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    });
+
+    this.disarmBtn.on("pointerout", () => {
+      btnBg.clear();
+      btnBg.fillStyle(0xdd8833, 1);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.lineStyle(2, 0xffaa55, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    });
+
+    this.disarmBtn.on("pointerdown", () => {
+      this.executeDisarm(card);
+    });
+
+    // Slide fate deck up
+    this.playerView.slideFateDeckUp(this);
+  }
+
+  private exitTrapMode(): void {
+    if (this.trapOverlay) {
+      this.trapOverlay.destroy();
+      this.trapOverlay = null;
+    }
+    if (this.disarmBtn) {
+      this.disarmBtn.destroy();
+      this.disarmBtn = null;
+    }
+
+    // Restore all grid card alphas, guarded loot, and chest loot
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard) {
+          gridCard.setAlpha(1);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(1);
+            gridCard.guardedLoot.setDepth(5);
+            gridCard.guardedLoot.setInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+        }
+      }
+    }
+
+    // Restore HUD alphas
+    this.gridBgGraphics.setAlpha(1);
+    this.deckVisual.setAlpha(1);
+    this.deckText.setAlpha(1);
+    this.exploreBtn.setAlpha(1);
+    this.levelIndicator.setAlpha(1);
+    this.levelFlavorText.setAlpha(1);
+
+    // Reset trap depth
+    if (this.disarmingTrap) {
+      this.disarmingTrap.setDepth(10);
+    }
+
+    // Slide fate deck down
+    this.playerView.slideFateDeckDown(this);
+
+    this.isResolving = false;
+    this.disarmingTrap = null;
+    this.updateExploreButton();
+  }
+
+  private executeDisarm(trapCard: Card): void {
+    if (this.disarmBtn) this.disarmBtn.disableInteractive();
+    if (this.trapOverlay) this.trapOverlay.disableInteractive();
+
+    const modifier = this.player.drawFateCard();
+    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+
+    // Create fate card visual
+    const fateCardW = 50;
+    const fateCardH = 70;
+    const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
+    fateCard.setDepth(200);
+    fateCard.setScale(0.3);
+
+    const fateBg = this.add.graphics();
+    fateBg.fillStyle(0x1a1a2e, 1);
+    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateBg.lineStyle(1, 0x4444aa, 0.8);
+    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateCard.add(fateBg);
+
+    let modColor: string;
+    let modLabel: string;
+    if (modifier > 0) {
+      modColor = "#44dd88";
+      modLabel = `+${modifier}`;
+    } else if (modifier < 0) {
+      modColor = "#ff5555";
+      modLabel = `${modifier}`;
+    } else {
+      modColor = "#888888";
+      modLabel = "0";
+    }
+
+    const modText = this.add
+      .text(0, 0, modLabel, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: modColor,
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    fateCard.add(modText);
+
+    // Animate fate card appearing above player
+    const targetX = this.playerView.x - 70;
+    const targetY = this.playerView.y - 60;
+
+    this.tweens.add({
+      targets: fateCard,
+      x: targetX,
+      y: targetY,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 500,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        this.time.delayedCall(300, () => {
+          const modifiedAgility = Math.max(0, this.player.agility + modifier);
+
+          this.tweens.add({
+            targets: fateCard,
+            x: this.playerView.x,
+            y: this.playerView.y,
+            scaleX: 0,
+            scaleY: 0,
+            duration: 300,
+            ease: "Power2",
+            onComplete: () => {
+              fateCard.destroy();
+              this.playerView.showTempAgility(modifiedAgility);
+
+              this.time.delayedCall(300, () => {
+                const lockDifficulty = trapCard.cardData.lockDifficulty ?? 0;
+                const success = modifiedAgility >= lockDifficulty;
+
+                if (success) {
+                  this.trapCleanup(trapCard, modifier);
+                } else {
+                  const trapDamage = trapCard.cardData.value;
+                  if (trapDamage > 0) {
+                    this.player.takeDamage(trapDamage);
+                    this.tweens.add({
+                      targets: this.playerView,
+                      alpha: 0.3,
+                      duration: 80,
+                      yoyo: true,
+                      repeat: 2,
+                      onComplete: () => {
+                        this.trapCleanup(trapCard, modifier);
+                      },
+                    });
+                  } else {
+                    this.trapCleanup(trapCard, modifier);
+                  }
+                }
+              });
+            },
+          });
+        });
+      },
+    });
+  }
+
+  private trapCleanup(trapCard: Card, fateModifier: number): void {
+    if (this.trapOverlay) {
+      this.trapOverlay.destroy();
+      this.trapOverlay = null;
+    }
+    if (this.disarmBtn) {
+      this.disarmBtn.destroy();
+      this.disarmBtn = null;
+    }
+
+    const cell = this.grid.findCard(trapCard);
+    if (cell) this.grid.removeCard(cell.col, cell.row);
+
+    trapCard.resolve(() => {
+      this.player.shuffleFateCardBack(fateModifier);
+
+      // Restore alphas
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const gridCard = this.grid.getCardAt(c, r);
+          if (gridCard) {
+            gridCard.setAlpha(1);
+            if (gridCard.guardedLoot) {
+              gridCard.guardedLoot.setAlpha(1);
+              gridCard.guardedLoot.setDepth(5);
+              gridCard.guardedLoot.setInteractive();
+            }
+            const chestLootInfo = this.chestLoot.get(gridCard);
+            if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+          }
+        }
+      }
+      this.gridBgGraphics.setAlpha(1);
+      this.deckVisual.setAlpha(1);
+      this.deckText.setAlpha(1);
+      this.exploreBtn.setAlpha(1);
+      this.levelIndicator.setAlpha(1);
+      this.levelFlavorText.setAlpha(1);
+
+      this.playerView.slideFateDeckDown(this);
+      this.playerView.restoreAgility(this.player);
+
+      this.isResolving = false;
+      this.disarmingTrap = null;
+      this.updateExploreButton();
+
+      if (this.player.hp <= 0) {
+        this.showGameOver();
+      }
+    });
   }
 }

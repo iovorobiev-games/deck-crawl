@@ -73,6 +73,23 @@ export class Card extends Phaser.GameObjects.Container {
         }).setOrigin(0, 0.5);
         this.add(this.trapText);
       }
+    } else if (this.cardData.type === CardType.Trap && this.cardData.lockDifficulty != null) {
+      this.valueText = this.scene.add.text(0, CARD_H / 2 - 20, `\u{1F512}${this.cardData.lockDifficulty}`, {
+        fontSize: "16px",
+        fontFamily: "monospace",
+        color: "#fff",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.add(this.valueText);
+
+      if (this.cardData.value > 0) {
+        this.trapText = this.scene.add.text(-CARD_W / 2 + 8, CARD_H / 2 - 18, `\u2665-${this.cardData.value}`, {
+          fontSize: "10px",
+          fontFamily: "monospace",
+          color: "#ff6666",
+        }).setOrigin(0, 0.5);
+        this.add(this.trapText);
+      }
     } else if (this.cardData.type === CardType.Door) {
       this.valueText = this.scene.add.text(0, CARD_H * 0.28, "\u{1F512}", {
         fontSize: "22px",
