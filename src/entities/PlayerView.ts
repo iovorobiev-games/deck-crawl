@@ -2,17 +2,17 @@ import Phaser from "phaser";
 import { CARD_W, CARD_H } from "./Card";
 import { Player } from "../systems/Player";
 
-const CORNER_R = 8;
-const BORDER_COLOR = 0xddaa22;
-const BG_COLOR = 0x1a1a2e;
+const CORNER_R = 14;
 const STACK_BG = 0x2a2a4e;
 const STACK_BORDER = 0x4444aa;
 
 export class PlayerView extends Phaser.GameObjects.Container {
-  private portraitBg!: Phaser.GameObjects.Graphics;
   private hpText!: Phaser.GameObjects.Text;
   private powerText!: Phaser.GameObjects.Text;
   private agilityText!: Phaser.GameObjects.Text;
+  private powerGroup!: Phaser.GameObjects.Container;
+  private hpGroup!: Phaser.GameObjects.Container;
+  private agilityGroup!: Phaser.GameObjects.Container;
   private fateDeckGfx!: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -28,14 +28,15 @@ export class PlayerView extends Phaser.GameObjects.Container {
     );
 
     scene.add.existing(this);
+    this.setDepth(1000);
   }
 
   private createFateDeckStack(): void {
     this.fateDeckGfx = this.scene.add.graphics();
     // Draw 2 offset card backs behind the portrait
     for (let i = 0; i < 2; i++) {
-      const ox = (2 - i) * 2;
-      const oy = (2 - i) * 2;
+      const ox = (2 - i) * 4;
+      const oy = (2 - i) * 4;
       this.fateDeckGfx.fillStyle(STACK_BG, 1);
       this.fateDeckGfx.fillRoundedRect(
         -CARD_W / 2 + ox,
@@ -57,98 +58,70 @@ export class PlayerView extends Phaser.GameObjects.Container {
   }
 
   private createPortrait(): void {
-    this.portraitBg = this.scene.add.graphics();
-    this.drawPortraitBg();
-    this.add(this.portraitBg);
+    // Player portrait sprite (202x243, used at native size)
+    const portrait = this.scene.add.image(0, 0, "player_portrait");
+    this.add(portrait);
 
-    // Placeholder character silhouette — simple colored rectangle
-    const silhouette = this.scene.add.graphics();
-    silhouette.fillStyle(0x445577, 1);
-    silhouette.fillRoundedRect(-14, -22, 28, 32, 4);
-    // Head
-    silhouette.fillStyle(0x556688, 1);
-    silhouette.fillCircle(0, -30, 10);
-    this.add(silhouette);
+    // Portrait is 202x243 — corners at (±101, -122)
+    // Each stat is a sub-container holding the icon + text, so moving the
+    // container repositions both together.
+    const cornerY = -105;
+    const textOffsetY = 0; // text offset below icon center
 
-    // Stat background rects (drawn once; text overlays them)
-    const statBgs = this.scene.add.graphics();
-    // HP badge — top-left
-    statBgs.fillStyle(0xcc3333, 0.5);
-    statBgs.fillRoundedRect(-CARD_W / 2 + 3, -CARD_H / 2 + 2, 30, 14, 3);
-    // Power badge — bottom-left
-    statBgs.fillStyle(0xcc7722, 0.5);
-    statBgs.fillRoundedRect(-CARD_W / 2 + 3, CARD_H / 2 - 18, 26, 14, 3);
-    // Agility badge — bottom-right
-    statBgs.fillStyle(0x22aa55, 0.5);
-    statBgs.fillRoundedRect(CARD_W / 2 - 29, CARD_H / 2 - 18, 26, 14, 3);
-    this.add(statBgs);
-
-    // Stats — HP top-left
-    this.hpText = this.scene.add
-      .text(-CARD_W / 2 + 6, -CARD_H / 2 + 4, "", {
-        fontSize: "10px",
-        fontFamily: "monospace",
-        color: "#ff6666",
-        fontStyle: "bold",
-      })
-      .setOrigin(0, 0);
-    this.add(this.hpText);
-
-    // Power bottom-left
+    // Power — top-left corner
+    this.powerGroup = this.scene.add.container(-95, cornerY);
+    this.powerGroup.add(this.scene.add.image(0, 0, "icon_power"));
     this.powerText = this.scene.add
-      .text(-CARD_W / 2 + 6, CARD_H / 2 - 16, "", {
-        fontSize: "10px",
+      .text(4, -4, "", {
+        fontSize: "48px",
         fontFamily: "monospace",
-        color: "#ffaa44",
+        color: "#240a0e",
         fontStyle: "bold",
       })
-      .setOrigin(0, 0);
-    this.add(this.powerText);
+      .setOrigin(0.5, 0.5);
+    this.powerGroup.add(this.powerText);
+    this.add(this.powerGroup);
 
-    // Agility bottom-right
+    // HP — top center
+    this.hpGroup = this.scene.add.container(0, cornerY + 16);
+    this.hpGroup.add(this.scene.add.image(0, 0, "icon_hp"));
+    this.hpText = this.scene.add
+      .text(0, -4, "", {
+        fontSize: "32px",
+        fontFamily: "monospace",
+        color: "#f6d4b1",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5, 0.5);
+    this.hpGroup.add(this.hpText);
+    this.add(this.hpGroup);
+
+    // Agility — top-right corner
+    this.agilityGroup = this.scene.add.container(112, cornerY-8);
+    this.agilityGroup.add(this.scene.add.image(0, 0, "icon_agility"));
     this.agilityText = this.scene.add
-      .text(CARD_W / 2 - 6, CARD_H / 2 - 16, "", {
-        fontSize: "10px",
+      .text(-20, 2, "", {
+        fontSize: "48px",
         fontFamily: "monospace",
-        color: "#44dd88",
+        color: "#240a0e",
         fontStyle: "bold",
       })
-      .setOrigin(1, 0);
-    this.add(this.agilityText);
-  }
-
-  private drawPortraitBg(): void {
-    this.portraitBg.clear();
-    this.portraitBg.fillStyle(BG_COLOR, 1);
-    this.portraitBg.fillRoundedRect(
-      -CARD_W / 2,
-      -CARD_H / 2,
-      CARD_W,
-      CARD_H,
-      CORNER_R
-    );
-    this.portraitBg.lineStyle(2, BORDER_COLOR, 1);
-    this.portraitBg.strokeRoundedRect(
-      -CARD_W / 2,
-      -CARD_H / 2,
-      CARD_W,
-      CARD_H,
-      CORNER_R
-    );
+      .setOrigin(0.5, 0.5);
+    this.agilityGroup.add(this.agilityText);
+    this.add(this.agilityGroup);
   }
 
   updateStats(player: Player, equipPowerBonus = 0): void {
-    this.hpText.setText(`\u2665${player.hp}`);
+    this.hpText.setText(`${player.hp}`);
     const totalPower = player.power + equipPowerBonus;
-    this.powerText.setText(`\u2694${totalPower}`);
-    this.powerText.setColor(equipPowerBonus > 0 ? "#ffdd44" : "#ffaa44");
-    this.agilityText.setText(`\u25C6${player.agility}`);
+    this.powerText.setText(`${totalPower}`);
+    this.agilityText.setText(`${player.agility}`);
   }
 
   slideFateDeckUp(scene: Phaser.Scene): void {
     scene.tweens.add({
       targets: this.fateDeckGfx,
-      y: this.fateDeckGfx.y - 20,
+      y: this.fateDeckGfx.y - 40,
       duration: 300,
       ease: "Power2",
     });
@@ -167,7 +140,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     const worldMatrix = this.getWorldTransformMatrix();
     return {
       x: worldMatrix.tx,
-      y: worldMatrix.ty - 20,
+      y: worldMatrix.ty - 40,
     };
   }
 

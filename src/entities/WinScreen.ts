@@ -3,8 +3,8 @@ import { Player } from "../systems/Player";
 import { Inventory, SLOT_DEFS } from "../systems/Inventory";
 import { CardData } from "./CardData";
 
-const GAME_W = 960;
-const GAME_H = 540;
+const GAME_W = 1920;
+const GAME_H = 1080;
 
 export class WinScreen extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene, player: Player, inventory: Inventory) {
@@ -24,8 +24,8 @@ export class WinScreen extends Phaser.GameObjects.Container {
 
     // VICTORY! title
     const title = scene.add
-      .text(GAME_W / 2, 120, "VICTORY!", {
-        fontSize: "48px",
+      .text(GAME_W / 2, 240, "VICTORY!", {
+        fontSize: "96px",
         fontFamily: "monospace",
         color: "#ddaa22",
         fontStyle: "bold",
@@ -35,8 +35,8 @@ export class WinScreen extends Phaser.GameObjects.Container {
 
     // Subtitle
     const subtitle = scene.add
-      .text(GAME_W / 2, 160, "You escaped the dungeon!", {
-        fontSize: "16px",
+      .text(GAME_W / 2, 320, "You escaped the dungeon!", {
+        fontSize: "32px",
         fontFamily: "monospace",
         color: "#ccbb88",
       })
@@ -45,8 +45,8 @@ export class WinScreen extends Phaser.GameObjects.Container {
 
     // Gold display
     const goldText = scene.add
-      .text(GAME_W / 2, 200, `Gold: ${player.gold}`, {
-        fontSize: "20px",
+      .text(GAME_W / 2, 400, `Gold: ${player.gold}`, {
+        fontSize: "40px",
         fontFamily: "monospace",
         color: "#ffdd44",
         fontStyle: "bold",
@@ -55,38 +55,38 @@ export class WinScreen extends Phaser.GameObjects.Container {
     this.add(goldText);
 
     // Equipped loot list
-    let lootY = 235;
+    let lootY = 470;
     for (const def of SLOT_DEFS) {
       const item: CardData | null = inventory.getItem(def.name);
       if (item) {
         const lootLine = scene.add
           .text(GAME_W / 2, lootY, `${def.label}: ${item.name} (+${item.value})`, {
-            fontSize: "14px",
+            fontSize: "28px",
             fontFamily: "monospace",
             color: "#cccccc",
           })
           .setOrigin(0.5);
         this.add(lootLine);
-        lootY += 22;
+        lootY += 44;
       }
     }
 
     // PLAY AGAIN button
-    const btnW = 160;
-    const btnH = 40;
-    const btnY = Math.max(lootY + 30, 380);
+    const btnW = 320;
+    const btnH = 80;
+    const btnY = Math.max(lootY + 60, 760);
     const btn = scene.add.container(GAME_W / 2, btnY);
 
     const btnBg = scene.add.graphics();
     btnBg.fillStyle(0x33aa55, 1);
-    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
-    btnBg.lineStyle(2, 0x44bb66, 0.8);
-    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
+    btnBg.lineStyle(3, 0x44bb66, 0.8);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
     btn.add(btnBg);
 
     const btnText = scene.add
       .text(0, 0, "PLAY AGAIN", {
-        fontSize: "18px",
+        fontSize: "36px",
         fontFamily: "monospace",
         color: "#ffffff",
         fontStyle: "bold",
@@ -103,17 +103,17 @@ export class WinScreen extends Phaser.GameObjects.Container {
     btn.on("pointerover", () => {
       btnBg.clear();
       btnBg.fillStyle(0x44bb66, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
-      btnBg.lineStyle(2, 0x44bb66, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
+      btnBg.lineStyle(3, 0x44bb66, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
     });
 
     btn.on("pointerout", () => {
       btnBg.clear();
       btnBg.fillStyle(0x33aa55, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
-      btnBg.lineStyle(2, 0x44bb66, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 8);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
+      btnBg.lineStyle(3, 0x44bb66, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
     });
 
     btn.on("pointerdown", () => {

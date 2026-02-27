@@ -1,12 +1,12 @@
 import Phaser from "phaser";
 
-const GAME_W = 960;
-const GAME_H = 540;
-const CARD_W = 50;
-const CARD_H = 70;
-const GAP = 6;
-const CORNER_R = 6;
-const PANEL_PAD = 12;
+const GAME_W = 1920;
+const GAME_H = 1080;
+const CARD_W = 100;
+const CARD_H = 140;
+const GAP = 12;
+const CORNER_R = 12;
+const PANEL_PAD = 24;
 
 export class FateDeckPopup extends Phaser.GameObjects.Container {
   constructor(
@@ -44,7 +44,7 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
       y - panelH / 2,
       panelW,
       panelH,
-      10
+      20
     );
     panelGfx.lineStyle(1, 0x5555aa, 0.8);
     panelGfx.strokeRoundedRect(
@@ -52,14 +52,14 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
       y - panelH / 2,
       panelW,
       panelH,
-      10
+      20
     );
     this.add(panelGfx);
 
     // Close button
     const closeBtn = scene.add
-      .text(x + panelW / 2 - 10, y - panelH / 2 + 4, "\u2715", {
-        fontSize: "14px",
+      .text(x + panelW / 2 - 20, y - panelH / 2 + 8, "\u2715", {
+        fontSize: "28px",
         fontFamily: "monospace",
         color: "#ff5555",
         fontStyle: "bold",
@@ -72,7 +72,7 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
 
     // Fate modifier cards
     const startX = x - totalCardsW / 2 + CARD_W / 2;
-    const cardY = y + 4;
+    const cardY = y + 8;
 
     fateDeck.forEach((mod, i) => {
       const cx = startX + i * (CARD_W + GAP);
@@ -113,7 +113,7 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
 
     const txt = scene.add
       .text(0, 0, label, {
-        fontSize: "20px",
+        fontSize: "40px",
         fontFamily: "monospace",
         color,
         fontStyle: "bold",
@@ -132,7 +132,7 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
         targets: container,
         scaleX: 1.4,
         scaleY: 1.4,
-        y: y - 10,
+        y: y - 20,
         duration: 150,
         ease: "Back.easeOut",
       });

@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Workflow
 
 1. Never jump straight into implementation. Interview the user to clarify requirements and narrow down the scope of the task.
-2. Before starting implementation, pull and checkout the latest master. ALWAYS make changes on top of the latest master. 
+2. Before starting implementation, pull and checkout the latest master. ALWAYS make changes on top of the latest master.
 
 ## Commands
 
@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Preview production build:** `npm run preview`
 - **Type-check only:** `npx tsc --noEmit`
 
-ALWAYS use ui-test skill to verify changes manually.
+No unit tests exist. ALWAYS use ui-test skill to verify changes visually.
 
 ## Architecture
 
@@ -25,10 +25,19 @@ Game resolution is 960x540 with `Phaser.Scale.FIT` auto-centering. All visuals a
 ### Source layout (`src/`)
 
 - **`main.ts`** — Entry point. Creates the Phaser game with scene list `[BootScene, GameScene]`.
-- **`scenes/`** — Phaser scenes. `BootScene` is a placeholder for future asset loading; `GameScene` owns all gameplay logic and orchestrates all systems and entities.
-- **`entities/`** — Phaser `Container` subclasses for visual game objects: `Card`, `PlayerView`, `InventoryView`, `FateDeckPopup`, `GameOverScreen`. Also contains `CardData.ts` which defines `CardType` enum, `EquipSlot` type, `CardData` interface, and `CardColorMap`.
-- **`systems/`** — Logic classes (extend `Phaser.Events.EventEmitter` where events are needed). `Grid` manages a 5x3 cell array. `Deck` holds a shuffled `CardData[]`. `Player` tracks HP/power/agility/gold/fateDeck. `Inventory` tracks 6 equipment slots.
-- **`data/deckConfig.ts`** — Static deck definition (`deckConfig`) and a separate `lootPool` array of treasure/potion/scroll cards that monsters can guard (not drawn from the main deck).
+- **`scenes/`** — Phaser scenes. `BootScene` is a placeholder for future asset loading; `GameScene` owns all gameplay logic and orchestrates all systems and entities (~2000 lines).
+- **`entities/`** — Phaser `Container` subclasses for visual game objects: `Card`, `PlayerView`, `InventoryView`, `FateDeckPopup`, `GameOverScreen`, `WinScreen`. Also contains `CardData.ts` which defines `CardType` enum, `EquipSlot` type, `CardData` interface, and `CardColorMap`.
+- **`systems/`** — Logic classes (extend `Phaser.Events.EventEmitter` where events are needed). `Grid` manages a 5x3 cell array. `Deck` holds a shuffled `CardData[]` and supports `Deck.fromDungeonLevel()` factory. `Player` tracks HP/power/agility/gold/fateDeck. `Inventory` tracks 6 equipment slots.
+- **`data/cardRegistry.ts`** — Central card definitions. `cardRegistry` maps string IDs to `CardData` objects. `getCard(id)` factory function creates card instances from the registry.
+- **`data/deckConfig.ts`** — `DeckEntry` interface (`{ id, count }`), default `deckConfig` array, and `lootPool` array of treasure/potion/scroll cards for monster-guarded loot.
+- **`data/dungeonConfig.ts`** — `DungeonLevel` and `DungeonConfig` interfaces. Defines the 3-level dungeon (Greeting Hall → Underground Temple → Torture Rooms), each with level-specific cards, boss, key, and door.
+
+### Card data architecture
+
+Card definitions are decoupled from deck composition:
+- **`cardRegistry`** defines each card once (stats, type, slot, lockDifficulty, etc.)
+- **`deckConfig`** and **`dungeonConfig`** reference cards by ID with a count — `{ id: "goblin", count: 4 }`
+- `Deck.fromDungeonLevel(level)` expands level cards from registry + adds boss/key/door
 
 ### Entity/system relationships
 
@@ -37,7 +46,7 @@ GameScene
   owns: Player, Deck, Grid, Inventory (systems)
   owns: PlayerView, InventoryView (entities)
   creates: Card instances placed into Grid cells
-  creates: FateDeckPopup on demand, GameOverScreen on player death
+  creates: FateDeckPopup on demand, GameOverScreen/WinScreen on game end
 
 Player  --emits-->  hpChanged, goldChanged  -->  GameScene (updates HUD)
 Inventory  --emits-->  slotChanged  -->  InventoryView (refreshes slot display)
@@ -54,11 +63,17 @@ Inventory  --emits-->  statsChanged  -->  GameScene (calls updatePlayerStats)
 |---|---|---|
 | Monster | Yes | Full combat: fate card draw, attack, counterattack, guarded loot release |
 | Chest | Yes | Fate card draw, agility vs lockDifficulty check, trap damage on fail, loot reveal on success |
+| Trap | Yes | Agility-based disarm: fate draw, agility vs lockDifficulty, damage on fail |
 | Treasure | Partial | Drag-to-equip into inventory slots (grants `powerBonus`); click-resolve has no effect |
 | Potion | Partial | Drag-to-equip into backpack slots; click-resolve has no effect |
-| Trap | No | Card resolves (animates away) but no damage applied |
 | Scroll | No | Card resolves but no effect |
 | Event | No | Card resolves but no effect |
+
+### Multi-level dungeon system
+
+Three dungeon levels with increasing difficulty. Each level has a boss, a key card (dropped by boss), and a door card. Player must defeat the boss to get the key, then click the door to advance. Completing the final level triggers `WinScreen`.
+
+Flow: `initLevel(levelIndex)` → build deck via `Deck.fromDungeonLevel()` → play through cards → defeat boss → get key → open door → `clearGrid()` → next level or win.
 
 ### Combat system
 
@@ -69,6 +84,10 @@ The player draws a fate modifier, `modifiedPower = max(0, player.power + invento
 ### Chest cracking system
 
 Parallel to combat, using agility instead of power. `modifiedAgility = max(0, player.agility + modifier)` is checked against `lockDifficulty`. Failure applies `trapDamage` if > 0. Success reveals loot from `chestLoot` map.
+
+### Trap encounter system
+
+Same agility-based pattern as chests. `enterTrapMode` → `executeDisarm` → `trapCleanup`. Success: card resolves with no damage. Failure: player takes `trapDamage`. Unresolved traps on the grid block the Explore button.
 
 ### Monster-guarded treasure
 
@@ -83,9 +102,10 @@ Equippable cards (those with a `slot` field) can be dragged from the grid onto i
 - `Grid` is a plain class (not a Phaser object); it only tracks cell occupancy and coordinate math. Dimensions: `COLS` (5) and `ROWS` (3).
 - Card dimensions exported from `Card.ts`: `CARD_W` (100), `CARD_H` (110).
 - Equipment slot definitions exported from `Inventory.ts` as `SLOT_DEFS` (6 slots: weapon1, weapon2, head, armour, backpack1, backpack2).
-- The explore button draws 3 cards into random empty grid slots; the game lock (`isResolving`) prevents interaction during card animations.
+- The explore button draws 3 cards into random empty grid slots; the game lock (`isResolving`) prevents interaction during card animations. Explore is also blocked while unresolved traps exist on the grid.
 - `Player.fateDeck` is an array of integer modifiers `[2, 1, 0, 0, -1, -2]` drawn from the front and shuffled back after use.
 - All interactive Phaser containers use explicit `Phaser.Geom.Rectangle` hit areas (not auto-sized).
+- Adding a new card: define it in `cardRegistry`, then reference its ID in `deckConfig`/`dungeonConfig` level cards or `lootPool`.
 
 ### CI/CD
 
