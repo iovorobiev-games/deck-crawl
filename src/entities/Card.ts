@@ -1,18 +1,26 @@
 import Phaser from "phaser";
-import { CardData, CardType, CardColorMap } from "./CardData";
+import { CardData, CardType, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
 
-export const CARD_W = 168;
-export const CARD_H = 198;
-const CORNER_R = 14;
+export const CARD_W = 171;
+export const CARD_H = 202;
+
+const ART_MAX_W = 130;
+const ART_MAX_H = 110;
+const ART_CENTER_Y = -8;
+const DESCR_BG_W = 163;
+const DESCR_BG_H = 74;
+const TITLE_Y = -CARD_H / 2 + 16;
+const DESCR_Y = CARD_H / 2 - DESCR_BG_H / 2;
 
 export class Card extends Phaser.GameObjects.Container {
   cardData: CardData;
   guardedLoot: Card | null = null;
-  private bg!: Phaser.GameObjects.Graphics;
+  private bgSprite!: Phaser.GameObjects.Image;
+  private cardImage: Phaser.GameObjects.Image | null = null;
+  private descrSprite!: Phaser.GameObjects.Image;
   private nameText!: Phaser.GameObjects.Text;
-  private typeText!: Phaser.GameObjects.Text;
-  private valueText!: Phaser.GameObjects.Text;
-  private trapText!: Phaser.GameObjects.Text;
+  private descrText!: Phaser.GameObjects.Text;
+  private highlightGfx: Phaser.GameObjects.Graphics | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, data: CardData) {
     super(scene, x, y);
@@ -27,66 +35,71 @@ export class Card extends Phaser.GameObjects.Container {
   }
 
   private createVisual(): void {
-    const color = CardColorMap[this.cardData.type];
+    const type = this.cardData.type;
 
-    this.bg = this.scene.add.graphics();
-    this.bg.fillStyle(0x1a1a2e, 1);
-    this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
-    this.bg.lineStyle(3, color, 1);
-    this.bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
-    // Color band at top
-    this.bg.fillStyle(color, 1);
-    this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, 50, { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 });
-    this.add(this.bg);
+    // 1. Background sprite
+    this.bgSprite = this.scene.add.image(0, 0, CardBackgroundMap[type]);
+    this.add(this.bgSprite);
 
-    this.typeText = this.scene.add.text(0, -CARD_H / 2 + 25, this.cardData.type, {
-      fontSize: "22px",
+    // 2. Card art image (if defined)
+    if (this.cardData.image) {
+      this.cardImage = this.scene.add.image(0, ART_CENTER_Y, this.cardData.image);
+      const tex = this.cardImage.texture.getSourceImage();
+      const scale = Math.min(ART_MAX_W / tex.width, ART_MAX_H / tex.height);
+      this.cardImage.setScale(scale);
+      this.add(this.cardImage);
+    }
+
+    // 3. Description BG sprite — anchored to bottom of card
+    this.descrSprite = this.scene.add.image(0, DESCR_Y, CardDescrMap[type]);
+    this.add(this.descrSprite);
+
+    // 4. Title text on the top stripe
+    this.nameText = this.scene.add.text(0, TITLE_Y, this.cardData.name, {
+      fontSize: "12px",
       fontFamily: "monospace",
-      color: "#fff",
+      color: CardTitleColorMap[type],
       fontStyle: "bold",
-    }).setOrigin(0.5);
-    this.add(this.typeText);
-
-    this.nameText = this.scene.add.text(0, 14, this.cardData.name, {
-      fontSize: "24px",
-      fontFamily: "monospace",
-      color: "#eee",
       align: "center",
       wordWrap: { width: CARD_W - 20 },
     }).setOrigin(0.5);
     this.add(this.nameText);
 
-    if (this.cardData.type === CardType.Chest && this.cardData.lockDifficulty != null) {
-      this.valueText = this.scene.add.text(0, CARD_H / 2 - 36, `\u{1F512}${this.cardData.lockDifficulty}`, {
-        fontSize: "32px",
-        fontFamily: "monospace",
-        color: "#fff",
-        fontStyle: "bold",
-      }).setOrigin(0.5);
-      this.add(this.valueText);
+    // 5. Mechanical description text on description BG
+    this.descrText = this.scene.add.text(0, DESCR_Y, this.buildDescriptionText(), {
+      fontSize: "11px",
+      fontFamily: "monospace",
+      color: "#ddd",
+      align: "center",
+      wordWrap: { width: DESCR_BG_W - 16 },
+    }).setOrigin(0.5);
+    this.add(this.descrText);
+  }
 
-      if (this.cardData.trapDamage != null) {
-        this.trapText = this.scene.add.text(-CARD_W / 2 + 13, CARD_H / 2 - 32, `\u2665-${this.cardData.trapDamage}`, {
-          fontSize: "20px",
-          fontFamily: "monospace",
-          color: "#ff6666",
-        }).setOrigin(0, 0.5);
-        this.add(this.trapText);
+  private buildDescriptionText(): string {
+    const d = this.cardData;
+    switch (d.type) {
+      case CardType.Monster:
+        return `HP: ${d.value}`;
+      case CardType.Chest: {
+        let text = `Lock: ${d.lockDifficulty ?? 0}`;
+        if (d.trapDamage) text += `\nTrap: -${d.trapDamage} HP`;
+        return text;
       }
-    } else if (this.cardData.type === CardType.Door) {
-      this.valueText = this.scene.add.text(0, CARD_H * 0.28, "\u{1F512}", {
-        fontSize: "44px",
-        fontFamily: "monospace",
-      }).setOrigin(0.5);
-      this.add(this.valueText);
-    } else if (this.cardData.value > 0) {
-      this.valueText = this.scene.add.text(0, CARD_H / 2 - 36, String(this.cardData.value), {
-        fontSize: "36px",
-        fontFamily: "monospace",
-        color: "#fff",
-        fontStyle: "bold",
-      }).setOrigin(0.5);
-      this.add(this.valueText);
+      case CardType.Trap: {
+        let text = `Difficulty: ${d.lockDifficulty ?? 0}`;
+        if (d.trapDamage) text += `\nDamage: ${d.trapDamage}`;
+        return text;
+      }
+      case CardType.Treasure:
+        if (d.slot && !d.isKey) return `+${d.value} power`;
+        return d.description;
+      case CardType.Potion:
+        return d.description;
+      case CardType.Door:
+        return "Locked";
+      default:
+        return d.description || (d.value > 0 ? `Value: ${d.value}` : "");
     }
   }
 
@@ -121,24 +134,13 @@ export class Card extends Phaser.GameObjects.Container {
 
   updateValue(newValue: number): void {
     this.cardData.value = newValue;
-    if (this.valueText) {
-      this.valueText.setText(String(newValue));
-    }
+    this.descrText.setText(this.buildDescriptionText());
   }
 
   markDoorOpened(): void {
-    this.bg.clear();
-    this.bg.fillStyle(0x2a1a4e, 1);
-    this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
-    this.bg.lineStyle(4, 0xeeddff, 1);
-    this.bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
-    this.bg.fillStyle(0xaa88ff, 1);
-    this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, 50, { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 });
-
+    this.bgSprite.setTint(0xaa88ff);
     this.nameText.setText("OPENED!");
-    if (this.valueText) {
-      this.valueText.setText("\u{1F513}");
-    }
+    this.descrText.setText("Unlocked");
   }
 
   /** Restrict hit area to only the bottom peekHeight pixels (the visible peek region). */
@@ -159,23 +161,19 @@ export class Card extends Phaser.GameObjects.Container {
 
   setHighlight(on: boolean): void {
     if (on) {
-      this.bg.clear();
-      const color = CardColorMap[this.cardData.type];
-      this.bg.fillStyle(0x2a2a4e, 1);
-      this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
-      this.bg.lineStyle(4, 0xffffff, 1);
-      this.bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
-      this.bg.fillStyle(color, 1);
-      this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, 50, { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 });
+      if (!this.highlightGfx) {
+        this.highlightGfx = this.scene.add.graphics();
+        this.highlightGfx.fillStyle(0xffffff, 0.15);
+        this.highlightGfx.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
+        this.highlightGfx.lineStyle(3, 0xffffff, 0.8);
+        this.highlightGfx.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
+        this.add(this.highlightGfx);
+      }
     } else {
-      this.bg.clear();
-      const color = CardColorMap[this.cardData.type];
-      this.bg.fillStyle(0x1a1a2e, 1);
-      this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
-      this.bg.lineStyle(3, color, 1);
-      this.bg.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, CORNER_R);
-      this.bg.fillStyle(color, 1);
-      this.bg.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, 50, { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 });
+      if (this.highlightGfx) {
+        this.highlightGfx.destroy();
+        this.highlightGfx = null;
+      }
     }
   }
 }

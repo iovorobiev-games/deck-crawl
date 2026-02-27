@@ -29,6 +29,38 @@ export class BootScene extends Phaser.Scene {
     this.load.image("slot_armour", "sprites/armour_slot.PNG");
     this.load.image("slot_backpack1", "sprites/backpack_1.PNG");
     this.load.image("slot_backpack2", "sprites/backpack_2.PNG");
+
+    // Card background sprites
+    this.load.image("bg_monster", "sprites/Monster.PNG");
+    this.load.image("bg_treasure", "sprites/Treasure.PNG");
+    this.load.image("bg_event", "sprites/Event.PNG");
+
+    // Description background sprites
+    this.load.image("descr_monster", "sprites/monstr_descr_bg.PNG");
+    this.load.image("descr_treasure", "sprites/treasure_descr_bg.PNG");
+    this.load.image("descr_event", "sprites/event_descr.PNG");
+
+    // Card art sprites
+    this.load.image("Skeleton War", "sprites/Skeleton War.PNG");
+    this.load.image("Skeleton Archer", "sprites/Skeleton Archer.PNG");
+    this.load.image("cultist", "sprites/cultist.PNG");
+    this.load.image("vengeful_revenant", "sprites/vengeful_revenant.PNG");
+    this.load.image("crypt_lord", "sprites/crypt_lord.PNG");
+    this.load.image("healing_potion", "sprites/healing_potion.PNG");
+    this.load.image("bear_trap", "sprites/bear_trap.PNG");
+    this.load.image("pressure_plate", "sprites/pressure_plate.PNG");
+    this.load.image("poison_dart_trap", "sprites/poison_dart_trap.PNG");
+    this.load.image("shortsword", "sprites/shortsword.PNG");
+    this.load.image("crude_axe", "sprites/crude_axe.PNG");
+    this.load.image("rusty_cuirass", "sprites/rusty_cuirass.PNG");
+    this.load.image("metal_cuirass", "sprites/metal_cuirass.PNG");
+    this.load.image("scroll_of_fireball", "sprites/scroll_of_fireball.PNG");
+    this.load.image("altar_of_luck", "sprites/altar_of_luck.PNG");
+    this.load.image("wooden_chest", "sprites/wooden_chest.PNG");
+    this.load.image("hardened_chest", "sprites/hardened_chest.PNG");
+    this.load.image("posh_chest", "sprites/posh_chest.PNG");
+    this.load.image("rusty_key", "sprites/rusty_key.PNG");
+    this.load.image("door", "sprites/door.PNG");
   }
 
   create(): void {

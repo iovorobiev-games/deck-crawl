@@ -1,7 +1,8 @@
 import Phaser from "phaser";
-import { CARD_W, CARD_H } from "./Card";
 import { Player } from "../systems/Player";
 
+const PLAYER_W = 168;
+const PLAYER_H = 198;
 const CORNER_R = 14;
 const STACK_BG = 0x2a2a4e;
 const STACK_BORDER = 0x4444aa;
@@ -21,9 +22,9 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.createFateDeckStack();
     this.createPortrait();
 
-    this.setSize(CARD_W, CARD_H);
+    this.setSize(PLAYER_W, PLAYER_H);
     this.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, CARD_W, CARD_H),
+      new Phaser.Geom.Rectangle(0, 0, PLAYER_W, PLAYER_H),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -39,18 +40,18 @@ export class PlayerView extends Phaser.GameObjects.Container {
       const oy = (2 - i) * 4;
       this.fateDeckGfx.fillStyle(STACK_BG, 1);
       this.fateDeckGfx.fillRoundedRect(
-        -CARD_W / 2 + ox,
-        -CARD_H / 2 + oy,
-        CARD_W,
-        CARD_H,
+        -PLAYER_W / 2 + ox,
+        -PLAYER_H / 2 + oy,
+        PLAYER_W,
+        PLAYER_H,
         CORNER_R
       );
       this.fateDeckGfx.lineStyle(1, STACK_BORDER, 0.8);
       this.fateDeckGfx.strokeRoundedRect(
-        -CARD_W / 2 + ox,
-        -CARD_H / 2 + oy,
-        CARD_W,
-        CARD_H,
+        -PLAYER_W / 2 + ox,
+        -PLAYER_H / 2 + oy,
+        PLAYER_W,
+        PLAYER_H,
         CORNER_R
       );
     }

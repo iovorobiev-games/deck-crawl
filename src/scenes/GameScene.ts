@@ -112,6 +112,7 @@ export class GameScene extends Phaser.Scene {
       for (let c = 0; c < COLS; c++) {
         const pos = this.grid.worldPos(c, r);
         const img = this.add.image(pos.x, pos.y, "grid_item");
+        img.setDisplaySize(CARD_W, CARD_H);
         this.gridBgGraphics.push(img);
       }
     }
