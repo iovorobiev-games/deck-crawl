@@ -14,9 +14,9 @@ import { dungeonConfig, DungeonLevel } from "../data/dungeonConfig";
 import { getCard } from "../data/cardRegistry";
 import { WinScreen } from "../entities/WinScreen";
 
-const GAME_W = 960;
-const GAME_H = 540;
-const TREASURE_OFFSET_Y = 28;
+const GAME_W = 1920;
+const GAME_H = 1080;
+const TREASURE_OFFSET_Y = 56;
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -26,14 +26,15 @@ export class GameScene extends Phaser.Scene {
   private exploreBtn!: Phaser.GameObjects.Container;
   private exploreBtnBg!: Phaser.GameObjects.Graphics;
   private exploreBtnText!: Phaser.GameObjects.Text;
-  private deckVisual!: Phaser.GameObjects.Graphics;
+  private deckGroup!: Phaser.GameObjects.Container;
+  private deckVisual: Phaser.GameObjects.Image[] = [];
   private playerView!: PlayerView;
   private fateDeckPopup: FateDeckPopup | null = null;
   private isResolving = false;
   private combatMonster: Card | null = null;
   private combatOverlay: Phaser.GameObjects.Rectangle | null = null;
   private fightBtn: Phaser.GameObjects.Container | null = null;
-  private gridBgGraphics!: Phaser.GameObjects.Graphics;
+  private gridBgGraphics: Phaser.GameObjects.Image[] = [];
   private inventory!: Inventory;
   private inventoryView!: InventoryView;
   private dragCard: Card | null = null;
@@ -59,7 +60,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.cameras.main.setBackgroundColor(0x0e0e1a);
+    this.add.image(GAME_W / 2, GAME_H / 2, "background");
 
     this.player = new Player(10);
     this.grid = new Grid(GAME_W, GAME_H);
@@ -70,12 +71,14 @@ export class GameScene extends Phaser.Scene {
 
     this.inventory = new Inventory();
 
+    this.deckGroup = this.add.container(350, 0);
     this.createHUD();
     this.createGridBackground();
     this.createDeckVisual();
     this.createExploreButton();
-    this.createPlayerView();
     this.createLevelIndicator();
+    this.add.image(GAME_W / 2, 910, "player_panel_bg");
+    this.createPlayerView();
     this.inventoryView = new InventoryView(this, this.inventory);
     this.setupSlotDiscard();
 
@@ -89,11 +92,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createHUD(): void {
-    this.deckText = this.add.text(90, 44, "", {
-      fontSize: "14px",
+    this.deckText = this.add.text(0, 320, "", {
+      fontSize: "28px",
       fontFamily: "monospace",
       color: "#aaaacc",
-    });
+    }).setOrigin(0.5, 0);
+    this.deckGroup.add(this.deckText);
 
     this.updateHUD();
   }
@@ -103,78 +107,55 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createGridBackground(): void {
-    const gfx = this.add.graphics();
-    this.gridBgGraphics = gfx;
+    this.gridBgGraphics = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const pos = this.grid.worldPos(c, r);
-        gfx.fillStyle(0x1a1a2e, 0.3);
-        gfx.fillRoundedRect(
-          pos.x - CARD_W / 2,
-          pos.y - CARD_H / 2,
-          CARD_W,
-          CARD_H,
-          8
-        );
-        gfx.lineStyle(1, 0x333355, 0.5);
-        gfx.strokeRoundedRect(
-          pos.x - CARD_W / 2,
-          pos.y - CARD_H / 2,
-          CARD_W,
-          CARD_H,
-          8
-        );
+        const img = this.add.image(pos.x, pos.y, "grid_item");
+        this.gridBgGraphics.push(img);
       }
     }
   }
 
   private createDeckVisual(): void {
-    this.deckVisual = this.add.graphics();
+    this.deckVisual = [];
     this.updateDeckVisual();
   }
 
   private updateDeckVisual(): void {
-    this.deckVisual.clear();
+    this.deckVisual.forEach(img => img.destroy());
+    this.deckVisual = [];
     if (this.deck.isEmpty) return;
 
-    const baseX = 16;
-    const baseY = 16;
-    // Stacked card backs
+    // Stacked card backs — relative to deckGroup
     const layers = Math.min(3, Math.ceil(this.deck.remaining / 5));
     for (let i = 0; i < layers; i++) {
-      const offset = i * 2;
-      this.deckVisual.fillStyle(0x2a2a4e, 1);
-      this.deckVisual.fillRoundedRect(baseX + offset, baseY + offset, 50, 70, 6);
-      this.deckVisual.lineStyle(1, 0x4444aa, 0.8);
-      this.deckVisual.strokeRoundedRect(baseX + offset, baseY + offset, 50, 70, 6);
+      const offset = i * 4;
+      const img = this.add.image(offset, 200 + offset, "card_back");
+      this.deckGroup.add(img);
+      this.deckVisual.push(img);
     }
-    // Pattern on top card
-    this.deckVisual.lineStyle(1, 0x5555bb, 0.5);
-    const topOff = (layers - 1) * 2;
-    this.deckVisual.strokeRect(baseX + topOff + 8, baseY + topOff + 10, 34, 50);
   }
 
   private createExploreButton(): void {
-    const btnX = 40;
-    const btnY = 110;
-
-    this.exploreBtn = this.add.container(btnX, btnY);
+    this.exploreBtn = this.add.container(0, 398);
+    this.deckGroup.add(this.exploreBtn);
 
     this.exploreBtnBg = this.add.graphics();
     this.drawExploreButtonBg(0x3355aa);
     this.exploreBtn.add(this.exploreBtnBg);
 
     this.exploreBtnText = this.add.text(0, 0, "EXPLORE", {
-      fontSize: "14px",
+      fontSize: "28px",
       fontFamily: "monospace",
       color: "#ffffff",
       fontStyle: "bold",
     }).setOrigin(0.5);
     this.exploreBtn.add(this.exploreBtnText);
 
-    this.exploreBtn.setSize(70, 28);
+    this.exploreBtn.setSize(140, 56);
     this.exploreBtn.setInteractive(
-      new Phaser.Geom.Rectangle(-35, -14, 70, 28),
+      new Phaser.Geom.Rectangle(-70, -28, 140, 56),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -190,13 +171,13 @@ export class GameScene extends Phaser.Scene {
   private drawExploreButtonBg(color: number): void {
     this.exploreBtnBg.clear();
     this.exploreBtnBg.fillStyle(color, 1);
-    this.exploreBtnBg.fillRoundedRect(-35, -14, 70, 28, 6);
-    this.exploreBtnBg.lineStyle(1, 0x6688ee, 0.6);
-    this.exploreBtnBg.strokeRoundedRect(-35, -14, 70, 28, 6);
+    this.exploreBtnBg.fillRoundedRect(-70, -28, 140, 56, 12);
+    this.exploreBtnBg.lineStyle(2, 0x6688ee, 0.6);
+    this.exploreBtnBg.strokeRoundedRect(-70, -28, 140, 56, 12);
   }
 
   private createPlayerView(): void {
-    this.playerView = new PlayerView(this, GAME_W / 2, 475);
+    this.playerView = new PlayerView(this, GAME_W / 2, 910);
     this.playerView.updateStats(this.player);
 
     this.playerView.on("pointerdown", () => {
@@ -204,7 +185,7 @@ export class GameScene extends Phaser.Scene {
       this.fateDeckPopup = new FateDeckPopup(
         this,
         GAME_W / 2,
-        370,
+        700,
         this.player.fateDeckCards
       );
       this.fateDeckPopup.once("destroy", () => {
@@ -220,19 +201,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createLevelIndicator(): void {
-    this.levelIndicator = this.add.text(GAME_W / 2, 12, "", {
-      fontSize: "14px",
+    this.levelIndicator = this.add.text(0, 20, "", {
+      fontSize: "22px",
       fontFamily: "monospace",
       color: "#ddaa22",
       fontStyle: "bold",
     }).setOrigin(0.5, 0);
+    this.deckGroup.add(this.levelIndicator);
 
-    this.levelFlavorText = this.add.text(GAME_W / 2, 30, "", {
-      fontSize: "10px",
+    this.levelFlavorText = this.add.text(0, 48, "", {
+      fontSize: "16px",
       fontFamily: "monospace",
       color: "#8888aa",
       fontStyle: "italic",
     }).setOrigin(0.5, 0);
+    this.deckGroup.add(this.levelFlavorText);
 
     this.updateLevelIndicator();
   }
@@ -466,7 +449,7 @@ export class GameScene extends Phaser.Scene {
           if (!this.dragStartPos || this.isDragging) return;
           const dx = p.x - this.dragStartPos.x;
           const dy = p.y - this.dragStartPos.y;
-          if (Math.sqrt(dx * dx + dy * dy) > 8) {
+          if (Math.sqrt(dx * dx + dy * dy) > 16) {
             this.input.off("pointermove", onMoveDetect);
             this.input.off("pointerup", onUpDetect);
             this.beginDrag(card);
@@ -647,7 +630,7 @@ export class GameScene extends Phaser.Scene {
           const dx = p.x - startPos.x;
           const dy = p.y - startPos.y;
 
-          if (!dragging && Math.sqrt(dx * dx + dy * dy) > 12) {
+          if (!dragging && Math.sqrt(dx * dx + dy * dy) > 24) {
             dragging = true;
             ghost = this.inventoryView.createDragGhost(item);
             ghost.setDepth(500);
@@ -770,7 +753,7 @@ export class GameScene extends Phaser.Scene {
       // Shake the door card as a hint that a key is needed
       this.tweens.add({
         targets: card,
-        x: card.x + 3,
+        x: card.x + 6,
         duration: 50,
         yoyo: true,
         repeat: 2,
@@ -815,8 +798,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Dim grid background, deck visual, HUD, explore button, level indicator
-    this.gridBgGraphics.setAlpha(0.3);
-    this.deckVisual.setAlpha(0.3);
+    this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
+    this.deckVisual.forEach(img => img.setAlpha(0.3));
     this.deckText.setAlpha(0.3);
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
@@ -839,21 +822,21 @@ export class GameScene extends Phaser.Scene {
     this.combatOverlay.on("pointerdown", () => this.exitCombatMode());
 
     // Create FIGHT button below the monster card
-    const btnW = 80;
-    const btnH = 30;
-    this.fightBtn = this.add.container(card.x, card.y + CARD_H / 2 + 24);
+    const btnW = 160;
+    const btnH = 60;
+    this.fightBtn = this.add.container(card.x, card.y + CARD_H / 2 + 48);
     this.fightBtn.setDepth(110);
 
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0xcc3333, 1);
-    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-    btnBg.lineStyle(2, 0xff5555, 0.8);
-    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+    btnBg.lineStyle(4, 0xff5555, 0.8);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     this.fightBtn.add(btnBg);
 
     const btnText = this.add
       .text(0, 0, "FIGHT", {
-        fontSize: "16px",
+        fontSize: "32px",
         fontFamily: "monospace",
         color: "#ffffff",
         fontStyle: "bold",
@@ -870,17 +853,17 @@ export class GameScene extends Phaser.Scene {
     this.fightBtn.on("pointerover", () => {
       btnBg.clear();
       btnBg.fillStyle(0xee4444, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-      btnBg.lineStyle(2, 0xff5555, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+      btnBg.lineStyle(4, 0xff5555, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     });
 
     this.fightBtn.on("pointerout", () => {
       btnBg.clear();
       btnBg.fillStyle(0xcc3333, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-      btnBg.lineStyle(2, 0xff5555, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+      btnBg.lineStyle(4, 0xff5555, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     });
 
     this.fightBtn.on("pointerdown", () => {
@@ -920,8 +903,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Restore HUD alphas
-    this.gridBgGraphics.setAlpha(1);
-    this.deckVisual.setAlpha(1);
+    this.gridBgGraphics.forEach(img => img.setAlpha(1));
+    this.deckVisual.forEach(img => img.setAlpha(1));
     this.deckText.setAlpha(1);
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
@@ -954,17 +937,17 @@ export class GameScene extends Phaser.Scene {
     const fateDeckPos = this.playerView.getFateDeckWorldPos();
 
     // Create fate card visual
-    const fateCardW = 50;
-    const fateCardH = 70;
+    const fateCardW = 100;
+    const fateCardH = 140;
     const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
     fateCard.setDepth(200);
     fateCard.setScale(0.3);
 
     const fateBg = this.add.graphics();
     fateBg.fillStyle(0x1a1a2e, 1);
-    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
-    fateBg.lineStyle(1, 0x4444aa, 0.8);
-    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+    fateBg.lineStyle(2, 0x4444aa, 0.8);
+    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
     fateCard.add(fateBg);
 
     let modColor: string;
@@ -982,7 +965,7 @@ export class GameScene extends Phaser.Scene {
 
     const modText = this.add
       .text(0, 0, modLabel, {
-        fontSize: "20px",
+        fontSize: "40px",
         fontFamily: "monospace",
         color: modColor,
         fontStyle: "bold",
@@ -991,8 +974,8 @@ export class GameScene extends Phaser.Scene {
     fateCard.add(modText);
 
     // Animate fate card appearing above player
-    const targetX = this.playerView.x - 70;
-    const targetY = this.playerView.y - 60;
+    const targetX = this.playerView.x - 140;
+    const targetY = this.playerView.y - 120;
 
     this.tweens.add({
       targets: fateCard,
@@ -1039,7 +1022,7 @@ export class GameScene extends Phaser.Scene {
 
                     this.tweens.add({
                       targets: monsterCard,
-                      x: monsterCard.x + 5,
+                      x: monsterCard.x + 10,
                       duration: 50,
                       yoyo: true,
                       repeat: 3,
@@ -1157,8 +1140,8 @@ export class GameScene extends Phaser.Scene {
           }
         }
       }
-      this.gridBgGraphics.setAlpha(1);
-      this.deckVisual.setAlpha(1);
+      this.gridBgGraphics.forEach(img => img.setAlpha(1));
+      this.deckVisual.forEach(img => img.setAlpha(1));
       this.deckText.setAlpha(1);
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
@@ -1208,8 +1191,8 @@ export class GameScene extends Phaser.Scene {
     if (ownLoot) ownLoot.cardBack.setAlpha(0.3);
 
     // Dim grid background, deck visual, HUD, explore button, level indicator
-    this.gridBgGraphics.setAlpha(0.3);
-    this.deckVisual.setAlpha(0.3);
+    this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
+    this.deckVisual.forEach(img => img.setAlpha(0.3));
     this.deckText.setAlpha(0.3);
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
@@ -1232,21 +1215,21 @@ export class GameScene extends Phaser.Scene {
     this.chestOverlay.on("pointerdown", () => this.exitChestMode());
 
     // Create CRACK button below chest
-    const btnW = 80;
-    const btnH = 30;
-    this.crackBtn = this.add.container(card.x, card.y + CARD_H / 2 + 24);
+    const btnW = 160;
+    const btnH = 60;
+    this.crackBtn = this.add.container(card.x, card.y + CARD_H / 2 + 48);
     this.crackBtn.setDepth(110);
 
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0x88664d, 1);
-    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-    btnBg.lineStyle(2, 0xaa8866, 0.8);
-    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+    btnBg.lineStyle(4, 0xaa8866, 0.8);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     this.crackBtn.add(btnBg);
 
     const btnText = this.add
       .text(0, 0, "CRACK", {
-        fontSize: "16px",
+        fontSize: "32px",
         fontFamily: "monospace",
         color: "#ffffff",
         fontStyle: "bold",
@@ -1263,17 +1246,17 @@ export class GameScene extends Phaser.Scene {
     this.crackBtn.on("pointerover", () => {
       btnBg.clear();
       btnBg.fillStyle(0xaa8866, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-      btnBg.lineStyle(2, 0xaa8866, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+      btnBg.lineStyle(4, 0xaa8866, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     });
 
     this.crackBtn.on("pointerout", () => {
       btnBg.clear();
       btnBg.fillStyle(0x88664d, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-      btnBg.lineStyle(2, 0xaa8866, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+      btnBg.lineStyle(4, 0xaa8866, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     });
 
     this.crackBtn.on("pointerdown", () => {
@@ -1312,8 +1295,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Restore HUD alphas
-    this.gridBgGraphics.setAlpha(1);
-    this.deckVisual.setAlpha(1);
+    this.gridBgGraphics.forEach(img => img.setAlpha(1));
+    this.deckVisual.forEach(img => img.setAlpha(1));
     this.deckText.setAlpha(1);
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
@@ -1339,17 +1322,17 @@ export class GameScene extends Phaser.Scene {
     const fateDeckPos = this.playerView.getFateDeckWorldPos();
 
     // Create fate card visual
-    const fateCardW = 50;
-    const fateCardH = 70;
+    const fateCardW = 100;
+    const fateCardH = 140;
     const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
     fateCard.setDepth(200);
     fateCard.setScale(0.3);
 
     const fateBg = this.add.graphics();
     fateBg.fillStyle(0x1a1a2e, 1);
-    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
-    fateBg.lineStyle(1, 0x4444aa, 0.8);
-    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+    fateBg.lineStyle(2, 0x4444aa, 0.8);
+    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
     fateCard.add(fateBg);
 
     let modColor: string;
@@ -1367,7 +1350,7 @@ export class GameScene extends Phaser.Scene {
 
     const modText = this.add
       .text(0, 0, modLabel, {
-        fontSize: "20px",
+        fontSize: "40px",
         fontFamily: "monospace",
         color: modColor,
         fontStyle: "bold",
@@ -1376,8 +1359,8 @@ export class GameScene extends Phaser.Scene {
     fateCard.add(modText);
 
     // Animate fate card appearing above player
-    const targetX = this.playerView.x - 70;
-    const targetY = this.playerView.y - 60;
+    const targetX = this.playerView.x - 140;
+    const targetY = this.playerView.y - 120;
 
     this.tweens.add({
       targets: fateCard,
@@ -1472,8 +1455,8 @@ export class GameScene extends Phaser.Scene {
           }
         }
       }
-      this.gridBgGraphics.setAlpha(1);
-      this.deckVisual.setAlpha(1);
+      this.gridBgGraphics.forEach(img => img.setAlpha(1));
+      this.deckVisual.forEach(img => img.setAlpha(1));
       this.deckText.setAlpha(1);
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
@@ -1537,8 +1520,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Dim grid background, deck visual, HUD, explore button, level indicator
-    this.gridBgGraphics.setAlpha(0.3);
-    this.deckVisual.setAlpha(0.3);
+    this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
+    this.deckVisual.forEach(img => img.setAlpha(0.3));
     this.deckText.setAlpha(0.3);
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
@@ -1561,21 +1544,21 @@ export class GameScene extends Phaser.Scene {
     this.trapOverlay.on("pointerdown", () => this.exitTrapMode());
 
     // Create DISARM button below trap
-    const btnW = 80;
-    const btnH = 30;
-    this.disarmBtn = this.add.container(card.x, card.y + CARD_H / 2 + 24);
+    const btnW = 160;
+    const btnH = 60;
+    this.disarmBtn = this.add.container(card.x, card.y + CARD_H / 2 + 48);
     this.disarmBtn.setDepth(110);
 
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0xdd8833, 1);
-    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-    btnBg.lineStyle(2, 0xee9944, 0.8);
-    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+    btnBg.lineStyle(4, 0xee9944, 0.8);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     this.disarmBtn.add(btnBg);
 
     const btnText = this.add
       .text(0, 0, "DISARM", {
-        fontSize: "16px",
+        fontSize: "32px",
         fontFamily: "monospace",
         color: "#ffffff",
         fontStyle: "bold",
@@ -1592,17 +1575,17 @@ export class GameScene extends Phaser.Scene {
     this.disarmBtn.on("pointerover", () => {
       btnBg.clear();
       btnBg.fillStyle(0xee9944, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-      btnBg.lineStyle(2, 0xee9944, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+      btnBg.lineStyle(4, 0xee9944, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     });
 
     this.disarmBtn.on("pointerout", () => {
       btnBg.clear();
       btnBg.fillStyle(0xdd8833, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
-      btnBg.lineStyle(2, 0xee9944, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 6);
+      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+      btnBg.lineStyle(4, 0xee9944, 0.8);
+      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
     });
 
     this.disarmBtn.on("pointerdown", () => {
@@ -1641,8 +1624,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Restore HUD alphas
-    this.gridBgGraphics.setAlpha(1);
-    this.deckVisual.setAlpha(1);
+    this.gridBgGraphics.forEach(img => img.setAlpha(1));
+    this.deckVisual.forEach(img => img.setAlpha(1));
     this.deckText.setAlpha(1);
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
@@ -1668,17 +1651,17 @@ export class GameScene extends Phaser.Scene {
     const modifier = this.player.drawFateCard();
     const fateDeckPos = this.playerView.getFateDeckWorldPos();
 
-    const fateCardW = 50;
-    const fateCardH = 70;
+    const fateCardW = 100;
+    const fateCardH = 140;
     const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
     fateCard.setDepth(200);
     fateCard.setScale(0.3);
 
     const fateBg = this.add.graphics();
     fateBg.fillStyle(0x1a1a2e, 1);
-    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
-    fateBg.lineStyle(1, 0x4444aa, 0.8);
-    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 6);
+    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+    fateBg.lineStyle(2, 0x4444aa, 0.8);
+    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
     fateCard.add(fateBg);
 
     let modColor: string;
@@ -1696,7 +1679,7 @@ export class GameScene extends Phaser.Scene {
 
     const modText = this.add
       .text(0, 0, modLabel, {
-        fontSize: "20px",
+        fontSize: "40px",
         fontFamily: "monospace",
         color: modColor,
         fontStyle: "bold",
@@ -1704,8 +1687,8 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5);
     fateCard.add(modText);
 
-    const targetX = this.playerView.x - 70;
-    const targetY = this.playerView.y - 60;
+    const targetX = this.playerView.x - 140;
+    const targetY = this.playerView.y - 120;
 
     this.tweens.add({
       targets: fateCard,
@@ -1795,8 +1778,8 @@ export class GameScene extends Phaser.Scene {
           }
         }
       }
-      this.gridBgGraphics.setAlpha(1);
-      this.deckVisual.setAlpha(1);
+      this.gridBgGraphics.forEach(img => img.setAlpha(1));
+      this.deckVisual.forEach(img => img.setAlpha(1));
       this.deckText.setAlpha(1);
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
@@ -1843,16 +1826,16 @@ export class GameScene extends Phaser.Scene {
     const container = this.add.container(x, y);
     const gfx = this.add.graphics();
     gfx.fillStyle(0x2a2a4e, 1);
-    gfx.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
-    gfx.lineStyle(1, 0x4444aa, 0.8);
-    gfx.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
-    gfx.lineStyle(1, 0x5555bb, 0.5);
-    gfx.strokeRect(-CARD_W / 2 + 12, -CARD_H / 2 + 15, CARD_W - 24, CARD_H - 30);
+    gfx.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 16);
+    gfx.lineStyle(2, 0x4444aa, 0.8);
+    gfx.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 16);
+    gfx.lineStyle(2, 0x5555bb, 0.5);
+    gfx.strokeRect(-CARD_W / 2 + 24, -CARD_H / 2 + 30, CARD_W - 48, CARD_H - 60);
     container.add(gfx);
 
     const questionMark = this.add
       .text(0, 0, "?", {
-        fontSize: "24px",
+        fontSize: "48px",
         fontFamily: "monospace",
         color: "#5555bb",
         fontStyle: "bold",
@@ -1875,7 +1858,7 @@ export class GameScene extends Phaser.Scene {
       // Shake the door as a hint that a key is needed
       this.tweens.add({
         targets: doorCard,
-        x: doorCard.x + 3,
+        x: doorCard.x + 6,
         duration: 50,
         yoyo: true,
         repeat: 2,

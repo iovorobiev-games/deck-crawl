@@ -2,21 +2,29 @@ import Phaser from "phaser";
 import { Inventory, SLOT_DEFS, SlotDef } from "../systems/Inventory";
 import { CardData, CardColorMap } from "./CardData";
 
-const SLOT_W = 80;
-const SLOT_H = 90;
-const CORNER_R = 6;
-const BG_COLOR = 0x111122;
+const SLOT_W = 157;
+const SLOT_H = 186;
+const CORNER_R = 12;
 const BORDER_DEFAULT = 0x333355;
 const BORDER_VALID = 0x33cc55;
 const BORDER_VALID_DIM = 0x226633;
 const BORDER_INVALID = 0xcc3333;
 const BORDER_INVALID_DIM = 0x662222;
 
+const SLOT_SPRITE_MAP: Record<string, string> = {
+  weapon1: "slot_left_arm",
+  weapon2: "slot_right_arm",
+  head: "slot_head",
+  armour: "slot_armour",
+  backpack1: "slot_backpack1",
+  backpack2: "slot_backpack2",
+};
+
 interface SlotVisual {
   def: SlotDef;
   container: Phaser.GameObjects.Container;
   bg: Phaser.GameObjects.Graphics;
-  iconText: Phaser.GameObjects.Text;
+  slotBgImage: Phaser.GameObjects.Image | null;
   miniCard: Phaser.GameObjects.Container | null;
   worldX: number;
   worldY: number;
@@ -24,15 +32,15 @@ interface SlotVisual {
 
 // Layout positions for each slot (absolute x, all at same y)
 const SLOT_POSITIONS: Record<string, number> = {
-  head: 382,
-  weapon2: 298,
-  weapon1: 214,
-  armour: 578,
-  backpack1: 662,
-  backpack2: 746,
+  head: 764,
+  weapon2: 596,
+  weapon1: 428,
+  armour: 1156,
+  backpack1: 1324,
+  backpack2: 1492,
 };
 
-const SLOT_Y = 475;
+const SLOT_Y = 910;
 
 export class InventoryView extends Phaser.GameObjects.Container {
   private slotVisuals: Map<string, SlotVisual> = new Map();
@@ -59,27 +67,16 @@ export class InventoryView extends Phaser.GameObjects.Container {
 
     const container = this.scene.add.container(x, y);
 
+    const slotSpriteKey = SLOT_SPRITE_MAP[def.name];
+    let slotBgImage: Phaser.GameObjects.Image | null = null;
+    if (slotSpriteKey) {
+      slotBgImage = this.scene.add.image(0, 0, slotSpriteKey);
+      container.add(slotBgImage);
+    }
+
     const bg = this.scene.add.graphics();
     this.drawSlotBg(bg, BORDER_DEFAULT);
     container.add(bg);
-
-    const iconText = this.scene.add
-      .text(0, -5, def.icon, {
-        fontSize: "24px",
-        fontFamily: "monospace",
-        color: "#333355",
-      })
-      .setOrigin(0.5);
-    container.add(iconText);
-
-    const labelText = this.scene.add
-      .text(0, SLOT_H / 2 - 12, def.label, {
-        fontSize: "9px",
-        fontFamily: "monospace",
-        color: "#555577",
-      })
-      .setOrigin(0.5);
-    container.add(labelText);
 
     container.setSize(SLOT_W, SLOT_H);
     container.setInteractive(
@@ -93,7 +90,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
       def,
       container,
       bg,
-      iconText,
+      slotBgImage,
       miniCard: null,
       worldX: x,
       worldY: y,
@@ -106,22 +103,16 @@ export class InventoryView extends Phaser.GameObjects.Container {
     borderColor: number
   ): void {
     bg.clear();
-    bg.fillStyle(BG_COLOR, 0.6);
-    bg.fillRoundedRect(
-      -SLOT_W / 2,
-      -SLOT_H / 2,
-      SLOT_W,
-      SLOT_H,
-      CORNER_R
-    );
-    bg.lineStyle(2, borderColor, 0.8);
-    bg.strokeRoundedRect(
-      -SLOT_W / 2,
-      -SLOT_H / 2,
-      SLOT_W,
-      SLOT_H,
-      CORNER_R
-    );
+    if (borderColor !== BORDER_DEFAULT) {
+      bg.lineStyle(3, borderColor, 0.8);
+      bg.strokeRoundedRect(
+        -SLOT_W / 2,
+        -SLOT_H / 2,
+        SLOT_W,
+        SLOT_H,
+        CORNER_R
+      );
+    }
   }
 
   private updateSlotContent(slotName: string, item: CardData | null): void {
@@ -135,50 +126,50 @@ export class InventoryView extends Phaser.GameObjects.Container {
     }
 
     if (item) {
-      visual.iconText.setVisible(false);
+      visual.slotBgImage?.setVisible(false);
       visual.miniCard = this.createMiniCard(item);
       visual.container.add(visual.miniCard);
     } else {
-      visual.iconText.setVisible(true);
+      visual.slotBgImage?.setVisible(true);
     }
   }
 
   private createMiniCard(item: CardData): Phaser.GameObjects.Container {
     const mc = this.scene.add.container(0, 0);
     const color = CardColorMap[item.type];
-    const miniW = SLOT_W - 10;
-    const miniH = SLOT_H - 10;
+    const miniW = SLOT_W - 20;
+    const miniH = SLOT_H - 20;
 
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x1a1a2e, 1);
-    bg.fillRoundedRect(-miniW / 2, -miniH / 2, miniW, miniH, 4);
+    bg.fillRoundedRect(-miniW / 2, -miniH / 2, miniW, miniH, 8);
     bg.lineStyle(1, color, 1);
-    bg.strokeRoundedRect(-miniW / 2, -miniH / 2, miniW, miniH, 4);
+    bg.strokeRoundedRect(-miniW / 2, -miniH / 2, miniW, miniH, 8);
     // Color band
     bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-miniW / 2, -miniH / 2, miniW, 18, {
-      tl: 4,
-      tr: 4,
+    bg.fillRoundedRect(-miniW / 2, -miniH / 2, miniW, 36, {
+      tl: 8,
+      tr: 8,
       bl: 0,
       br: 0,
     });
     mc.add(bg);
 
     const nameText = this.scene.add
-      .text(0, 2, item.name, {
-        fontSize: "9px",
+      .text(0, 4, item.name, {
+        fontSize: "18px",
         fontFamily: "monospace",
         color: "#ddd",
         align: "center",
-        wordWrap: { width: miniW - 6 },
+        wordWrap: { width: miniW - 12 },
       })
       .setOrigin(0.5);
     mc.add(nameText);
 
     if (item.value > 0) {
       const valText = this.scene.add
-        .text(0, miniH / 2 - 16, `+${item.value}`, {
-          fontSize: "14px",
+        .text(0, miniH / 2 - 32, `+${item.value}`, {
+          fontSize: "28px",
           fontFamily: "monospace",
           color: "#ffdd44",
           fontStyle: "bold",
@@ -261,7 +252,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
 
     scene.tweens.add({
       targets: ghost,
-      y: y - 30,
+      y: y - 60,
       alpha: 0,
       scaleX: 0.5,
       scaleY: 0.5,
