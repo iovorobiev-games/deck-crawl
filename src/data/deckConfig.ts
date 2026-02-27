@@ -4,7 +4,7 @@ export interface DeckEntry {
 }
 
 export const deckConfig: DeckEntry[] = [
-  { id: "goblin", count: 6 },
+  { id: "skeleton_warrior", count: 6 },
   { id: "skeleton", count: 4 },
   { id: "health_potion", count: 5 },
   { id: "spike_trap", count: 3 },
