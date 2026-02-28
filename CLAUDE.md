@@ -20,12 +20,12 @@ No unit tests exist. ALWAYS use ui-test skill to verify changes visually.
 
 Deck Crawl is a browser-based card-crawling game built with **Phaser 3** and **TypeScript**, bundled with **Vite**.
 
-Game resolution is 960x540 with `Phaser.Scale.FIT` auto-centering. All visuals are drawn programmatically with `Phaser.GameObjects.Graphics` (no sprite assets).
+Game resolution is 1920x1080 with `Phaser.Scale.FIT` auto-centering. UI chrome (player portrait, panels, inventory slots, stat icons) uses sprite assets from `public/sprites/`. Cards are still drawn programmatically with `Phaser.GameObjects.Graphics`.
 
 ### Source layout (`src/`)
 
 - **`main.ts`** — Entry point. Creates the Phaser game with scene list `[BootScene, GameScene]`.
-- **`scenes/`** — Phaser scenes. `BootScene` is a placeholder for future asset loading; `GameScene` owns all gameplay logic and orchestrates all systems and entities (~2000 lines).
+- **`scenes/`** — Phaser scenes. `BootScene` preloads all sprite assets from `public/sprites/`; `GameScene` owns all gameplay logic and orchestrates all systems and entities (~2000 lines).
 - **`entities/`** — Phaser `Container` subclasses for visual game objects: `Card`, `PlayerView`, `InventoryView`, `FateDeckPopup`, `GameOverScreen`, `WinScreen`. Also contains `CardData.ts` which defines `CardType` enum, `EquipSlot` type, `CardData` interface, and `CardColorMap`.
 - **`systems/`** — Logic classes (extend `Phaser.Events.EventEmitter` where events are needed). `Grid` manages a 5x3 cell array. `Deck` holds a shuffled `CardData[]` and supports `Deck.fromDungeonLevel()` factory. `Player` tracks HP/power/agility/gold/fateDeck. `Inventory` tracks 6 equipment slots.
 - **`data/cardRegistry.ts`** — Central card definitions. `cardRegistry` maps string IDs to `CardData` objects. `getCard(id)` factory function creates card instances from the registry.
