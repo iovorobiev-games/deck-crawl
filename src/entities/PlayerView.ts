@@ -15,6 +15,9 @@ export class PlayerView extends Phaser.GameObjects.Container {
   private hpGroup!: Phaser.GameObjects.Container;
   private agilityGroup!: Phaser.GameObjects.Container;
   private fateDeckGfx!: Phaser.GameObjects.Graphics;
+  private portraitSprite!: Phaser.GameObjects.Image;
+  private highlightTween: Phaser.Tweens.Tween | null = null;
+  private healPreviewText: Phaser.GameObjects.Text | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -60,8 +63,8 @@ export class PlayerView extends Phaser.GameObjects.Container {
 
   private createPortrait(): void {
     // Player portrait sprite (202x243, used at native size)
-    const portrait = this.scene.add.image(0, 0, "player_portrait");
-    this.add(portrait);
+    this.portraitSprite = this.scene.add.image(0, 0, "player_portrait");
+    this.add(this.portraitSprite);
 
     // Portrait is 202x243 — corners at (±101, -122)
     // Each stat is a sub-container holding the icon + text, so moving the
@@ -159,5 +162,49 @@ export class PlayerView extends Phaser.GameObjects.Container {
 
   restoreAgility(player: Player): void {
     this.agilityText.setText(`\u25C6${player.agility}`);
+  }
+
+  showDropHighlight(amount: number): void {
+    if (this.highlightTween) return; // already showing
+
+    this.portraitSprite.setTint(0x44ff66);
+    this.highlightTween = this.scene.tweens.add({
+      targets: this.portraitSprite,
+      alpha: { from: 1, to: 0.6 },
+      duration: 400,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    this.healPreviewText = this.scene.add
+      .text(0, -PLAYER_H / 2 - 20, `+${amount} HP`, {
+        fontSize: "28px",
+        fontFamily: "monospace",
+        color: "#44ff66",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5, 1);
+    this.add(this.healPreviewText);
+  }
+
+  hideDropHighlight(): void {
+    if (this.highlightTween) {
+      this.highlightTween.stop();
+      this.highlightTween = null;
+    }
+    this.portraitSprite.clearTint();
+    this.portraitSprite.setAlpha(1);
+
+    if (this.healPreviewText) {
+      this.healPreviewText.destroy();
+      this.healPreviewText = null;
+    }
+  }
+
+  isPointOver(worldX: number, worldY: number): boolean {
+    const dx = worldX - this.x;
+    const dy = worldY - this.y;
+    return Math.abs(dx) <= PLAYER_W / 2 && Math.abs(dy) <= PLAYER_H / 2;
   }
 }

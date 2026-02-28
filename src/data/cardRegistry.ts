@@ -11,7 +11,7 @@ export const cardRegistry: Record<string, CardData> = {
   crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 15, description: "The master of this dungeon", image: "crypt_lord", isBoss: true },
 
   // --- Potions ---
-  health_potion: { id: "health_potion", type: CardType.Potion, name: "Health Potion", value: 4, description: "Restores 4 HP", slot: "backpack", image: "healing_potion" },
+  health_potion: { id: "health_potion", type: CardType.Potion, name: "Health Potion", value: 4, description: "Restores 4 HP", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "healing", params: { amount: 4 } }] },
 
   // --- Traps ---
   spike_trap: { id: "spike_trap", type: CardType.Trap, name: "Spike Trap", value: 2, description: "Deals 2 damage", lockDifficulty: 2, trapDamage: 2, image: "bear_trap" },
