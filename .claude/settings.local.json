@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git init:*)"
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(cd:*)",
+      "Bash(npx tsc *)",
+      "Bash(sleep *)",
+      "Bash(code:*)",
+      "Skill(ui-test)"
     ]
   }
 }
