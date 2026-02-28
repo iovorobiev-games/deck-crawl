@@ -96,7 +96,7 @@ export class WinScreen extends Phaser.GameObjects.Container {
 
     btn.setSize(btnW, btnH);
     btn.setInteractive(
-      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
+      new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
       Phaser.Geom.Rectangle.Contains
     );
 
