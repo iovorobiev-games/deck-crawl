@@ -12,6 +12,7 @@ import { CardType, CardData } from "../entities/CardData";
 import { lootPool } from "../data/deckConfig";
 import { dungeonConfig, DungeonLevel } from "../data/dungeonConfig";
 import { getCard } from "../data/cardRegistry";
+import { getAbility } from "../data/abilityRegistry";
 import { WinScreen } from "../entities/WinScreen";
 
 const GAME_W = 1920;
@@ -430,6 +431,18 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
+  private hasDragAbility(card: Card): boolean {
+    if (!card.cardData.abilities) return false;
+    return card.cardData.abilities.some((a) => {
+      const def = getAbility(a.abilityId);
+      return def.trigger === "dragOnPlayerPortrait";
+    });
+  }
+
+  private isDraggable(card: Card): boolean {
+    return this.isEquippable(card) || this.hasDragAbility(card);
+  }
+
   private setupCardInteraction(card: Card): void {
     card.on("pointerover", () => {
       if (!this.isResolving && !this.isDragging) card.setHighlight(true);
@@ -440,7 +453,7 @@ export class GameScene extends Phaser.Scene {
     card.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.isResolving) return;
       if (this.guardedByMonster.has(card)) return;
-      if (this.isEquippable(card)) {
+      if (this.isDraggable(card)) {
         this.dragStartPos = { x: pointer.x, y: pointer.y };
         this.dragCard = card;
 
@@ -527,6 +540,19 @@ export class GameScene extends Phaser.Scene {
           }
         }
       }
+
+      // Highlight portrait if dragging a card with drag ability
+      if (this.hasDragAbility(card)) {
+        if (this.playerView.isPointOver(world.x, world.y)) {
+          const ability = card.cardData.abilities!.find((a) => {
+            const def = getAbility(a.abilityId);
+            return def.trigger === "dragOnPlayerPortrait";
+          })!;
+          this.playerView.showDropHighlight(ability.params.amount);
+        } else {
+          this.playerView.hideDropHighlight();
+        }
+      }
     };
 
     const onUp = (pointer: Phaser.Input.Pointer) => {
@@ -534,6 +560,16 @@ export class GameScene extends Phaser.Scene {
       this.input.off("pointerup", onUp);
 
       const world = this.toWorldCoords(pointer);
+
+      // Check if card with drag ability dropped on portrait
+      if (this.hasDragAbility(card) && this.playerView.isPointOver(world.x, world.y)) {
+        this.playerView.hideDropHighlight();
+        this.inventoryView.clearAllHighlights();
+        this.executeAbility(card);
+        return;
+      }
+
+      this.playerView.hideDropHighlight();
 
       // Check if key dropped on door
       if (card.cardData.isKey) {
@@ -611,6 +647,26 @@ export class GameScene extends Phaser.Scene {
     this.dragOrigGridPos = null;
     this.isDragging = false;
     this.isResolving = false;
+  }
+
+  private executeAbility(card: Card): void {
+    const ability = card.cardData.abilities?.find((a) => {
+      const def = getAbility(a.abilityId);
+      return def.trigger === "dragOnPlayerPortrait";
+    });
+    if (!ability) return;
+
+    const def = getAbility(ability.abilityId);
+    switch (def.effect) {
+      case "healPlayer":
+        this.player.heal(ability.params.amount);
+        break;
+    }
+
+    card.disableInteractive();
+    card.resolve(() => {
+      this.finishDrag();
+    });
   }
 
   private setupSlotDiscard(): void {

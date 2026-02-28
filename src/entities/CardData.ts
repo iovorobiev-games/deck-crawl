@@ -1,3 +1,5 @@
+import { CardAbility } from "../data/abilityRegistry";
+
 export enum CardType {
   Monster = "Monster",
   Potion = "Potion",
@@ -24,6 +26,7 @@ export interface CardData {
   isKey?: boolean;
   isBoss?: boolean;
   deckLevel?: number;
+  abilities?: CardAbility[];
 }
 
 export const CardColorMap: Record<CardType, number> = {
