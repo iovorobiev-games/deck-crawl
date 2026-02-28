@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Workflow
 
 1. Never jump straight into implementation. Interview the user to clarify requirements and narrow down the scope of the task.
-2. Before starting implementation, pull and checkout the latest master. ALWAYS make changes on top of the latest master.
+2. Before beginning any new task, start a new git worktree and work within it.
+3. In the worktree, pull the latest master and create a new branch from it. ALWAYS make changes on top of the latest master.
 
 ## Commands
 
