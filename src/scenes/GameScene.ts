@@ -156,7 +156,7 @@ export class GameScene extends Phaser.Scene {
 
     this.exploreBtn.setSize(140, 56);
     this.exploreBtn.setInteractive(
-      new Phaser.Geom.Rectangle(-70, -28, 140, 56),
+      new Phaser.Geom.Rectangle(0, 0, 140, 56),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -847,7 +847,7 @@ export class GameScene extends Phaser.Scene {
 
     this.fightBtn.setSize(btnW, btnH);
     this.fightBtn.setInteractive(
-      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
+      new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -1240,7 +1240,7 @@ export class GameScene extends Phaser.Scene {
 
     this.crackBtn.setSize(btnW, btnH);
     this.crackBtn.setInteractive(
-      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
+      new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
       Phaser.Geom.Rectangle.Contains
     );
 
@@ -1569,7 +1569,7 @@ export class GameScene extends Phaser.Scene {
 
     this.disarmBtn.setSize(btnW, btnH);
     this.disarmBtn.setInteractive(
-      new Phaser.Geom.Rectangle(-btnW / 2, -btnH / 2, btnW, btnH),
+      new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
       Phaser.Geom.Rectangle.Contains
     );
 
