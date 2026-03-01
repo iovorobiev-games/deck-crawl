@@ -31,8 +31,8 @@ export const cardRegistry: Record<string, CardData> = {
 
   // --- Events ---
   merchant: { id: "merchant", type: CardType.Event, name: "Merchant", value: 0, description: "Trade goods" },
-  shrine: { id: "shrine", type: CardType.Event, name: "Shrine", value: 0, description: "A mysterious shrine", image: "altar_of_luck" },
   attack_from_shadows: { id: "attack_from_shadows", type: CardType.Event, name: "Attack from Shadows", value: 1, description: "A hidden blade strikes!", image: "attack_from_shadows", abilities: [{ abilityId: "attack_from_shadows", params: { amount: 1 } }] },
+  altar_of_luck: { id: "altar_of_luck", type: CardType.Treasure, name: "Altar Of Luck", value: 0, description: "Pay 1 gold: +2 fate", image: "altar_of_luck", exchangePrice: { resource: "gold", amount: 1 }, exchangeReward: { type: "fate", modifier: 2 } },
 
   // --- Chests ---
   wooden_chest: { id: "wooden_chest", type: CardType.Chest, name: "Wooden Chest", value: 0, description: "A simple wooden chest", lockDifficulty: 2, trapDamage: 1, image: "wooden_chest" },

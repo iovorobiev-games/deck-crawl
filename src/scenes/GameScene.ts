@@ -49,6 +49,9 @@ export class GameScene extends Phaser.Scene {
   private disarmingTrap: Card | null = null;
   private trapOverlay: Phaser.GameObjects.Rectangle | null = null;
   private disarmBtn: Phaser.GameObjects.Container | null = null;
+  private exchangerCard: Card | null = null;
+  private exchangerOverlay: Phaser.GameObjects.Rectangle | null = null;
+  private exchangerBtn: Phaser.GameObjects.Container | null = null;
   private chestLoot: Map<Card, { lootData: CardData; cardBack: Phaser.GameObjects.Container }> = new Map();
   private currentLevelIndex = 0;
   private dungeonLevels!: DungeonLevel[];
@@ -960,6 +963,11 @@ export class GameScene extends Phaser.Scene {
         yoyo: true,
         repeat: 2,
       });
+      return;
+    }
+
+    if (card.cardData.exchangePrice) {
+      this.enterExchangerMode(card);
       return;
     }
 
@@ -1955,6 +1963,338 @@ export class GameScene extends Phaser.Scene {
 
       this.isResolving = false;
       this.disarmingTrap = null;
+      this.updateExploreButtonState();
+
+      if (this.player.hp <= 0) {
+        this.showGameOver();
+      }
+    });
+  }
+
+  private enterExchangerMode(card: Card): void {
+    this.isResolving = true;
+    this.exchangerCard = card;
+
+    // Dim other grid cards
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && gridCard !== card) {
+          gridCard.setAlpha(0.3);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(0.3);
+            gridCard.guardedLoot.disableInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(0.3);
+        }
+      }
+    }
+
+    // Dim grid background, deck visual, HUD, explore button, level indicator
+    this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
+    this.deckVisual.forEach(img => img.setAlpha(0.3));
+    this.deckText.setAlpha(0.3);
+    this.exploreBtn.setAlpha(0.3);
+    this.levelIndicator.setAlpha(0.3);
+    this.levelFlavorText.setAlpha(0.3);
+
+    // Bring card to top
+    card.setDepth(100);
+
+    // Create clickable overlay behind button (to cancel)
+    this.exchangerOverlay = this.add.rectangle(
+      GAME_W / 2,
+      GAME_H / 2,
+      GAME_W,
+      GAME_H,
+      0x000000,
+      0.01
+    );
+    this.exchangerOverlay.setDepth(50);
+    this.exchangerOverlay.setInteractive();
+    this.exchangerOverlay.on("pointerdown", () => this.exitExchangerMode());
+
+    // Create OFFER button below exchanger card
+    const btnW = 160;
+    const btnH = 60;
+    this.exchangerBtn = this.add.container(card.x, card.y + CARD_H / 2 + 48);
+    this.exchangerBtn.setDepth(110);
+
+    const price = card.cardData.exchangePrice!;
+    const canAfford = price.resource === "gold"
+      ? this.player.gold >= price.amount
+      : this.player.hp > price.amount;
+
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0xddaa22, 1);
+    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+    btnBg.lineStyle(4, 0xffcc44, 0.8);
+    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+    this.exchangerBtn.add(btnBg);
+
+    const btnText = this.add
+      .text(0, 0, "OFFER", {
+        fontSize: "32px",
+        fontFamily: "monospace",
+        color: "#ffffff",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.exchangerBtn.add(btnText);
+
+    if (canAfford) {
+      this.exchangerBtn.setSize(btnW, btnH);
+      this.exchangerBtn.setInteractive(
+        new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
+        Phaser.Geom.Rectangle.Contains
+      );
+
+      this.exchangerBtn.on("pointerover", () => {
+        btnBg.clear();
+        btnBg.fillStyle(0xeebb33, 1);
+        btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+        btnBg.lineStyle(4, 0xffcc44, 0.8);
+        btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+      });
+
+      this.exchangerBtn.on("pointerout", () => {
+        btnBg.clear();
+        btnBg.fillStyle(0xddaa22, 1);
+        btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+        btnBg.lineStyle(4, 0xffcc44, 0.8);
+        btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 12);
+      });
+
+      this.exchangerBtn.on("pointerdown", () => {
+        this.executeExchange(card);
+      });
+    } else {
+      this.exchangerBtn.setAlpha(0.5);
+    }
+  }
+
+  private exitExchangerMode(): void {
+    if (this.exchangerOverlay) {
+      this.exchangerOverlay.destroy();
+      this.exchangerOverlay = null;
+    }
+    if (this.exchangerBtn) {
+      this.exchangerBtn.destroy();
+      this.exchangerBtn = null;
+    }
+
+    // Restore all grid card alphas, guarded loot, and chest loot
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard) {
+          gridCard.setAlpha(1);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(1);
+            gridCard.guardedLoot.setDepth(5);
+            gridCard.guardedLoot.setInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+        }
+      }
+    }
+
+    // Restore HUD alphas
+    this.gridBgGraphics.forEach(img => img.setAlpha(1));
+    this.deckVisual.forEach(img => img.setAlpha(1));
+    this.deckText.setAlpha(1);
+    this.exploreBtn.setAlpha(1);
+    this.levelIndicator.setAlpha(1);
+    this.levelFlavorText.setAlpha(1);
+
+    // Reset card depth
+    if (this.exchangerCard) {
+      this.exchangerCard.setDepth(10);
+    }
+
+    this.isResolving = false;
+    this.exchangerCard = null;
+    this.updateExploreButtonState();
+  }
+
+  private executeExchange(card: Card): void {
+    if (this.exchangerBtn) this.exchangerBtn.disableInteractive();
+    if (this.exchangerOverlay) this.exchangerOverlay.disableInteractive();
+
+    const price = card.cardData.exchangePrice!;
+    const reward = card.cardData.exchangeReward!;
+
+    // Pay the price
+    if (price.resource === "gold") {
+      this.player.addGold(-price.amount);
+    } else {
+      this.player.takeDamage(price.amount);
+    }
+
+    // Apply reward
+    if (reward.type === "fate") {
+      this.player.fateDeck.push(reward.modifier);
+      // Shuffle the fate deck
+      for (let i = this.player.fateDeck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this.player.fateDeck[i], this.player.fateDeck[j]] = [this.player.fateDeck[j], this.player.fateDeck[i]];
+      }
+
+      // Animate a fate card visual flying from the exchanger card into the fate deck
+      const fateDeckPos = this.playerView.getFateDeckWorldPos();
+      const fateCardW = 100;
+      const fateCardH = 140;
+      const fateCard = this.add.container(card.x, card.y);
+      fateCard.setDepth(200);
+      fateCard.setScale(0.5);
+
+      const fateBg = this.add.graphics();
+      fateBg.fillStyle(0x1a1a2e, 1);
+      fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+      fateBg.lineStyle(2, 0x4444aa, 0.8);
+      fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+      fateCard.add(fateBg);
+
+      const modLabel = reward.modifier > 0 ? `+${reward.modifier}` : `${reward.modifier}`;
+      const modColor = reward.modifier > 0 ? "#44dd88" : reward.modifier < 0 ? "#ff5555" : "#888888";
+      const modText = this.add
+        .text(0, 0, modLabel, {
+          fontSize: "40px",
+          fontFamily: "monospace",
+          color: modColor,
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      fateCard.add(modText);
+
+      this.tweens.add({
+        targets: fateCard,
+        x: fateDeckPos.x,
+        y: fateDeckPos.y,
+        scaleX: 0.3,
+        scaleY: 0.3,
+        duration: 600,
+        ease: "Power2",
+        onComplete: () => {
+          fateCard.destroy();
+          this.exchangerCleanup(card);
+        },
+      });
+    } else {
+      // Treasure reward — replace exchanger card with treasure card in the same cell
+      const rewardCardData = getCard(reward.cardId);
+      const cell = this.grid.findCard(card);
+      const cellPos = cell ? { col: cell.col, row: cell.row } : null;
+
+      if (cell) this.grid.removeCard(cell.col, cell.row);
+
+      // Destroy overlay and button before card resolves
+      if (this.exchangerOverlay) {
+        this.exchangerOverlay.destroy();
+        this.exchangerOverlay = null;
+      }
+      if (this.exchangerBtn) {
+        this.exchangerBtn.destroy();
+        this.exchangerBtn = null;
+      }
+
+      card.resolve(() => {
+        // Restore alphas
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const gridCard = this.grid.getCardAt(c, r);
+            if (gridCard) {
+              gridCard.setAlpha(1);
+              if (gridCard.guardedLoot) {
+                gridCard.guardedLoot.setAlpha(1);
+                gridCard.guardedLoot.setDepth(5);
+                gridCard.guardedLoot.setInteractive();
+              }
+              const chestLootInfo = this.chestLoot.get(gridCard);
+              if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+            }
+          }
+        }
+        this.gridBgGraphics.forEach(img => img.setAlpha(1));
+        this.deckVisual.forEach(img => img.setAlpha(1));
+        this.deckText.setAlpha(1);
+        this.exploreBtn.setAlpha(1);
+        this.levelIndicator.setAlpha(1);
+        this.levelFlavorText.setAlpha(1);
+
+        if (cellPos) {
+          const targetPos = this.grid.worldPos(cellPos.col, cellPos.row);
+          const lootCard = new Card(this, targetPos.x, targetPos.y, rewardCardData);
+          lootCard.setScale(0, 1);
+          this.grid.placeCard(cellPos.col, cellPos.row, lootCard);
+
+          this.tweens.add({
+            targets: lootCard,
+            scaleX: 1,
+            duration: 300,
+            ease: "Back.easeOut",
+            onComplete: () => {
+              this.setupCardInteraction(lootCard);
+              this.isResolving = false;
+              this.exchangerCard = null;
+              this.updateExploreButtonState();
+            },
+          });
+        } else {
+          this.isResolving = false;
+          this.exchangerCard = null;
+          this.updateExploreButtonState();
+        }
+
+        if (this.player.hp <= 0) {
+          this.showGameOver();
+        }
+      });
+      return;
+    }
+  }
+
+  private exchangerCleanup(card: Card): void {
+    if (this.exchangerOverlay) {
+      this.exchangerOverlay.destroy();
+      this.exchangerOverlay = null;
+    }
+    if (this.exchangerBtn) {
+      this.exchangerBtn.destroy();
+      this.exchangerBtn = null;
+    }
+
+    const cell = this.grid.findCard(card);
+    if (cell) this.grid.removeCard(cell.col, cell.row);
+
+    card.resolve(() => {
+      // Restore alphas
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const gridCard = this.grid.getCardAt(c, r);
+          if (gridCard) {
+            gridCard.setAlpha(1);
+            if (gridCard.guardedLoot) {
+              gridCard.guardedLoot.setAlpha(1);
+              gridCard.guardedLoot.setDepth(5);
+              gridCard.guardedLoot.setInteractive();
+            }
+            const chestLootInfo = this.chestLoot.get(gridCard);
+            if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+          }
+        }
+      }
+      this.gridBgGraphics.forEach(img => img.setAlpha(1));
+      this.deckVisual.forEach(img => img.setAlpha(1));
+      this.deckText.setAlpha(1);
+      this.exploreBtn.setAlpha(1);
+      this.levelIndicator.setAlpha(1);
+      this.levelFlavorText.setAlpha(1);
+
+      this.isResolving = false;
+      this.exchangerCard = null;
       this.updateExploreButtonState();
 
       if (this.player.hp <= 0) {

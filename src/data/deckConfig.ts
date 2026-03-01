@@ -16,7 +16,7 @@ export const deckConfig: DeckEntry[] = [
   { id: "crown", count: 1 },
   { id: "fireball_scroll", count: 2 },
   { id: "merchant", count: 2 },
-  { id: "shrine", count: 2 },
+  { id: "altar_of_luck", count: 2 },
   { id: "poison_gas", count: 2 },
   { id: "wooden_chest", count: 3 },
   { id: "iron_chest", count: 2 },

@@ -27,6 +27,8 @@ export interface CardData {
   isBoss?: boolean;
   deckLevel?: number;
   abilities?: CardAbility[];
+  exchangePrice?: { resource: "gold" | "hp"; amount: number };
+  exchangeReward?: { type: "treasure"; cardId: string } | { type: "fate"; modifier: number };
 }
 
 export const CardColorMap: Record<CardType, number> = {
