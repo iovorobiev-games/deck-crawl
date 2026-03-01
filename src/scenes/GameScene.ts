@@ -14,6 +14,7 @@ import { dungeonConfig, DungeonLevel } from "../data/dungeonConfig";
 import { getCard } from "../data/cardRegistry";
 import { getAbility, AbilityTrigger, CardAbility } from "../data/abilityRegistry";
 import { WinScreen } from "../entities/WinScreen";
+import { CRTPostFX } from "../pipelines/CRTPostFX";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -94,6 +95,10 @@ export class GameScene extends Phaser.Scene {
 
     this.player.on("hpChanged", () => this.updatePlayerStats());
     this.player.on("goldChanged", () => this.updateHUD());
+
+    const renderer = this.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
+    renderer.pipelines.addPostPipeline("CRTPostFX", CRTPostFX);
+    this.cameras.main.setPostPipeline(CRTPostFX);
   }
 
   private createHUD(): void {

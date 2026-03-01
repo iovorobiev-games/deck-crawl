@@ -3,7 +3,7 @@ import { BootScene } from "./scenes/BootScene";
 import { GameScene } from "./scenes/GameScene";
 
 const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
+  type: Phaser.WEBGL,
   parent: "game",
   backgroundColor: "#0e0e1a",
   scene: [BootScene, GameScene],
