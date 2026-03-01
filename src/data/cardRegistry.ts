@@ -26,16 +26,18 @@ export const cardRegistry: Record<string, CardData> = {
   gold_pile_large: { id: "gold_pile_large", type: CardType.Treasure, name: "Pile of Gold", value: 6, description: "+6 gold", image: "pile_of_gold" },
 
   // --- Treasure ---
-  short_sword: { id: "short_sword", type: CardType.Treasure, name: "Short Sword", value: 2, description: "+2 power", slot: "weapon", image: "shortsword" },
+  short_sword: { id: "short_sword", type: CardType.Treasure, name: "Short Sword", value: 2, description: "+2 power, heals 1 HP on equip", slot: "weapon", image: "shortsword", abilities: [{ abilityId: "equip_heal", params: { amount: 1 } }] },
   battle_axe: { id: "battle_axe", type: CardType.Treasure, name: "Battle Axe", value: 4, description: "+4 power", slot: "weapon", image: "crude_axe" },
   wooden_shield: { id: "wooden_shield", type: CardType.Treasure, name: "Wooden Shield", value: 0, description: "Absorbs 2 damage", slot: "weapon", image: "wooden_shield", abilities: [{ abilityId: "armour", params: { amount: 2 } }] },
-  leather_armour: { id: "leather_armour", type: CardType.Treasure, name: "Leather Armour", value: 1, description: "+1 power", slot: "armour", image: "rusty_cuirass" },
+  leather_armour: { id: "leather_armour", type: CardType.Treasure, name: "Leather Armour", value: 1, description: "+1 power, cursed: 1 damage on discard", slot: "armour", image: "rusty_cuirass", abilities: [{ abilityId: "discard_damage", params: { amount: 1 } }] },
   chain_mail: { id: "chain_mail", type: CardType.Treasure, name: "Chain Mail", value: 3, description: "+3 power", slot: "armour", image: "metal_cuirass" },
-  iron_helm: { id: "iron_helm", type: CardType.Treasure, name: "Iron Helm", value: 1, description: "+1 power", slot: "head" },
-  crown: { id: "crown", type: CardType.Treasure, name: "Crown", value: 2, description: "+2 power", slot: "head" },
+  iron_helm: { id: "iron_helm", type: CardType.Treasure, name: "Iron Helm", value: 1, description: "+1 power, heals 1 HP on kill", slot: "head", abilities: [{ abilityId: "vampiric", params: { amount: 1 } }] },
+  crown: { id: "crown", type: CardType.Treasure, name: "Crown", value: 2, description: "+2 power, cursed: 1 damage on counterattack", slot: "head", abilities: [{ abilityId: "thorns", params: { amount: 1 } }] },
 
   // --- Scrolls ---
-  fireball_scroll: { id: "fireball_scroll", type: CardType.Scroll, name: "Fireball Scroll", value: 6, description: "Deals 6 damage to a monster", image: "scroll_of_fireball" },
+  fireball_scroll: { id: "fireball_scroll", type: CardType.Scroll, name: "Fireball Scroll", value: 6, description: "Drag onto monster to deal damage", image: "scroll_of_fireball", abilities: [{ abilityId: "throw_at_monster", params: { amount: 6 } }] },
+  whetstone: { id: "whetstone", type: CardType.Potion, name: "Whetstone", value: 0, description: "Drag onto weapon to sharpen", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "apply_to_weapon", params: { amount: 1 } }] },
+  disarm_kit: { id: "disarm_kit", type: CardType.Potion, name: "Disarm Kit", value: 0, description: "Drag onto trap to disarm", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "disarm_tool", params: { amount: 1 } }] },
 
   // --- Events ---
   merchant: { id: "merchant", type: CardType.Event, name: "Merchant", value: 0, description: "Trade goods" },
