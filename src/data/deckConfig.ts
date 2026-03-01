@@ -26,6 +26,7 @@ export const deckConfig: DeckEntry[] = [
 export const lootPool: string[] = [
   "short_sword",
   "battle_axe",
+  "wooden_shield",
   "leather_armour",
   "chain_mail",
   "iron_helm",

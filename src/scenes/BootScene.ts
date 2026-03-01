@@ -52,6 +52,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image("poison_dart_trap", "sprites/poison_dart_trap.PNG");
     this.load.image("shortsword", "sprites/shortsword.PNG");
     this.load.image("crude_axe", "sprites/crude_axe.PNG");
+    this.load.image("wooden_shield", "sprites/wooden_shield.PNG");
     this.load.image("rusty_cuirass", "sprites/rusty_cuirass.PNG");
     this.load.image("metal_cuirass", "sprites/metal_cuirass.PNG");
     this.load.image("scroll_of_fireball", "sprites/scroll_of_fireball.PNG");

@@ -489,28 +489,18 @@ export class GameScene extends Phaser.Scene {
       duration: 250,
       ease: "Power2",
       onComplete: () => {
-        this.player.takeDamage(amount);
-
-        // Flash player portrait
-        this.tweens.add({
-          targets: this.playerView,
-          alpha: 0.3,
-          duration: 80,
-          yoyo: true,
-          repeat: 2,
-          onComplete: () => {
-            // Return source to original position
-            this.tweens.add({
-              targets: source,
-              x: sourceOrigX,
-              y: sourceOrigY,
-              duration: 250,
-              ease: "Power2",
-              onComplete: () => {
-                onComplete();
-              },
-            });
-          },
+        this.applyDamageWithArmour(amount, () => {
+          // Return source to original position
+          this.tweens.add({
+            targets: source,
+            x: sourceOrigX,
+            y: sourceOrigY,
+            duration: 250,
+            ease: "Power2",
+            onComplete: () => {
+              onComplete();
+            },
+          });
         });
       },
     });
@@ -1451,6 +1441,136 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private applyDamageWithArmour(amount: number, onComplete: () => void): void {
+    const armourPriority = ["weapon1", "weapon2", "head", "armour"];
+
+    // Collect armour items in priority order
+    const armourItems: { slotName: string; ability: { abilityId: string; params: Record<string, number | string> }; item: CardData }[] = [];
+    for (const slotName of armourPriority) {
+      const item = this.inventory.getItem(slotName);
+      if (!item) continue;
+      const ability = item.abilities?.find(a => a.abilityId === "armour");
+      if (ability) {
+        armourItems.push({ slotName, ability, item });
+      }
+    }
+
+    // If no armour, go straight to HP damage
+    if (armourItems.length === 0 || amount <= 0) {
+      if (amount > 0) {
+        this.player.takeDamage(amount);
+        this.tweens.add({
+          targets: this.playerView,
+          alpha: 0.3,
+          duration: 80,
+          yoyo: true,
+          repeat: 2,
+          onComplete: () => onComplete(),
+        });
+      } else {
+        onComplete();
+      }
+      return;
+    }
+
+    let remainingDamage = amount;
+    let index = 0;
+
+    const processNext = () => {
+      if (index >= armourItems.length || remainingDamage <= 0) {
+        // All armour processed, apply remaining damage to HP
+        if (remainingDamage > 0) {
+          this.player.takeDamage(remainingDamage);
+          this.tweens.add({
+            targets: this.playerView,
+            alpha: 0.3,
+            duration: 80,
+            yoyo: true,
+            repeat: 2,
+            onComplete: () => onComplete(),
+          });
+        } else {
+          onComplete();
+        }
+        return;
+      }
+
+      const { slotName, ability, item } = armourItems[index];
+      index++;
+
+      const armourValue = ability.params.amount as number;
+      const absorbed = Math.min(armourValue, remainingDamage);
+      const newArmour = armourValue - remainingDamage;
+      remainingDamage = Math.max(0, remainingDamage - armourValue);
+
+      const slotPos = this.inventoryView.getSlotWorldPos(slotName);
+      if (!slotPos) {
+        processNext();
+        return;
+      }
+
+      // Floating absorbed damage text
+      const floatText = this.add.text(slotPos.x, slotPos.y, `-${absorbed}`, {
+        fontSize: "28px",
+        fontFamily: "monospace",
+        color: "#ff4444",
+        fontStyle: "bold",
+      }).setOrigin(0.5).setDepth(200);
+
+      this.tweens.add({
+        targets: floatText,
+        y: slotPos.y - 60,
+        alpha: 0,
+        duration: 600,
+        ease: "Power2",
+        onComplete: () => floatText.destroy(),
+      });
+
+      // Red flash on slot
+      const slotContainer = this.inventoryView.getSlotContainer(slotName);
+      if (slotContainer) {
+        const flashRect = this.add.graphics();
+        flashRect.fillStyle(0xff0000, 0.4);
+        flashRect.fillRoundedRect(-78, -93, 157, 186, 12);
+        slotContainer.add(flashRect);
+
+        this.tweens.add({
+          targets: flashRect,
+          alpha: 0,
+          duration: 80,
+          yoyo: true,
+          repeat: 2,
+          onComplete: () => {
+            flashRect.destroy();
+
+            if (newArmour <= 0) {
+              // Item destroyed
+              this.inventory.unequip(slotName);
+              this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, item);
+              this.time.delayedCall(200, () => processNext());
+            } else {
+              // Item survives - update armour value
+              ability.params.amount = newArmour;
+              this.inventoryView.refreshSlot(slotName);
+              processNext();
+            }
+          },
+        });
+      } else {
+        if (newArmour <= 0) {
+          this.inventory.unequip(slotName);
+          this.time.delayedCall(200, () => processNext());
+        } else {
+          ability.params.amount = newArmour;
+          this.inventoryView.refreshSlot(slotName);
+          processNext();
+        }
+      }
+    };
+
+    processNext();
+  }
+
   private combatCleanup(monsterCard: Card, fateModifier: number): void {
     // Remove overlay and fight button
     if (this.combatOverlay) {
@@ -1745,17 +1865,8 @@ export class GameScene extends Phaser.Scene {
                 } else {
                   const trapDamage = chestCard.cardData.trapDamage ?? 0;
                   if (trapDamage > 0) {
-                    this.player.takeDamage(trapDamage);
-                    // Flash player portrait
-                    this.tweens.add({
-                      targets: this.playerView,
-                      alpha: 0.3,
-                      duration: 80,
-                      yoyo: true,
-                      repeat: 2,
-                      onComplete: () => {
-                        this.chestCleanup(chestCard, modifier);
-                      },
+                    this.applyDamageWithArmour(trapDamage, () => {
+                      this.chestCleanup(chestCard, modifier);
                     });
                   } else {
                     this.chestCleanup(chestCard, modifier);
@@ -2073,16 +2184,8 @@ export class GameScene extends Phaser.Scene {
                 } else {
                   const trapDamage = trapCard.cardData.trapDamage ?? 0;
                   if (trapDamage > 0) {
-                    this.player.takeDamage(trapDamage);
-                    this.tweens.add({
-                      targets: this.playerView,
-                      alpha: 0.3,
-                      duration: 80,
-                      yoyo: true,
-                      repeat: 2,
-                      onComplete: () => {
-                        this.trapCleanup(trapCard, modifier);
-                      },
+                    this.applyDamageWithArmour(trapDamage, () => {
+                      this.trapCleanup(trapCard, modifier);
                     });
                   } else {
                     this.trapCleanup(trapCard, modifier);
