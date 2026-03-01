@@ -12,7 +12,7 @@ import { CardType, CardData } from "../entities/CardData";
 import { lootPool } from "../data/deckConfig";
 import { dungeonConfig, DungeonLevel } from "../data/dungeonConfig";
 import { getCard } from "../data/cardRegistry";
-import { getAbility, CardAbility } from "../data/abilityRegistry";
+import { getAbility, AbilityTrigger, CardAbility } from "../data/abilityRegistry";
 import { WinScreen } from "../entities/WinScreen";
 
 const GAME_W = 1920;
@@ -622,11 +622,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private hasDragAbility(card: Card): boolean {
-    if (!card.cardData.abilities) return false;
-    return card.cardData.abilities.some((a) => {
-      const def = getAbility(a.abilityId);
-      return def.trigger === "dragOnPlayerPortrait";
-    });
+    return this.hasAnyDragAbility(card);
   }
 
   private isDraggable(card: Card): boolean {
@@ -731,8 +727,8 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // Highlight portrait if dragging a card with drag ability
-      if (this.hasDragAbility(card)) {
+      // Highlight portrait if dragging a card with dragOnPlayerPortrait ability
+      if (this.collectAbilities("dragOnPlayerPortrait", card.cardData).length > 0) {
         if (this.playerView.isPointOver(world.x, world.y)) {
           const ability = card.cardData.abilities!.find((a) => {
             const def = getAbility(a.abilityId);
@@ -743,6 +739,48 @@ export class GameScene extends Phaser.Scene {
           this.playerView.hideDropHighlight();
         }
       }
+
+      // Highlight trap cards if dragging a card with dragOnTrap ability
+      const hasDragOnTrap = this.collectAbilities("dragOnTrap", card.cardData).length > 0;
+      if (hasDragOnTrap) {
+        const trapTarget = this.findTrapAtPoint(world.x, world.y);
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const gc = this.grid.getCardAt(c, r);
+            if (gc && gc.cardData.type === CardType.Trap) {
+              gc.setHighlight(gc === trapTarget);
+            }
+          }
+        }
+      }
+
+      // Highlight monster cards if dragging a card with dragOnMonster ability
+      const hasDragOnMonster = this.collectAbilities("dragOnMonster", card.cardData).length > 0;
+      if (hasDragOnMonster) {
+        const monsterTarget = this.findMonsterAtPoint(world.x, world.y);
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const gc = this.grid.getCardAt(c, r);
+            if (gc && gc.cardData.type === CardType.Monster) {
+              gc.setHighlight(gc === monsterTarget);
+            }
+          }
+        }
+      }
+
+      // Highlight weapon slots if dragging a card with dragOnWeapon ability
+      const hasDragOnWeapon = this.collectAbilities("dragOnWeapon", card.cardData).length > 0;
+      if (hasDragOnWeapon) {
+        const weaponSlot = this.findWeaponSlotAtPoint(world.x, world.y);
+        for (const slotDef of SLOT_DEFS) {
+          if (slotDef.accepted.includes("weapon") && this.inventory.getItem(slotDef.name)) {
+            this.inventoryView.setSlotHighlight(
+              slotDef.name,
+              slotDef.name === weaponSlot ? "valid" : "valid_dim"
+            );
+          }
+        }
+      }
     };
 
     const onUp = (pointer: Phaser.Input.Pointer) => {
@@ -751,8 +789,12 @@ export class GameScene extends Phaser.Scene {
 
       const world = this.toWorldCoords(pointer);
 
-      // Check if card with drag ability dropped on portrait
-      if (this.hasDragAbility(card) && this.playerView.isPointOver(world.x, world.y)) {
+      // Clear all grid card highlights
+      this.clearGridHighlights();
+
+      // Check if card with dragOnPlayerPortrait ability dropped on portrait
+      if (this.collectAbilities("dragOnPlayerPortrait", card.cardData).length > 0 &&
+          this.playerView.isPointOver(world.x, world.y)) {
         this.playerView.hideDropHighlight();
         this.inventoryView.clearAllHighlights();
         this.executeAbility(card);
@@ -760,6 +802,48 @@ export class GameScene extends Phaser.Scene {
       }
 
       this.playerView.hideDropHighlight();
+
+      // Check if card with dragOnTrap dropped on a trap
+      const dragOnTrapAbilities = this.collectAbilities("dragOnTrap", card.cardData);
+      if (dragOnTrapAbilities.length > 0) {
+        const trapTarget = this.findTrapAtPoint(world.x, world.y);
+        if (trapTarget) {
+          this.inventoryView.clearAllHighlights();
+          this.fireAbilities(dragOnTrapAbilities, () => {});
+          const trapCell = this.grid.findCard(trapTarget);
+          if (trapCell) this.grid.removeCard(trapCell.col, trapCell.row);
+          trapTarget.resolve(() => {});
+          card.disableInteractive();
+          card.resolve(() => { this.finishDrag(); });
+          return;
+        }
+      }
+
+      // Check if card with dragOnMonster dropped on a monster
+      const dragOnMonsterAbilities = this.collectAbilities("dragOnMonster", card.cardData);
+      if (dragOnMonsterAbilities.length > 0) {
+        const monsterTarget = this.findMonsterAtPoint(world.x, world.y);
+        if (monsterTarget) {
+          this.inventoryView.clearAllHighlights();
+          this.fireAbilities(dragOnMonsterAbilities, () => {});
+          card.disableInteractive();
+          card.resolve(() => { this.finishDrag(); });
+          return;
+        }
+      }
+
+      // Check if card with dragOnWeapon dropped on an equipped weapon
+      const dragOnWeaponAbilities = this.collectAbilities("dragOnWeapon", card.cardData);
+      if (dragOnWeaponAbilities.length > 0) {
+        const weaponSlot = this.findWeaponSlotAtPoint(world.x, world.y);
+        if (weaponSlot) {
+          this.inventoryView.clearAllHighlights();
+          this.fireAbilities(dragOnWeaponAbilities, () => {});
+          card.disableInteractive();
+          card.resolve(() => { this.finishDrag(); });
+          return;
+        }
+      }
 
       // Check if key dropped on door
       if (card.cardData.isKey) {
@@ -786,11 +870,17 @@ export class GameScene extends Phaser.Scene {
         // Equip item
         const previous = this.inventory.equip(slotName, card.cardData);
         if (previous) {
+          // Fire onDiscard for the displaced item
+          const discardAbilities = this.collectAbilities("onDiscard", previous);
+          this.fireAbilities(discardAbilities, () => {});
           const slotPos = this.inventoryView.getSlotWorldPos(slotName);
           if (slotPos) {
             this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
           }
         }
+        // Fire onEquip for the newly equipped card
+        const equipAbilities = this.collectAbilities("onEquip", card.cardData);
+        this.fireAbilities(equipAbilities, () => {});
         card.disableInteractive();
         card.resolve(() => {
           this.finishDrag();
@@ -805,6 +895,15 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on("pointermove", onMove);
     this.input.on("pointerup", onUp);
+  }
+
+  private clearGridHighlights(): void {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gc = this.grid.getCardAt(c, r);
+        if (gc) gc.setHighlight(false);
+      }
+    }
   }
 
   private snapBackToGrid(card: Card): void {
@@ -857,6 +956,112 @@ export class GameScene extends Phaser.Scene {
     card.resolve(() => {
       this.finishDrag();
     });
+  }
+
+  /** Collect abilities matching a trigger from a card's ability list. */
+  private collectAbilities(
+    trigger: AbilityTrigger,
+    cardData: CardData,
+  ): CardAbility[] {
+    if (!cardData.abilities) return [];
+    return cardData.abilities.filter((a) => getAbility(a.abilityId).trigger === trigger);
+  }
+
+  /** Collect abilities matching a trigger from all equipped inventory items. */
+  private collectEquippedAbilities(trigger: AbilityTrigger): CardAbility[] {
+    const results: CardAbility[] = [];
+    for (const slotDef of SLOT_DEFS) {
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        if (getAbility(ab.abilityId).trigger === trigger) {
+          results.push(ab);
+        }
+      }
+    }
+    return results;
+  }
+
+  /** Execute a list of abilities sequentially, calling onComplete when done. */
+  private fireAbilities(
+    abilities: CardAbility[],
+    onComplete: () => void,
+  ): void {
+    if (abilities.length === 0) {
+      onComplete();
+      return;
+    }
+
+    const [current, ...rest] = abilities;
+    const def = getAbility(current.abilityId);
+
+    switch (def.effect) {
+      case "healPlayer":
+        this.player.heal(current.params.amount as number);
+        break;
+      case "damagePlayer":
+        this.player.takeDamage(current.params.amount as number);
+        break;
+    }
+
+    // Chain to next ability
+    this.fireAbilities(rest, onComplete);
+  }
+
+  private static readonly DRAG_TRIGGERS: AbilityTrigger[] = [
+    "dragOnPlayerPortrait",
+    "dragOnTrap",
+    "dragOnWeapon",
+    "dragOnMonster",
+  ];
+
+  /** Check if a card has any drag-type ability. */
+  private hasAnyDragAbility(card: Card): boolean {
+    if (!card.cardData.abilities) return false;
+    return card.cardData.abilities.some((a) => {
+      const def = getAbility(a.abilityId);
+      return GameScene.DRAG_TRIGGERS.includes(def.trigger);
+    });
+  }
+
+  /** Find a trap card at the given world coordinates on the grid. */
+  private findTrapAtPoint(x: number, y: number): Card | null {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && gridCard.cardData.type === CardType.Trap) {
+          if (Math.abs(x - gridCard.x) < CARD_W / 2 && Math.abs(y - gridCard.y) < CARD_H / 2) {
+            return gridCard;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Find a monster card at the given world coordinates on the grid. */
+  private findMonsterAtPoint(x: number, y: number): Card | null {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && gridCard.cardData.type === CardType.Monster) {
+          if (Math.abs(x - gridCard.x) < CARD_W / 2 && Math.abs(y - gridCard.y) < CARD_H / 2) {
+            return gridCard;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Find an equipped weapon slot at the given world coordinates. */
+  private findWeaponSlotAtPoint(x: number, y: number): string | null {
+    const slotName = this.inventoryView.getSlotAtPoint(x, y);
+    if (!slotName) return null;
+    const slotDef = SLOT_DEFS.find((s) => s.name === slotName);
+    if (!slotDef || !slotDef.accepted.includes("weapon")) return null;
+    if (!this.inventory.getItem(slotName)) return null;
+    return slotName;
   }
 
   private collectOnExploreAbilities(): Array<{ card: Card; ability: CardAbility }> {
@@ -1124,7 +1329,13 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             const displaced = this.inventory.unequip(def.name);
             const previous = this.inventory.equip(overSlot, item);
+            // Fire onEquip for the moved item in its new slot
+            const equipAbilities = this.collectAbilities("onEquip", item);
+            this.fireAbilities(equipAbilities, () => {});
             if (previous) {
+              // Fire onDiscard for the displaced item
+              const discardAbilities = this.collectAbilities("onDiscard", previous);
+              this.fireAbilities(discardAbilities, () => {});
               const slotPos = this.inventoryView.getSlotWorldPos(overSlot);
               if (slotPos) {
                 this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
@@ -1132,6 +1343,9 @@ export class GameScene extends Phaser.Scene {
             }
           } else {
             // Dropped elsewhere — discard
+            // Fire onDiscard for the item being discarded
+            const discardAbilities = this.collectAbilities("onDiscard", item);
+            this.fireAbilities(discardAbilities, () => {});
             this.inventory.unequip(def.name);
             ghost.destroy();
             this.inventoryView.playDissolveAt(this, world.x, world.y, item);
@@ -1485,8 +1699,12 @@ export class GameScene extends Phaser.Scene {
     monsterCard: Card,
     fateModifier: number
   ): void {
-    this.playDamagePlayerEffect(monsterCard, monsterCard.cardData.value, () => {
-      this.combatCleanup(monsterCard, fateModifier);
+    // Fire onCounterAttack abilities from equipped items before damage
+    const counterAbilities = this.collectEquippedAbilities("onCounterAttack");
+    this.fireAbilities(counterAbilities, () => {
+      this.playDamagePlayerEffect(monsterCard, monsterCard.cardData.value, () => {
+        this.combatCleanup(monsterCard, fateModifier);
+      });
     });
   }
 
@@ -1639,6 +1857,11 @@ export class GameScene extends Phaser.Scene {
     // Remove monster from grid
     if (cell) this.grid.removeCard(cell.col, cell.row);
     this.updatePlayerStats();
+
+    // Fire onMonsterDeath abilities from equipped items if monster is dead
+    const monsterDead = monsterCard.cardData.value <= 0;
+    const deathAbilities = monsterDead ? this.collectEquippedAbilities("onMonsterDeath") : [];
+    this.fireAbilities(deathAbilities, () => {});
 
     monsterCard.resolve(() => {
       // Shuffle fate card back
