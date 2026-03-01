@@ -42,6 +42,7 @@ export class BootScene extends Phaser.Scene {
 
     // Card art sprites
     this.load.image("Skeleton War", "sprites/Skeleton War.PNG");
+    this.load.image("swarm_of_bats", "sprites/swarm_of_bats.PNG");
     this.load.image("Skeleton Archer", "sprites/Skeleton Archer.PNG");
     this.load.image("cultist", "sprites/cultist.PNG");
     this.load.image("vengeful_revenant", "sprites/vengeful_revenant.PNG");

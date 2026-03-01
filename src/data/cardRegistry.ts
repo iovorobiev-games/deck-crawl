@@ -5,6 +5,8 @@ export const cardRegistry: Record<string, CardData> = {
   skeleton_warrior: { id: "skeleton_warrior", type: CardType.Monster, name: "Skeleton Warrior", value: 3, description: "A shambling skeleton", image: "Skeleton War" },
   skeleton: { id: "skeleton", type: CardType.Monster, name: "Skeleton", value: 5, description: "Rattling bones", image: "Skeleton Archer" },
 
+  swarm_of_bats: { id: "swarm_of_bats", type: CardType.Monster, name: "Swarm Of Bats", value: 1, description: "Weakens your agility", image: "swarm_of_bats", abilities: [{ abilityId: "agility_drain", params: { amount: -1 } }] },
+
   // --- Bosses ---
   cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 6, description: "Leader of the cult", image: "cultist", isBoss: true },
   vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 10, description: "An undead spirit of vengeance", image: "vengeful_revenant", isBoss: true },

@@ -241,7 +241,38 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updatePlayerStats(): void {
-    this.playerView.updateStats(this.player, this.inventory.powerBonus);
+    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier());
+  }
+
+  private getPassiveAgilityModifier(): number {
+    let total = 0;
+    // Scan grid cards
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (card?.cardData.abilities) {
+          for (const ab of card.cardData.abilities) {
+            const def = getAbility(ab.abilityId);
+            if (def.trigger === "passive" && def.effect === "modifyAgility") {
+              total += Number(ab.params.amount ?? 0);
+            }
+          }
+        }
+      }
+    }
+    // Scan inventory slots
+    for (const slotDef of SLOT_DEFS) {
+      const item = this.inventory.getItem(slotDef.name);
+      if (item?.abilities) {
+        for (const ab of item.abilities) {
+          const def = getAbility(ab.abilityId);
+          if (def.trigger === "passive" && def.effect === "modifyAgility") {
+            total += Number(ab.params.amount ?? 0);
+          }
+        }
+      }
+    }
+    return total;
   }
 
   private onExplore(): void {
@@ -330,6 +361,7 @@ export class GameScene extends Phaser.Scene {
 
   private processCardQueue(plans: { cardData: CardData; slot?: { col: number; row: number }; existingLoot?: Card; generatedLoot?: CardData }[], index: number): void {
     if (index >= plans.length) {
+      this.updatePlayerStats();
       this.updateExploreButtonState();
       return;
     }
@@ -1154,6 +1186,7 @@ export class GameScene extends Phaser.Scene {
 
     this.isResolving = true;
     this.grid.removeCard(cell.col, cell.row);
+    this.updatePlayerStats();
 
     card.resolve(() => {
       this.isResolving = false;
@@ -1605,6 +1638,7 @@ export class GameScene extends Phaser.Scene {
 
     // Remove monster from grid
     if (cell) this.grid.removeCard(cell.col, cell.row);
+    this.updatePlayerStats();
 
     monsterCard.resolve(() => {
       // Shuffle fate card back
@@ -1861,7 +1895,7 @@ export class GameScene extends Phaser.Scene {
       ease: "Back.easeOut",
       onComplete: () => {
         this.time.delayedCall(300, () => {
-          const modifiedAgility = Math.max(0, this.player.agility + modifier);
+          const modifiedAgility = Math.max(0, this.player.agility + modifier + this.getPassiveAgilityModifier());
 
           this.tweens.add({
             targets: fateCard,
@@ -1914,6 +1948,7 @@ export class GameScene extends Phaser.Scene {
     const cellPos = cell ? { col: cell.col, row: cell.row } : null;
 
     if (cell) this.grid.removeCard(cell.col, cell.row);
+    this.updatePlayerStats();
     this.chestLoot.delete(chestCard);
 
     chestCard.resolve(() => {
@@ -2183,7 +2218,7 @@ export class GameScene extends Phaser.Scene {
       ease: "Back.easeOut",
       onComplete: () => {
         this.time.delayedCall(300, () => {
-          const modifiedAgility = Math.max(0, this.player.agility + modifier);
+          const modifiedAgility = Math.max(0, this.player.agility + modifier + this.getPassiveAgilityModifier());
 
           this.tweens.add({
             targets: fateCard,
@@ -2233,6 +2268,7 @@ export class GameScene extends Phaser.Scene {
 
     const cell = this.grid.findCard(trapCard);
     if (cell) this.grid.removeCard(cell.col, cell.row);
+    this.updatePlayerStats();
 
     trapCard.resolve(() => {
       this.player.shuffleFateCardBack(fateModifier);
