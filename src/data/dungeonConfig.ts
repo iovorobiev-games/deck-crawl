@@ -31,7 +31,7 @@ export const dungeonConfig: DungeonConfig = {
         { id: "wooden_chest", count: 2 },
         { id: "attack_from_shadows", count: 1 },
       ],
-      boss: "cultist",
+      boss: "crypt_lord",
       key: "rusty_key",
       door: "hall_door",
     },

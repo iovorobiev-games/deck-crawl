@@ -61,6 +61,18 @@ export class Grid {
     return this.cells[row]?.[col] ?? null;
   }
 
+  /** Return all cards currently on the grid (non-destructive). */
+  getOccupiedCards(): Card[] {
+    const cards: Card[] = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.cells[r][c];
+        if (card) cards.push(card);
+      }
+    }
+    return cards;
+  }
+
   /** Remove and return all cards currently on the grid */
   getAllCards(): Card[] {
     const cards: Card[] = [];

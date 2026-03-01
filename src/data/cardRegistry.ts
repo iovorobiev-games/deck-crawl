@@ -8,7 +8,7 @@ export const cardRegistry: Record<string, CardData> = {
   // --- Bosses ---
   cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 6, description: "Leader of the cult", image: "cultist", isBoss: true },
   vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 10, description: "An undead spirit of vengeance", image: "vengeful_revenant", isBoss: true },
-  crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 15, description: "The master of this dungeon", image: "crypt_lord", isBoss: true },
+  crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 15, description: "The master of this dungeon", image: "crypt_lord", isBoss: true, abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }] },
 
   // --- Potions ---
   health_potion: { id: "health_potion", type: CardType.Potion, name: "Health Potion", value: 4, description: "Restores 4 HP", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "healing", params: { amount: 4 } }] },
