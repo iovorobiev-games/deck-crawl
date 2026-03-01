@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Workflow
 
-1. Never jump straight into implementation. Interview the user to clarify requirements and narrow down the scope of the task.
-2. Before beginning any new task, start a new git worktree and work within it.
-3. In the worktree, pull the latest master and create a new branch from it. ALWAYS make changes on top of the latest master.
+1. Fetch and rebase onto the latest master before doing any exploration or implementation.
+2. `cd` into the working directory once at the start of a session. Use relative paths or absolute paths for all subsequent commands — do NOT `cd` before every command.
+3. Never jump straight into implementation. Interview the user to clarify requirements and narrow down the scope of the task.
+4. Before beginning any new task, start a new git worktree and work within it.
+5. In the worktree, pull the latest master and create a new branch from it. ALWAYS make changes on top of the latest master.
 
 ## Commands
 
@@ -32,6 +34,7 @@ Game resolution is 1920x1080 with `Phaser.Scale.FIT` auto-centering. UI chrome (
 - **`data/cardRegistry.ts`** — Central card definitions. `cardRegistry` maps string IDs to `CardData` objects. `getCard(id)` factory function creates card instances from the registry.
 - **`data/deckConfig.ts`** — `DeckEntry` interface (`{ id, count }`), default `deckConfig` array, and `lootPool` array of treasure/potion/scroll cards for monster-guarded loot.
 - **`data/dungeonConfig.ts`** — `DungeonLevel` and `DungeonConfig` interfaces. Defines the 3-level dungeon (Greeting Hall → Underground Temple → Torture Rooms), each with level-specific cards, boss, key, and door.
+- **`data/abilityRegistry.ts`** — Defines card abilities with trigger/effect pairs. `AbilityTrigger` (e.g. `dragOnPlayerPortrait`) and `AbilityEffect` (e.g. `healPlayer`). Cards reference abilities via `CardData.abilities: CardAbility[]`.
 
 ### Card data architecture
 
@@ -66,7 +69,7 @@ Inventory  --emits-->  statsChanged  -->  GameScene (calls updatePlayerStats)
 | Chest | Yes | Fate card draw, agility vs lockDifficulty check, trap damage on fail, loot reveal on success |
 | Trap | Yes | Agility-based disarm: fate draw, agility vs lockDifficulty, damage on fail |
 | Treasure | Partial | Drag-to-equip into inventory slots (grants `powerBonus`); click-resolve has no effect |
-| Potion | Partial | Drag-to-equip into backpack slots; click-resolve has no effect |
+| Potion | Partial | Health potion: drag onto player portrait to heal (ability system). Drag-to-equip into backpack slots also works. Click-resolve has no effect |
 | Scroll | No | Card resolves but no effect |
 | Event | No | Card resolves but no effect |
 
@@ -98,15 +101,19 @@ When cards are drawn, each Monster scans for an existing unguarded loot card on 
 
 Equippable cards (those with a `slot` field) can be dragged from the grid onto inventory slots. Inventory slots highlight green (compatible) or red (incompatible) during drag. Items can also be dragged between slots or dragged out to discard. Displaced items play a dissolve animation.
 
+### Card ability system
+
+Cards can have `abilities: CardAbility[]` referencing abilities from `abilityRegistry`. Each ability has a `trigger` (when it activates) and an `effect` (what it does), plus `params` for values like heal amount. Currently supported: `dragOnPlayerPortrait` trigger → `healPlayer` effect (used by health potion). Cards with drag abilities are draggable via `isDraggable()` which checks both equippable slots and drag-trigger abilities. `GameScene.executeAbility()` runs the effect on drop.
+
 ### Key patterns
 
 - `Grid` is a plain class (not a Phaser object); it only tracks cell occupancy and coordinate math. Dimensions: `COLS` (5) and `ROWS` (3).
-- Card dimensions exported from `Card.ts`: `CARD_W` (100), `CARD_H` (110).
+- Card dimensions exported from `Card.ts`: `CARD_W` (171), `CARD_H` (202).
 - Equipment slot definitions exported from `Inventory.ts` as `SLOT_DEFS` (6 slots: weapon1, weapon2, head, armour, backpack1, backpack2).
 - The explore button draws 3 cards into random empty grid slots; the game lock (`isResolving`) prevents interaction during card animations. Explore is also blocked while unresolved traps exist on the grid.
 - `Player.fateDeck` is an array of integer modifiers `[2, 1, 0, 0, -1, -2]` drawn from the front and shuffled back after use.
 - All interactive Phaser containers use explicit `Phaser.Geom.Rectangle` hit areas (not auto-sized).
-- Adding a new card: define it in `cardRegistry`, then reference its ID in `deckConfig`/`dungeonConfig` level cards or `lootPool`.
+- Adding a new card: define it in `cardRegistry`, then reference its ID in `deckConfig`/`dungeonConfig` level cards or `lootPool`. If the card has a special ability, define the ability in `abilityRegistry` and reference it in the card's `abilities` array.
 
 ### CI/CD
 
