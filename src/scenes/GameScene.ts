@@ -60,13 +60,22 @@ export class GameScene extends Phaser.Scene {
   private currentLevelKey: CardData | null = null;
   private levelIndicator!: Phaser.GameObjects.Text;
   private levelFlavorText!: Phaser.GameObjects.Text;
+  private backgroundImage!: Phaser.GameObjects.Image;
 
   constructor() {
     super({ key: "GameScene" });
   }
 
   create(): void {
-    this.add.image(GAME_W / 2, GAME_H / 2, "background");
+    this.backgroundImage = this.add.image(GAME_W / 2, GAME_H / 2, "background")
+      .setScale(1.05);
+
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      const offsetX = -((pointer.x / GAME_W) - 0.5) * 30;
+      const offsetY = -((pointer.y / GAME_H) - 0.5) * 15;
+      this.backgroundImage.x = GAME_W / 2 + offsetX;
+      this.backgroundImage.y = GAME_H / 2 + offsetY;
+    });
 
     this.player = new Player(10);
     this.grid = new Grid(GAME_W, GAME_H);
