@@ -63,6 +63,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image("rusty_key", "sprites/rusty_key.PNG");
     this.load.image("door", "sprites/door.PNG");
     this.load.image("attack_from_shadows", "sprites/attack_from_shadows.PNG");
+    this.load.image("pile_of_gold", "sprites/pile_of_gold.PNG");
   }
 
   create(): void {

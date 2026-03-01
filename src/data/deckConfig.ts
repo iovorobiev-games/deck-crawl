@@ -33,4 +33,7 @@ export const lootPool: string[] = [
   "crown",
   "health_potion",
   "fireball_scroll",
+  "gold_pile_small",
+  "gold_pile_medium",
+  "gold_pile_large",
 ];
