@@ -255,7 +255,37 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updatePlayerStats(): void {
-    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier());
+    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier(), this.getPassivePowerModifier());
+    this.updateMonsterBuffIndicators();
+  }
+
+  private getPassivePowerModifier(): number {
+    let total = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (card?.cardData.abilities) {
+          for (const ab of card.cardData.abilities) {
+            const def = getAbility(ab.abilityId);
+            if (def.trigger === "passive" && def.effect === "modifyPower") {
+              total += Number(ab.params.amount ?? 0);
+            }
+          }
+        }
+      }
+    }
+    for (const slotDef of SLOT_DEFS) {
+      const item = this.inventory.getItem(slotDef.name);
+      if (item?.abilities) {
+        for (const ab of item.abilities) {
+          const def = getAbility(ab.abilityId);
+          if (def.trigger === "passive" && def.effect === "modifyPower") {
+            total += Number(ab.params.amount ?? 0);
+          }
+        }
+      }
+    }
+    return total;
   }
 
   private getPassiveAgilityModifier(): number {
@@ -289,6 +319,36 @@ export class GameScene extends Phaser.Scene {
     return total;
   }
 
+  private getMonsterPowerBuff(): number {
+    let total = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (card?.cardData.abilities) {
+          for (const ab of card.cardData.abilities) {
+            const def = getAbility(ab.abilityId);
+            if (def.trigger === "passive" && def.effect === "modifyMonsterPower") {
+              total += Number(ab.params.amount ?? 0);
+            }
+          }
+        }
+      }
+    }
+    return total;
+  }
+
+  private updateMonsterBuffIndicators(): void {
+    const buff = this.getMonsterPowerBuff();
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (card && card.cardData.type === CardType.Monster) {
+          card.setBuffIndicator(buff);
+        }
+      }
+    }
+  }
+
   private onExplore(): void {
     if (this.deck.isEmpty || this.isResolving || this.hasTrapOnGrid()) return;
 
@@ -301,6 +361,10 @@ export class GameScene extends Phaser.Scene {
     this.isResolving = true;
     this.executeOnExploreAbilities(onExploreAbilities, () => {
       this.isResolving = false;
+      if (this.player.hp <= 0) {
+        this.showGameOver();
+        return;
+      }
       this.drawAndPlaceCards(3);
     });
   }
@@ -483,11 +547,19 @@ export class GameScene extends Phaser.Scene {
         // Hold for readability, then execute abilities
         this.time.delayedCall(1500, () => {
           this.executeOnRevealAbilities(card, cardData, () => {
-            // Resolve card (shrink & destroy)
-            card.resolve(() => {
-              overlay.destroy();
-              this.isResolving = false;
-              onComplete();
+            // Fire onResolve abilities before visual resolve
+            const resolveAbilities = this.collectAbilities("onResolve", cardData);
+            this.executeOnResolveAbilities(card, resolveAbilities, () => {
+              // Resolve card (shrink & destroy)
+              card.resolve(() => {
+                overlay.destroy();
+                this.isResolving = false;
+                if (this.player.hp <= 0) {
+                  this.showGameOver();
+                  return;
+                }
+                onComplete();
+              });
             });
           });
         });
@@ -523,6 +595,28 @@ export class GameScene extends Phaser.Scene {
         case "damagePlayer":
           this.playDamagePlayerEffect(card, ability.params.amount as number, () => processNext(idx + 1));
           break;
+        case "shuffleIntoDeck": {
+          const cardId = ability.params.cardId as string;
+          const count = ability.params.count as number;
+          this.playSummonToDeckAnimation(card, cardId, count, () => processNext(idx + 1));
+          break;
+        }
+        case "shuffleIntoDeckIfAbsent": {
+          const cardId = ability.params.cardId as string;
+          const count = ability.params.count as number;
+          if (this.deck.hasCard(cardId) || this.gridHasCard(cardId)) {
+            processNext(idx + 1);
+          } else {
+            this.playSummonToDeckAnimation(card, cardId, count, () => processNext(idx + 1));
+          }
+          break;
+        }
+        case "reduceWeaponPower": {
+          const amount = ability.params.amount as number;
+          this.reduceEquippedWeaponPower(amount);
+          processNext(idx + 1);
+          break;
+        }
         default:
           processNext(idx + 1);
           break;
@@ -894,11 +988,12 @@ export class GameScene extends Phaser.Scene {
         }
         // Fire onEquip for the newly equipped card
         const equipAbilities = this.collectAbilities("onEquip", card.cardData);
-        this.fireAbilities(equipAbilities, () => {});
+        const cardPos = { x: card.x, y: card.y };
         card.disableInteractive();
-        card.resolve(() => {
+        card.resolve(() => {});
+        this.fireAbilities(equipAbilities, () => {
           this.finishDrag();
-        });
+        }, cardPos);
       } else {
         // Snap back to grid
         this.snapBackToGrid(card);
@@ -1000,6 +1095,7 @@ export class GameScene extends Phaser.Scene {
   private fireAbilities(
     abilities: CardAbility[],
     onComplete: () => void,
+    sourcePos?: { x: number; y: number },
   ): void {
     if (abilities.length === 0) {
       onComplete();
@@ -1016,10 +1112,19 @@ export class GameScene extends Phaser.Scene {
       case "damagePlayer":
         this.player.takeDamage(current.params.amount as number);
         break;
+      case "shuffleIntoDeck": {
+        const cardId = current.params.cardId as string;
+        const count = current.params.count as number;
+        const origin = sourcePos ?? { x: GAME_W / 2, y: GAME_H / 2 };
+        this.playSummonToDeckAnimation(origin, cardId, count, () => {
+          this.fireAbilities(rest, onComplete, sourcePos);
+        });
+        return; // async — don't fall through to chain below
+      }
     }
 
     // Chain to next ability
-    this.fireAbilities(rest, onComplete);
+    this.fireAbilities(rest, onComplete, sourcePos);
   }
 
   private static readonly DRAG_TRIGGERS: AbilityTrigger[] = [
@@ -1078,6 +1183,28 @@ export class GameScene extends Phaser.Scene {
     return slotName;
   }
 
+  private gridHasCard(id: string): boolean {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (card && card.cardData.id === id) return true;
+      }
+    }
+    return false;
+  }
+
+  private reduceEquippedWeaponPower(amount: number): void {
+    for (const slotName of ["weapon1", "weapon2"]) {
+      const item = this.inventory.getItem(slotName);
+      if (item && item.slot === "weapon" && !item.isKey) {
+        item.value = Math.max(0, item.value - amount);
+        this.inventoryView.refreshSlot(slotName);
+        this.inventory.emit("statsChanged");
+        return;
+      }
+    }
+  }
+
   private collectOnExploreAbilities(): Array<{ card: Card; ability: CardAbility }> {
     const results: Array<{ card: Card; ability: CardAbility }> = [];
     for (const card of this.grid.getOccupiedCards()) {
@@ -1113,6 +1240,11 @@ export class GameScene extends Phaser.Scene {
         });
         break;
       }
+      case "damagePlayer":
+        this.playDamagePlayerEffect(current.card, current.ability.params.amount as number, () => {
+          this.executeOnExploreAbilities(rest, onComplete);
+        });
+        break;
       default:
         this.executeOnExploreAbilities(rest, onComplete);
         break;
@@ -1120,7 +1252,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private playSummonToDeckAnimation(
-    sourceCard: Card,
+    sourcePos: { x: number; y: number },
     cardId: string,
     count: number,
     onComplete: () => void,
@@ -1140,7 +1272,7 @@ export class GameScene extends Phaser.Scene {
     overlay.fillRect(0, 0, GAME_W, GAME_H);
 
     // Smoke particles burst from producer card
-    const emitter = this.add.particles(sourceCard.x, sourceCard.y, "particle_circle", {
+    const emitter = this.add.particles(sourcePos.x, sourcePos.y, "particle_circle", {
       speed: { min: 30, max: 80 },
       scale: { start: 0.8, end: 0 },
       alpha: { start: 0.6, end: 0 },
@@ -1160,7 +1292,7 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < count; i++) {
       const data = getCard(cardId);
       cardDatas.push(data);
-      const card = new Card(this, sourceCard.x, sourceCard.y, data);
+      const card = new Card(this, sourcePos.x, sourcePos.y, data);
       card.setScale(0.3);
       card.setDepth(500);
       card.disableInteractive();
@@ -1345,7 +1477,8 @@ export class GameScene extends Phaser.Scene {
             const previous = this.inventory.equip(overSlot, item);
             // Fire onEquip for the moved item in its new slot
             const equipAbilities = this.collectAbilities("onEquip", item);
-            this.fireAbilities(equipAbilities, () => {});
+            const slotOrigin = this.inventoryView.getSlotWorldPos(def.name);
+            this.fireAbilities(equipAbilities, () => {}, slotOrigin ?? undefined);
             if (previous) {
               // Fire onDiscard for the displaced item
               const discardAbilities = this.collectAbilities("onDiscard", previous);
@@ -1413,12 +1546,81 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.isResolving = true;
-    this.grid.removeCard(cell.col, cell.row);
-    this.updatePlayerStats();
 
-    card.resolve(() => {
-      this.isResolving = false;
+    // Fire onResolve abilities before resolving
+    const resolveAbilities = this.collectAbilities("onResolve", card.cardData);
+    this.executeOnResolveAbilities(card, resolveAbilities, () => {
+      this.grid.removeCard(cell.col, cell.row);
+      this.updatePlayerStats();
+
+      card.resolve(() => {
+        this.isResolving = false;
+        if (this.player.hp <= 0) {
+          this.showGameOver();
+        }
+      });
     });
+  }
+
+  private executeOnResolveAbilities(
+    card: Card,
+    abilities: CardAbility[],
+    onComplete: () => void,
+  ): void {
+    if (abilities.length === 0) {
+      onComplete();
+      return;
+    }
+
+    const [current, ...rest] = abilities;
+    const def = getAbility(current.abilityId);
+
+    switch (def.effect) {
+      case "shuffleIntoDeck": {
+        const cardId = current.params.cardId as string;
+        const count = current.params.count as number;
+        this.playSummonToDeckAnimation(card, cardId, count, () => {
+          this.executeOnResolveAbilities(card, rest, onComplete);
+        });
+        break;
+      }
+      case "damagePlayer":
+        this.applyDamageWithArmour(current.params.amount as number, () => {
+          this.executeOnResolveAbilities(card, rest, onComplete);
+        });
+        break;
+      default:
+        this.executeOnResolveAbilities(card, rest, onComplete);
+        break;
+    }
+  }
+
+  private executeOnTrapTriggeredAbilities(
+    trapCard: Card,
+    abilities: CardAbility[],
+    onComplete: () => void,
+  ): void {
+    if (abilities.length === 0) {
+      onComplete();
+      return;
+    }
+
+    const [current, ...rest] = abilities;
+    const def = getAbility(current.abilityId);
+
+    switch (def.effect) {
+      case "shuffleIntoDeck": {
+        const cardId = current.params.cardId as string;
+        const count = current.params.count as number;
+        this.playSummonToDeckAnimation(trapCard, cardId, count, () => {
+          this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
+        });
+        break;
+      }
+      default:
+        this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
+        break;
+    }
   }
 
   private enterCombatMode(card: Card): void {
@@ -1642,7 +1844,7 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         // Step 2: After a brief hold, fly fate card into player portrait
         this.time.delayedCall(300, () => {
-          const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier);
+          const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier());
 
           this.tweens.add({
             targets: fateCard,
@@ -1716,7 +1918,8 @@ export class GameScene extends Phaser.Scene {
     // Fire onCounterAttack abilities from equipped items before damage
     const counterAbilities = this.collectEquippedAbilities("onCounterAttack");
     this.fireAbilities(counterAbilities, () => {
-      this.playDamagePlayerEffect(monsterCard, monsterCard.cardData.value, () => {
+      const damage = monsterCard.cardData.value + this.getMonsterPowerBuff();
+      this.playDamagePlayerEffect(monsterCard, damage, () => {
         this.combatCleanup(monsterCard, fateModifier);
       });
     });
@@ -1874,8 +2077,20 @@ export class GameScene extends Phaser.Scene {
 
     // Fire onMonsterDeath abilities from equipped items if monster is dead
     const monsterDead = monsterCard.cardData.value <= 0;
-    const deathAbilities = monsterDead ? this.collectEquippedAbilities("onMonsterDeath") : [];
-    this.fireAbilities(deathAbilities, () => {});
+    const equipDeathAbilities = monsterDead ? this.collectEquippedAbilities("onMonsterDeath") : [];
+    this.fireAbilities(equipDeathAbilities, () => {});
+
+    // Collect onMonsterDeath abilities from the monster card itself
+    const monsterDeathAbilities = monsterDead ? this.collectAbilities("onMonsterDeath", monsterCard.cardData) : [];
+    const hasSelfReshuffle = monsterDeathAbilities.some(a => getAbility(a.abilityId).effect === "shuffleSelfIntoDeck");
+
+    // If monster reshuffles itself, create a fresh copy for the deck
+    if (hasSelfReshuffle) {
+      const freshCopy = getCard(monsterCard.cardData.id);
+      this.deck.mergeCards([freshCopy]);
+      this.updateDeckVisual();
+      this.updateHUD();
+    }
 
     monsterCard.resolve(() => {
       // Shuffle fate card back
@@ -2477,12 +2692,17 @@ export class GameScene extends Phaser.Scene {
                   this.trapCleanup(trapCard, modifier);
                 } else {
                   const trapDamage = trapCard.cardData.trapDamage ?? 0;
-                  if (trapDamage > 0) {
-                    this.applyDamageWithArmour(trapDamage, () => {
+                  const afterDamage = () => {
+                    // Fire onTrapTriggered abilities
+                    const trigAbilities = this.collectAbilities("onTrapTriggered", trapCard.cardData);
+                    this.executeOnTrapTriggeredAbilities(trapCard, trigAbilities, () => {
                       this.trapCleanup(trapCard, modifier);
                     });
+                  };
+                  if (trapDamage > 0) {
+                    this.applyDamageWithArmour(trapDamage, afterDamage);
                   } else {
-                    this.trapCleanup(trapCard, modifier);
+                    afterDamage();
                   }
                 }
               });

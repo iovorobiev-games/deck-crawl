@@ -65,6 +65,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image("door", "sprites/door.PNG");
     this.load.image("attack_from_shadows", "sprites/attack_from_shadows.PNG");
     this.load.image("pile_of_gold", "sprites/pile_of_gold.PNG");
+    this.load.image("dark_ritual", "sprites/dark_ritual.PNG");
+    this.load.image("horrendous_tentacle", "sprites/horrendous_tentacle.PNG");
+    this.load.image("horror_from_beyond", "sprites/horror_from_beyond.PNG");
+    this.load.image("poison", "sprites/poison.PNG");
+    this.load.image("rusty_sword", "sprites/rusty_sword.PNG");
+    this.load.image("weapon_degradation", "sprites/weapon_degradation.PNG");
   }
 
   create(): void {
