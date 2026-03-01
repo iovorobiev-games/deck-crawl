@@ -56,4 +56,8 @@ export class Deck {
   get isEmpty(): boolean {
     return this.cards.length === 0;
   }
+
+  hasCard(id: string): boolean {
+    return this.cards.some(c => c.id === id);
+  }
 }

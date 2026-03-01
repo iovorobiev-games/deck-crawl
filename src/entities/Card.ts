@@ -22,6 +22,7 @@ export class Card extends Phaser.GameObjects.Container {
   private nameText!: Phaser.GameObjects.Text;
   private descrText!: Phaser.GameObjects.Text;
   private highlightGfx: Phaser.GameObjects.Graphics | null = null;
+  private buffText: Phaser.GameObjects.Text | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, data: CardData) {
     super(scene, x, y);
@@ -175,6 +176,26 @@ export class Card extends Phaser.GameObjects.Container {
       new Phaser.Geom.Rectangle(0, 0, CARD_W, CARD_H),
       Phaser.Geom.Rectangle.Contains
     );
+  }
+
+  setBuffIndicator(buff: number): void {
+    if (buff > 0) {
+      if (!this.buffText) {
+        this.buffText = this.scene.add.text(CARD_W / 2 - 8, DESCR_Y - 14, "", {
+          fontSize: "11px",
+          fontFamily: "monospace",
+          color: "#ff6644",
+          fontStyle: "bold",
+        }).setOrigin(1, 0.5);
+        this.add(this.buffText);
+      }
+      this.buffText.setText(`(+${buff})`);
+    } else {
+      if (this.buffText) {
+        this.buffText.destroy();
+        this.buffText = null;
+      }
+    }
   }
 
   setHighlight(on: boolean): void {

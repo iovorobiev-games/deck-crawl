@@ -8,8 +8,8 @@ export const cardRegistry: Record<string, CardData> = {
   swarm_of_bats: { id: "swarm_of_bats", type: CardType.Monster, name: "Swarm Of Bats", value: 1, description: "Weakens your agility", image: "swarm_of_bats", abilities: [{ abilityId: "agility_drain", params: { amount: -1 } }] },
 
   // --- Bosses ---
-  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 6, description: "Leader of the cult", image: "cultist", isBoss: true },
-  vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 10, description: "An undead spirit of vengeance", image: "vengeful_revenant", isBoss: true },
+  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 6, description: "Leader of the cult", image: "cultist", isBoss: true, abilities: [{ abilityId: "cultist_ritual", params: { cardId: "dark_ritual", count: 1 } }] },
+  vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 2, description: "An undead spirit of vengeance", image: "vengeful_revenant", isBoss: true, abilities: [{ abilityId: "revenant_return", params: {} }, { abilityId: "power_drain", params: { amount: -1 } }] },
   crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 15, description: "The master of this dungeon", image: "crypt_lord", isBoss: true, abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }] },
 
   // --- Potions ---
@@ -19,6 +19,7 @@ export const cardRegistry: Record<string, CardData> = {
   spike_trap: { id: "spike_trap", type: CardType.Trap, name: "Spike Trap", value: 2, description: "Deals 2 damage", lockDifficulty: 2, trapDamage: 2, image: "bear_trap" },
   spike_trap_heavy: { id: "spike_trap_heavy", type: CardType.Trap, name: "Spike Trap", value: 4, description: "Deals 4 damage", lockDifficulty: 3, trapDamage: 4, image: "pressure_plate" },
   poison_gas: { id: "poison_gas", type: CardType.Trap, name: "Poison Gas", value: 3, description: "Deals 3 damage", lockDifficulty: 3, trapDamage: 3, image: "poison_dart_trap" },
+  poison_dart_trap: { id: "poison_dart_trap", type: CardType.Trap, name: "Poison Dart Trap", value: 0, description: "Poisons on trigger", lockDifficulty: 3, trapDamage: 0, image: "poison_dart_trap", abilities: [{ abilityId: "poison_trap_insert", params: { cardId: "deadly_poisoning", count: 2 } }] },
 
   // --- Gold ---
   gold_pile_small: { id: "gold_pile_small", type: CardType.Treasure, name: "Pile of Gold", value: 2, description: "+2 gold", image: "pile_of_gold" },
@@ -39,9 +40,22 @@ export const cardRegistry: Record<string, CardData> = {
   whetstone: { id: "whetstone", type: CardType.Potion, name: "Whetstone", value: 0, description: "Drag onto weapon to sharpen", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "apply_to_weapon", params: { amount: 1 } }] },
   disarm_kit: { id: "disarm_kit", type: CardType.Potion, name: "Disarm Kit", value: 0, description: "Drag onto trap to disarm", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "disarm_tool", params: { amount: 1 } }] },
 
+  // --- Tentacle chain ---
+  tentacle: { id: "tentacle", type: CardType.Monster, name: "Tentacle", value: 2, description: "A writhing appendage", image: "horrendous_tentacle", abilities: [{ abilityId: "tentacle_summon", params: { cardId: "horrendous_tentacle", count: 1 } }] },
+  horrendous_tentacle: { id: "horrendous_tentacle", type: CardType.Monster, name: "Horrendous Tentacle", value: 4, description: "A massive tentacle", image: "horrendous_tentacle", abilities: [{ abilityId: "horrendous_summon", params: { cardId: "terrible_tentacle", count: 1 } }] },
+  terrible_tentacle: { id: "terrible_tentacle", type: CardType.Monster, name: "Terrible Tentacle", value: 6, description: "An enormous tentacle", image: "horrendous_tentacle", abilities: [{ abilityId: "terrible_summon", params: { cardId: "terror_from_beyond", count: 1 } }] },
+  terror_from_beyond: { id: "terror_from_beyond", type: CardType.Monster, name: "Terror From The Beyond", value: 15, description: "An eldritch horror", image: "horror_from_beyond", abilities: [{ abilityId: "terror_reveal_damage", params: { amount: 5 } }, { abilityId: "terror_explore_damage", params: { amount: 2 } }, { abilityId: "terror_buff_monsters", params: { amount: 2 } }] },
+
+  // --- Degrading weapons ---
+  rusty_sword: { id: "rusty_sword", type: CardType.Treasure, name: "Rusty Sword", value: 1, description: "+1 power, degrades", slot: "weapon", image: "rusty_sword", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+  crude_axe: { id: "crude_axe", type: CardType.Treasure, name: "Crude Axe", value: 2, description: "+2 power, degrades", slot: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+
   // --- Events ---
   merchant: { id: "merchant", type: CardType.Event, name: "Merchant", value: 0, description: "Trade goods" },
   attack_from_shadows: { id: "attack_from_shadows", type: CardType.Event, name: "Attack from Shadows", value: 1, description: "A hidden blade strikes!", image: "attack_from_shadows", abilities: [{ abilityId: "attack_from_shadows", params: { amount: 1 } }] },
+  dark_ritual: { id: "dark_ritual", type: CardType.Event, name: "Dark Ritual", value: 0, description: "Summons a tentacle", image: "dark_ritual", abilities: [{ abilityId: "dark_ritual_summon", params: { cardId: "tentacle", count: 1 } }] },
+  deadly_poisoning: { id: "deadly_poisoning", type: CardType.Event, name: "Deadly Poisoning", value: 1, description: "Poison courses through your veins", image: "poison", abilities: [{ abilityId: "deadly_poison_damage", params: { amount: 1 } }] },
+  weapon_degradation: { id: "weapon_degradation", type: CardType.Event, name: "Weapon Degradation", value: 0, description: "Your weapon dulls", image: "weapon_degradation", abilities: [{ abilityId: "weapon_degrade", params: { amount: 1 } }] },
   altar_of_luck: { id: "altar_of_luck", type: CardType.Treasure, name: "Altar Of Luck", value: 0, description: "Pay 1 gold: +2 fate", image: "altar_of_luck", exchangePrice: { resource: "gold", amount: 1 }, exchangeReward: { type: "fate", modifier: 2 } },
 
   // --- Chests ---

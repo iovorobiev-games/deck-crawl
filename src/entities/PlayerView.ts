@@ -115,10 +115,11 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.add(this.agilityGroup);
   }
 
-  updateStats(player: Player, equipPowerBonus = 0, agilityModifier = 0): void {
+  updateStats(player: Player, equipPowerBonus = 0, agilityModifier = 0, powerModifier = 0): void {
     this.hpText.setText(`${player.hp}`);
-    const totalPower = player.power + equipPowerBonus;
+    const totalPower = player.power + equipPowerBonus + powerModifier;
     this.powerText.setText(`${totalPower}`);
+    this.powerText.setColor(powerModifier < 0 ? "#cc3333" : "#240a0e");
     const effectiveAgility = player.agility + agilityModifier;
     this.agilityText.setText(`${effectiveAgility}`);
     this.agilityText.setColor(agilityModifier < 0 ? "#cc3333" : "#240a0e");

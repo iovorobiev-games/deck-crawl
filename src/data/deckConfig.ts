@@ -8,7 +8,7 @@ export const deckConfig: DeckEntry[] = [
   { id: "skeleton", count: 4 },
   { id: "health_potion", count: 5 },
   { id: "spike_trap", count: 3 },
-  { id: "short_sword", count: 3 },
+  { id: "rusty_sword", count: 3 },
   { id: "battle_axe", count: 2 },
   { id: "leather_armour", count: 3 },
   { id: "chain_mail", count: 1 },
@@ -24,8 +24,8 @@ export const deckConfig: DeckEntry[] = [
 
 /** Pool of loot cards that monsters can guard (not drawn from the deck). */
 export const lootPool: string[] = [
-  "short_sword",
-  "battle_axe",
+  "rusty_sword",
+  "crude_axe",
   "wooden_shield",
   "leather_armour",
   "chain_mail",

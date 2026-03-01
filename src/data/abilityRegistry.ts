@@ -10,9 +10,21 @@ export type AbilityTrigger =
   | "onDiscard"
   | "onMonsterDeath"
   | "onCounterAttack"
+  | "onResolve"
+  | "onTrapTriggered"
   | "passive";
 
-export type AbilityEffect = "healPlayer" | "damagePlayer" | "shuffleIntoDeck" | "absorbDamage" | "modifyAgility";
+export type AbilityEffect =
+  | "healPlayer"
+  | "damagePlayer"
+  | "shuffleIntoDeck"
+  | "shuffleIntoDeckIfAbsent"
+  | "shuffleSelfIntoDeck"
+  | "absorbDamage"
+  | "modifyAgility"
+  | "modifyPower"
+  | "modifyMonsterPower"
+  | "reduceWeaponPower";
 
 export interface AbilityDef {
   id: string;
@@ -98,6 +110,90 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "dragOnMonster",
     effect: "damagePlayer",
     description: "Drag onto a monster to throw",
+  },
+  cultist_ritual: {
+    id: "cultist_ritual",
+    trigger: "onExplore",
+    effect: "shuffleIntoDeck",
+    description: "Summons dark rituals when you explore",
+  },
+  dark_ritual_summon: {
+    id: "dark_ritual_summon",
+    trigger: "onResolve",
+    effect: "shuffleIntoDeck",
+    description: "Summons a tentacle into the deck",
+  },
+  tentacle_summon: {
+    id: "tentacle_summon",
+    trigger: "onReveal",
+    effect: "shuffleIntoDeck",
+    description: "Summons a horrendous tentacle",
+  },
+  horrendous_summon: {
+    id: "horrendous_summon",
+    trigger: "onReveal",
+    effect: "shuffleIntoDeck",
+    description: "Summons a terrible tentacle",
+  },
+  terrible_summon: {
+    id: "terrible_summon",
+    trigger: "onReveal",
+    effect: "shuffleIntoDeckIfAbsent",
+    description: "Summons the Terror From The Beyond",
+  },
+  terror_reveal_damage: {
+    id: "terror_reveal_damage",
+    trigger: "onReveal",
+    effect: "damagePlayer",
+    description: "Deals 5 damage on reveal",
+  },
+  terror_explore_damage: {
+    id: "terror_explore_damage",
+    trigger: "onExplore",
+    effect: "damagePlayer",
+    description: "Deals 2 damage when you explore",
+  },
+  terror_buff_monsters: {
+    id: "terror_buff_monsters",
+    trigger: "passive",
+    effect: "modifyMonsterPower",
+    description: "+2 to all monsters",
+  },
+  poison_trap_insert: {
+    id: "poison_trap_insert",
+    trigger: "onTrapTriggered",
+    effect: "shuffleIntoDeck",
+    description: "Poisons shuffle into deck on trigger",
+  },
+  deadly_poison_damage: {
+    id: "deadly_poison_damage",
+    trigger: "onResolve",
+    effect: "damagePlayer",
+    description: "Deals 1 damage",
+  },
+  revenant_return: {
+    id: "revenant_return",
+    trigger: "onMonsterDeath",
+    effect: "shuffleSelfIntoDeck",
+    description: "Returns to the deck on death",
+  },
+  power_drain: {
+    id: "power_drain",
+    trigger: "passive",
+    effect: "modifyPower",
+    description: "-1 Power",
+  },
+  equip_degrade: {
+    id: "equip_degrade",
+    trigger: "onEquip",
+    effect: "shuffleIntoDeck",
+    description: "Inserts weapon degradation into deck",
+  },
+  weapon_degrade: {
+    id: "weapon_degrade",
+    trigger: "onReveal",
+    effect: "reduceWeaponPower",
+    description: "Reduces weapon power by 1",
   },
 };
 
