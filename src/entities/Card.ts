@@ -103,7 +103,7 @@ export class Card extends Phaser.GameObjects.Container {
     }
   }
 
-  reveal(): void {
+  reveal(onComplete?: () => void): void {
     this.setScale(0);
     this.setAlpha(0);
     this.scene.tweens.add({
@@ -113,6 +113,7 @@ export class Card extends Phaser.GameObjects.Container {
       alpha: 1,
       duration: 300,
       ease: "Back.easeOut",
+      onComplete: onComplete ? () => onComplete() : undefined,
     });
   }
 

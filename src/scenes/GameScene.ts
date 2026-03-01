@@ -241,8 +241,9 @@ export class GameScene extends Phaser.Scene {
     const emptySlots = this.grid.getEmptySlots();
     if (emptySlots.length === 0) return;
 
-    const slotsToFill = Math.min(count, emptySlots.length);
-    const drawn = this.deck.draw(slotsToFill);
+    const drawCount = Math.min(count, this.deck.remaining);
+    if (drawCount === 0) return;
+    const drawn = this.deck.draw(drawCount);
 
     // Shuffle empty slots for random placement
     for (let i = emptySlots.length - 1; i > 0; i--) {
@@ -254,15 +255,24 @@ export class GameScene extends Phaser.Scene {
     const claimedSet = new Set<Card>();
     interface PlacementPlan {
       cardData: CardData;
-      slot: { col: number; row: number };
+      slot?: { col: number; row: number };
       existingLoot?: Card;       // existing grid loot to claim
       generatedLoot?: CardData;  // new loot to generate
     }
     const plans: PlacementPlan[] = [];
 
+    let slotIndex = 0;
     for (let i = 0; i < drawn.length; i++) {
       const cardData = drawn[i];
-      const slot = emptySlots[i];
+
+      // Event cards don't go on the grid
+      if (cardData.type === CardType.Event) {
+        plans.push({ cardData });
+        continue;
+      }
+
+      if (slotIndex >= emptySlots.length) continue;
+      const slot = emptySlots[slotIndex++];
       const plan: PlacementPlan = { cardData, slot };
 
       if (cardData.type === CardType.Monster) {
@@ -288,73 +298,208 @@ export class GameScene extends Phaser.Scene {
       plans.push(plan);
     }
 
-    // Execute with staggered reveals
-    plans.forEach((plan, index) => {
-      this.time.delayedCall(index * 150, () => {
-        const pos = this.grid.worldPos(plan.slot.col, plan.slot.row);
-
-        if (plan.cardData.type === CardType.Monster) {
-          let lootCard: Card;
-
-          if (plan.existingLoot) {
-            // Claim existing loot card: remove from grid, reposition as peek above monster
-            lootCard = plan.existingLoot;
-            const lootCell = this.grid.findCard(lootCard);
-            if (lootCell) this.grid.removeCard(lootCell.col, lootCell.row);
-            lootCard.setPosition(pos.x, pos.y - TREASURE_OFFSET_Y);
-            lootCard.setDepth(5);
-          } else {
-            // Generate new loot card at peek position above monster
-            lootCard = new Card(this, pos.x, pos.y - TREASURE_OFFSET_Y, plan.generatedLoot!);
-            lootCard.setDepth(5);
-            lootCard.reveal();
-          }
-
-          // Create monster on top
-          const monsterCard = new Card(this, pos.x, pos.y, plan.cardData);
-          monsterCard.setDepth(10);
-          this.grid.placeCard(plan.slot.col, plan.slot.row, monsterCard);
-          monsterCard.reveal();
-
-          // Link monster and loot
-          monsterCard.guardedLoot = lootCard;
-          this.guardedByMonster.set(lootCard, monsterCard);
-
-          this.setupGuardedLootInteraction(lootCard, monsterCard);
-          this.setupCardInteraction(monsterCard);
-        } else if (plan.cardData.type === CardType.Chest) {
-          // Create face-down loot card back behind chest
-          const lootData = this.pickRandomLoot();
-          const cardBack = this.createCardBack(pos.x, pos.y - TREASURE_OFFSET_Y);
-          cardBack.setDepth(5);
-
-          const chestCard = new Card(this, pos.x, pos.y, plan.cardData);
-          chestCard.setDepth(10);
-          this.grid.placeCard(plan.slot.col, plan.slot.row, chestCard);
-          chestCard.reveal();
-
-          this.chestLoot.set(chestCard, { lootData, cardBack });
-          this.setupCardInteraction(chestCard);
-        } else if (plan.cardData.type === CardType.Door) {
-          const doorCard = new Card(this, pos.x, pos.y, plan.cardData);
-          this.grid.placeCard(plan.slot.col, plan.slot.row, doorCard);
-          doorCard.reveal();
-          this.setupDoorInteraction(doorCard);
-        } else {
-          const card = new Card(this, pos.x, pos.y, plan.cardData);
-          this.grid.placeCard(plan.slot.col, plan.slot.row, card);
-          card.reveal();
-          this.setupCardInteraction(card);
-          if (plan.cardData.type === CardType.Trap) {
-            this.updateExploreButtonState();
-          }
-        }
-      });
-    });
-
     this.updateHUD();
     this.updateDeckVisual();
-    this.updateExploreButtonState();
+
+    // Process cards sequentially (events get presented, grid cards get placed)
+    this.processCardQueue(plans, 0);
+  }
+
+  private processCardQueue(plans: { cardData: CardData; slot?: { col: number; row: number }; existingLoot?: Card; generatedLoot?: CardData }[], index: number): void {
+    if (index >= plans.length) {
+      this.updateExploreButtonState();
+      return;
+    }
+
+    // Abort if player died from a previous event
+    if (this.player.hp <= 0) {
+      this.showGameOver();
+      return;
+    }
+
+    const plan = plans[index];
+
+    if (plan.cardData.type === CardType.Event) {
+      this.presentEventCard(plan.cardData, () => {
+        this.processCardQueue(plans, index + 1);
+      });
+    } else {
+      this.placeGridCard(plan as { cardData: CardData; slot: { col: number; row: number }; existingLoot?: Card; generatedLoot?: CardData });
+      this.time.delayedCall(150, () => {
+        this.processCardQueue(plans, index + 1);
+      });
+    }
+  }
+
+  private placeGridCard(plan: { cardData: CardData; slot: { col: number; row: number }; existingLoot?: Card; generatedLoot?: CardData }): void {
+    const pos = this.grid.worldPos(plan.slot.col, plan.slot.row);
+
+    if (plan.cardData.type === CardType.Monster) {
+      let lootCard: Card;
+
+      if (plan.existingLoot) {
+        lootCard = plan.existingLoot;
+        const lootCell = this.grid.findCard(lootCard);
+        if (lootCell) this.grid.removeCard(lootCell.col, lootCell.row);
+        lootCard.setPosition(pos.x, pos.y - TREASURE_OFFSET_Y);
+        lootCard.setDepth(5);
+      } else {
+        lootCard = new Card(this, pos.x, pos.y - TREASURE_OFFSET_Y, plan.generatedLoot!);
+        lootCard.setDepth(5);
+        lootCard.reveal();
+      }
+
+      const monsterCard = new Card(this, pos.x, pos.y, plan.cardData);
+      monsterCard.setDepth(10);
+      this.grid.placeCard(plan.slot.col, plan.slot.row, monsterCard);
+      monsterCard.reveal();
+
+      monsterCard.guardedLoot = lootCard;
+      this.guardedByMonster.set(lootCard, monsterCard);
+
+      this.setupGuardedLootInteraction(lootCard, monsterCard);
+      this.setupCardInteraction(monsterCard);
+    } else if (plan.cardData.type === CardType.Chest) {
+      const lootData = this.pickRandomLoot();
+      const cardBack = this.createCardBack(pos.x, pos.y - TREASURE_OFFSET_Y);
+      cardBack.setDepth(5);
+
+      const chestCard = new Card(this, pos.x, pos.y, plan.cardData);
+      chestCard.setDepth(10);
+      this.grid.placeCard(plan.slot.col, plan.slot.row, chestCard);
+      chestCard.reveal();
+
+      this.chestLoot.set(chestCard, { lootData, cardBack });
+      this.setupCardInteraction(chestCard);
+    } else if (plan.cardData.type === CardType.Door) {
+      const doorCard = new Card(this, pos.x, pos.y, plan.cardData);
+      this.grid.placeCard(plan.slot.col, plan.slot.row, doorCard);
+      doorCard.reveal();
+      this.setupDoorInteraction(doorCard);
+    } else {
+      const card = new Card(this, pos.x, pos.y, plan.cardData);
+      this.grid.placeCard(plan.slot.col, plan.slot.row, card);
+      card.reveal(() => {
+        this.executeOnRevealAbilities(card, plan.cardData);
+      });
+      this.setupCardInteraction(card);
+      if (plan.cardData.type === CardType.Trap) {
+        this.updateExploreButtonState();
+      }
+    }
+  }
+
+  private presentEventCard(cardData: CardData, onComplete: () => void): void {
+    this.isResolving = true;
+
+    // Dark overlay
+    const overlay = this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.6);
+    overlay.setDepth(900);
+
+    // Create card at screen center
+    const card = new Card(this, GAME_W / 2, GAME_H / 2, cardData);
+    card.setDepth(910);
+    card.setScale(0);
+    card.setAlpha(0);
+
+    // Custom reveal tween to scale 1.8
+    this.tweens.add({
+      targets: card,
+      scaleX: 1.8,
+      scaleY: 1.8,
+      alpha: 1,
+      duration: 400,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        // Hold for readability, then execute abilities
+        this.time.delayedCall(1500, () => {
+          this.executeOnRevealAbilities(card, cardData, () => {
+            // Resolve card (shrink & destroy)
+            card.resolve(() => {
+              overlay.destroy();
+              this.isResolving = false;
+              onComplete();
+            });
+          });
+        });
+      },
+    });
+  }
+
+  private executeOnRevealAbilities(card: Card, cardData: CardData, onComplete?: () => void): void {
+    if (!cardData.abilities) {
+      onComplete?.();
+      return;
+    }
+
+    const revealAbilities = cardData.abilities.filter((a) => {
+      const def = getAbility(a.abilityId);
+      return def.trigger === "onReveal";
+    });
+
+    if (revealAbilities.length === 0) {
+      onComplete?.();
+      return;
+    }
+
+    // Process abilities sequentially
+    const processNext = (idx: number) => {
+      if (idx >= revealAbilities.length) {
+        onComplete?.();
+        return;
+      }
+      const ability = revealAbilities[idx];
+      const def = getAbility(ability.abilityId);
+      switch (def.effect) {
+        case "damagePlayer":
+          this.playDamagePlayerEffect(card, ability.params.amount, () => processNext(idx + 1));
+          break;
+        default:
+          processNext(idx + 1);
+          break;
+      }
+    };
+    processNext(0);
+  }
+
+  private playDamagePlayerEffect(source: Phaser.GameObjects.Container, amount: number, onComplete: () => void): void {
+    const sourceOrigX = source.x;
+    const sourceOrigY = source.y;
+    const attackX = sourceOrigX + (this.playerView.x - sourceOrigX) * 0.6;
+    const attackY = sourceOrigY + (this.playerView.y - sourceOrigY) * 0.6;
+
+    this.tweens.add({
+      targets: source,
+      x: attackX,
+      y: attackY,
+      duration: 250,
+      ease: "Power2",
+      onComplete: () => {
+        this.player.takeDamage(amount);
+
+        // Flash player portrait
+        this.tweens.add({
+          targets: this.playerView,
+          alpha: 0.3,
+          duration: 80,
+          yoyo: true,
+          repeat: 2,
+          onComplete: () => {
+            // Return source to original position
+            this.tweens.add({
+              targets: source,
+              x: sourceOrigX,
+              y: sourceOrigY,
+              duration: 250,
+              ease: "Power2",
+              onComplete: () => {
+                onComplete();
+              },
+            });
+          },
+        });
+      },
+    });
   }
 
   private findUnguardedLootOnGrid(alreadyClaimed: Set<Card>): Card | null {
@@ -1094,7 +1239,7 @@ export class GameScene extends Phaser.Scene {
                           onComplete: () => {
                             // Step 4: Monster counterattack (if alive)
                             if (newMonsterValue > 0) {
-                              this.monsterCounterattack(monsterCard, origX, origY, modifier);
+                              this.monsterCounterattack(monsterCard, modifier);
                             } else {
                               this.combatCleanup(monsterCard, modifier);
                             }
@@ -1114,47 +1259,10 @@ export class GameScene extends Phaser.Scene {
 
   private monsterCounterattack(
     monsterCard: Card,
-    playerOrigX: number,
-    playerOrigY: number,
     fateModifier: number
   ): void {
-    const monsterOrigX = monsterCard.x;
-    const monsterOrigY = monsterCard.y;
-    const attackX = monsterOrigX + (playerOrigX - monsterOrigX) * 0.6;
-    const attackY = monsterOrigY + (playerOrigY - monsterOrigY) * 0.6;
-
-    this.tweens.add({
-      targets: monsterCard,
-      x: attackX,
-      y: attackY,
-      duration: 250,
-      ease: "Power2",
-      onComplete: () => {
-        // Hit player
-        this.player.takeDamage(monsterCard.cardData.value);
-
-        // Flash player portrait
-        this.tweens.add({
-          targets: this.playerView,
-          alpha: 0.3,
-          duration: 80,
-          yoyo: true,
-          repeat: 2,
-          onComplete: () => {
-            // Return monster to position
-            this.tweens.add({
-              targets: monsterCard,
-              x: monsterOrigX,
-              y: monsterOrigY,
-              duration: 250,
-              ease: "Power2",
-              onComplete: () => {
-                this.combatCleanup(monsterCard, fateModifier);
-              },
-            });
-          },
-        });
-      },
+    this.playDamagePlayerEffect(monsterCard, monsterCard.cardData.value, () => {
+      this.combatCleanup(monsterCard, fateModifier);
     });
   }
 
