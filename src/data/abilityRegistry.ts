@@ -1,6 +1,6 @@
-export type AbilityTrigger = "dragOnPlayerPortrait";
+export type AbilityTrigger = "dragOnPlayerPortrait" | "onReveal";
 
-export type AbilityEffect = "healPlayer";
+export type AbilityEffect = "healPlayer" | "damagePlayer";
 
 export interface AbilityDef {
   id: string;
@@ -20,6 +20,12 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "dragOnPlayerPortrait",
     effect: "healPlayer",
     description: "Drag onto player portrait to restore HP",
+  },
+  attack_from_shadows: {
+    id: "attack_from_shadows",
+    trigger: "onReveal",
+    effect: "damagePlayer",
+    description: "Deals damage to the player when revealed",
   },
 };
 
