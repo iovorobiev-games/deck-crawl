@@ -166,7 +166,38 @@ export class InventoryView extends Phaser.GameObjects.Container {
       .setOrigin(0.5);
     mc.add(nameText);
 
-    if (item.value > 0) {
+    const armourAbility = item.abilities?.find(a => a.abilityId === "armour");
+    if (item.value > 0 && armourAbility) {
+      // Show both power and armour
+      const valText = this.scene.add
+        .text(0, miniH / 2 - 46, `+${item.value}`, {
+          fontSize: "24px",
+          fontFamily: "monospace",
+          color: "#ffdd44",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      mc.add(valText);
+      const armourText = this.scene.add
+        .text(0, miniH / 2 - 22, `\u25C6 ${armourAbility.params.amount}`, {
+          fontSize: "24px",
+          fontFamily: "monospace",
+          color: "#55aaff",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      mc.add(armourText);
+    } else if (armourAbility) {
+      const armourText = this.scene.add
+        .text(0, miniH / 2 - 32, `\u25C6 ${armourAbility.params.amount}`, {
+          fontSize: "28px",
+          fontFamily: "monospace",
+          color: "#55aaff",
+          fontStyle: "bold",
+        })
+        .setOrigin(0.5);
+      mc.add(armourText);
+    } else if (item.value > 0) {
       const valText = this.scene.add
         .text(0, miniH / 2 - 32, `+${item.value}`, {
           fontSize: "28px",
@@ -179,6 +210,11 @@ export class InventoryView extends Phaser.GameObjects.Container {
     }
 
     return mc;
+  }
+
+  refreshSlot(slotName: string): void {
+    const item = this.inventory.getItem(slotName);
+    this.updateSlotContent(slotName, item);
   }
 
   setSlotHighlight(

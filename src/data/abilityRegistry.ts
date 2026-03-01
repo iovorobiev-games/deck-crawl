@@ -1,6 +1,6 @@
-export type AbilityTrigger = "dragOnPlayerPortrait" | "onReveal" | "onExplore";
+export type AbilityTrigger = "dragOnPlayerPortrait" | "onReveal" | "onExplore" | "onDamage";
 
-export type AbilityEffect = "healPlayer" | "damagePlayer" | "shuffleIntoDeck";
+export type AbilityEffect = "healPlayer" | "damagePlayer" | "shuffleIntoDeck" | "absorbDamage";
 
 export interface AbilityDef {
   id: string;
@@ -32,6 +32,12 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "onExplore",
     effect: "shuffleIntoDeck",
     description: "Shuffles minions into the dungeon deck when you explore",
+  },
+  armour: {
+    id: "armour",
+    trigger: "onDamage",
+    effect: "absorbDamage",
+    description: "Absorbs damage before it reaches HP",
   },
 };
 

@@ -21,6 +21,7 @@ export const cardRegistry: Record<string, CardData> = {
   // --- Treasure ---
   short_sword: { id: "short_sword", type: CardType.Treasure, name: "Short Sword", value: 2, description: "+2 power", slot: "weapon", image: "shortsword" },
   battle_axe: { id: "battle_axe", type: CardType.Treasure, name: "Battle Axe", value: 4, description: "+4 power", slot: "weapon", image: "crude_axe" },
+  wooden_shield: { id: "wooden_shield", type: CardType.Treasure, name: "Wooden Shield", value: 0, description: "Absorbs 2 damage", slot: "weapon", image: "wooden_shield", abilities: [{ abilityId: "armour", params: { amount: 2 } }] },
   leather_armour: { id: "leather_armour", type: CardType.Treasure, name: "Leather Armour", value: 1, description: "+1 power", slot: "armour", image: "rusty_cuirass" },
   chain_mail: { id: "chain_mail", type: CardType.Treasure, name: "Chain Mail", value: 3, description: "+3 power", slot: "armour", image: "metal_cuirass" },
   iron_helm: { id: "iron_helm", type: CardType.Treasure, name: "Iron Helm", value: 1, description: "+1 power", slot: "head" },
@@ -53,5 +54,5 @@ export const cardRegistry: Record<string, CardData> = {
 export function getCard(id: string): CardData {
   const card = cardRegistry[id];
   if (!card) throw new Error(`Unknown card id: ${id}`);
-  return { ...card };
+  return { ...card, abilities: card.abilities?.map(a => ({ ...a, params: { ...a.params } })) };
 }

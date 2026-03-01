@@ -91,9 +91,17 @@ export class Card extends Phaser.GameObjects.Container {
         if (d.trapDamage) text += `\nDamage: ${d.trapDamage}`;
         return text;
       }
-      case CardType.Treasure:
-        if (d.slot && !d.isKey) return `+${d.value} power`;
+      case CardType.Treasure: {
+        if (d.slot && !d.isKey) {
+          const armourAbility = d.abilities?.find(a => a.abilityId === "armour");
+          if (armourAbility) {
+            const text = `Armour: ${armourAbility.params.amount}`;
+            return d.value > 0 ? `${text}\n+${d.value} power` : text;
+          }
+          return `+${d.value} power`;
+        }
         return d.description;
+      }
       case CardType.Potion:
         return d.description;
       case CardType.Door:
