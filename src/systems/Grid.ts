@@ -2,7 +2,8 @@ import { Card, CARD_W, CARD_H } from "../entities/Card";
 
 export const COLS = 5;
 export const ROWS = 3;
-const GAP = 16;
+const GAP_X = 16;
+const GAP_Y = 32;
 
 export interface CellPos {
   col: number;
@@ -15,8 +16,8 @@ export class Grid {
   private originY: number;
 
   constructor(screenW: number, screenH: number) {
-    const gridW = COLS * CARD_W + (COLS - 1) * GAP;
-    const gridH = ROWS * CARD_H + (ROWS - 1) * GAP;
+    const gridW = COLS * CARD_W + (COLS - 1) * GAP_X;
+    const gridH = ROWS * CARD_H + (ROWS - 1) * GAP_Y;
     this.originX = (screenW - gridW) / 2 + CARD_W / 2;
     this.originY = (screenH - gridH) / 2 + CARD_H / 2 - 140;
 
@@ -30,8 +31,8 @@ export class Grid {
 
   worldPos(col: number, row: number): { x: number; y: number } {
     return {
-      x: this.originX + col * (CARD_W + GAP),
-      y: this.originY + row * (CARD_H + GAP),
+      x: this.originX + col * (CARD_W + GAP_X),
+      y: this.originY + row * (CARD_H + GAP_Y),
     };
   }
 
