@@ -17,7 +17,7 @@ import { WinScreen } from "../entities/WinScreen";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
-const TREASURE_OFFSET_Y = 56;
+const TREASURE_OFFSET_Y = 32;
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
