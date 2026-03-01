@@ -18,6 +18,11 @@ export const cardRegistry: Record<string, CardData> = {
   spike_trap_heavy: { id: "spike_trap_heavy", type: CardType.Trap, name: "Spike Trap", value: 4, description: "Deals 4 damage", lockDifficulty: 3, trapDamage: 4, image: "pressure_plate" },
   poison_gas: { id: "poison_gas", type: CardType.Trap, name: "Poison Gas", value: 3, description: "Deals 3 damage", lockDifficulty: 3, trapDamage: 3, image: "poison_dart_trap" },
 
+  // --- Gold ---
+  gold_pile_small: { id: "gold_pile_small", type: CardType.Treasure, name: "Pile of Gold", value: 2, description: "+2 gold", image: "pile_of_gold" },
+  gold_pile_medium: { id: "gold_pile_medium", type: CardType.Treasure, name: "Pile of Gold", value: 4, description: "+4 gold", image: "pile_of_gold" },
+  gold_pile_large: { id: "gold_pile_large", type: CardType.Treasure, name: "Pile of Gold", value: 6, description: "+6 gold", image: "pile_of_gold" },
+
   // --- Treasure ---
   short_sword: { id: "short_sword", type: CardType.Treasure, name: "Short Sword", value: 2, description: "+2 power", slot: "weapon", image: "shortsword" },
   battle_axe: { id: "battle_axe", type: CardType.Treasure, name: "Battle Axe", value: 4, description: "+4 power", slot: "weapon", image: "crude_axe" },

@@ -24,6 +24,7 @@ export class GameScene extends Phaser.Scene {
   private deck!: Deck;
   private grid!: Grid;
   private deckText!: Phaser.GameObjects.Text;
+  private goldText!: Phaser.GameObjects.Text;
   private exploreBtn!: Phaser.GameObjects.Container;
   private exploreBtnBg!: Phaser.GameObjects.Graphics;
   private exploreBtnText!: Phaser.GameObjects.Text;
@@ -103,11 +104,19 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     this.deckGroup.add(this.deckText);
 
+    this.goldText = this.add.text(0, 460, "", {
+      fontSize: "28px",
+      fontFamily: "monospace",
+      color: "#ddaa22",
+    }).setOrigin(0.5, 0);
+    this.deckGroup.add(this.goldText);
+
     this.updateHUD();
   }
 
   private updateHUD(): void {
     this.deckText.setText(`Deck: ${this.deck.remaining} cards`);
+    this.goldText.setText(`Gold: ${this.player.gold}`);
   }
 
   private createGridBackground(): void {
@@ -1138,6 +1147,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Gold piles: Treasure cards without a slot grant gold on resolve
+    if (card.cardData.type === CardType.Treasure && !card.cardData.slot) {
+      this.player.addGold(card.cardData.value);
+    }
+
     this.isResolving = true;
     this.grid.removeCard(cell.col, cell.row);
 
@@ -1178,6 +1192,7 @@ export class GameScene extends Phaser.Scene {
     this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
     this.deckVisual.forEach(img => img.setAlpha(0.3));
     this.deckText.setAlpha(0.3);
+    this.goldText.setAlpha(0.3);
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
     this.levelFlavorText.setAlpha(0.3);
@@ -1283,6 +1298,7 @@ export class GameScene extends Phaser.Scene {
     this.gridBgGraphics.forEach(img => img.setAlpha(1));
     this.deckVisual.forEach(img => img.setAlpha(1));
     this.deckText.setAlpha(1);
+    this.goldText.setAlpha(1);
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
     this.levelFlavorText.setAlpha(1);
@@ -1613,6 +1629,7 @@ export class GameScene extends Phaser.Scene {
       this.gridBgGraphics.forEach(img => img.setAlpha(1));
       this.deckVisual.forEach(img => img.setAlpha(1));
       this.deckText.setAlpha(1);
+      this.goldText.setAlpha(1);
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
@@ -1664,6 +1681,7 @@ export class GameScene extends Phaser.Scene {
     this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
     this.deckVisual.forEach(img => img.setAlpha(0.3));
     this.deckText.setAlpha(0.3);
+    this.goldText.setAlpha(0.3);
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
     this.levelFlavorText.setAlpha(0.3);
@@ -1768,6 +1786,7 @@ export class GameScene extends Phaser.Scene {
     this.gridBgGraphics.forEach(img => img.setAlpha(1));
     this.deckVisual.forEach(img => img.setAlpha(1));
     this.deckText.setAlpha(1);
+    this.goldText.setAlpha(1);
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
     this.levelFlavorText.setAlpha(1);
@@ -1919,6 +1938,7 @@ export class GameScene extends Phaser.Scene {
       this.gridBgGraphics.forEach(img => img.setAlpha(1));
       this.deckVisual.forEach(img => img.setAlpha(1));
       this.deckText.setAlpha(1);
+      this.goldText.setAlpha(1);
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
@@ -1984,6 +2004,7 @@ export class GameScene extends Phaser.Scene {
     this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
     this.deckVisual.forEach(img => img.setAlpha(0.3));
     this.deckText.setAlpha(0.3);
+    this.goldText.setAlpha(0.3);
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
     this.levelFlavorText.setAlpha(0.3);
@@ -2088,6 +2109,7 @@ export class GameScene extends Phaser.Scene {
     this.gridBgGraphics.forEach(img => img.setAlpha(1));
     this.deckVisual.forEach(img => img.setAlpha(1));
     this.deckText.setAlpha(1);
+    this.goldText.setAlpha(1);
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
     this.levelFlavorText.setAlpha(1);
@@ -2234,6 +2256,7 @@ export class GameScene extends Phaser.Scene {
       this.gridBgGraphics.forEach(img => img.setAlpha(1));
       this.deckVisual.forEach(img => img.setAlpha(1));
       this.deckText.setAlpha(1);
+      this.goldText.setAlpha(1);
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
