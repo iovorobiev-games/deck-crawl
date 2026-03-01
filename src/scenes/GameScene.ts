@@ -12,7 +12,7 @@ import { CardType, CardData } from "../entities/CardData";
 import { lootPool } from "../data/deckConfig";
 import { dungeonConfig, DungeonLevel } from "../data/dungeonConfig";
 import { getCard } from "../data/cardRegistry";
-import { getAbility } from "../data/abilityRegistry";
+import { getAbility, CardAbility } from "../data/abilityRegistry";
 import { WinScreen } from "../entities/WinScreen";
 
 const GAME_W = 1920;
@@ -234,7 +234,18 @@ export class GameScene extends Phaser.Scene {
 
   private onExplore(): void {
     if (this.deck.isEmpty || this.isResolving || this.hasTrapOnGrid()) return;
-    this.drawAndPlaceCards(3);
+
+    const onExploreAbilities = this.collectOnExploreAbilities();
+    if (onExploreAbilities.length === 0) {
+      this.drawAndPlaceCards(3);
+      return;
+    }
+
+    this.isResolving = true;
+    this.executeOnExploreAbilities(onExploreAbilities, () => {
+      this.isResolving = false;
+      this.drawAndPlaceCards(3);
+    });
   }
 
   private drawAndPlaceCards(count: number): void {
@@ -452,7 +463,7 @@ export class GameScene extends Phaser.Scene {
       const def = getAbility(ability.abilityId);
       switch (def.effect) {
         case "damagePlayer":
-          this.playDamagePlayerEffect(card, ability.params.amount, () => processNext(idx + 1));
+          this.playDamagePlayerEffect(card, ability.params.amount as number, () => processNext(idx + 1));
           break;
         default:
           processNext(idx + 1);
@@ -693,7 +704,7 @@ export class GameScene extends Phaser.Scene {
             const def = getAbility(a.abilityId);
             return def.trigger === "dragOnPlayerPortrait";
           })!;
-          this.playerView.showDropHighlight(ability.params.amount);
+          this.playerView.showDropHighlight(ability.params.amount as number);
         } else {
           this.playerView.hideDropHighlight();
         }
@@ -804,13 +815,179 @@ export class GameScene extends Phaser.Scene {
     const def = getAbility(ability.abilityId);
     switch (def.effect) {
       case "healPlayer":
-        this.player.heal(ability.params.amount);
+        this.player.heal(ability.params.amount as number);
         break;
     }
 
     card.disableInteractive();
     card.resolve(() => {
       this.finishDrag();
+    });
+  }
+
+  private collectOnExploreAbilities(): Array<{ card: Card; ability: CardAbility }> {
+    const results: Array<{ card: Card; ability: CardAbility }> = [];
+    for (const card of this.grid.getOccupiedCards()) {
+      if (!card.cardData.abilities) continue;
+      for (const ability of card.cardData.abilities) {
+        const def = getAbility(ability.abilityId);
+        if (def.trigger === "onExplore") {
+          results.push({ card, ability });
+        }
+      }
+    }
+    return results;
+  }
+
+  private executeOnExploreAbilities(
+    abilities: Array<{ card: Card; ability: CardAbility }>,
+    onComplete: () => void,
+  ): void {
+    if (abilities.length === 0) {
+      onComplete();
+      return;
+    }
+
+    const [current, ...rest] = abilities;
+    const def = getAbility(current.ability.abilityId);
+
+    switch (def.effect) {
+      case "shuffleIntoDeck": {
+        const cardId = current.ability.params.cardId as string;
+        const count = current.ability.params.count as number;
+        this.playSummonToDeckAnimation(current.card, cardId, count, () => {
+          this.executeOnExploreAbilities(rest, onComplete);
+        });
+        break;
+      }
+      default:
+        this.executeOnExploreAbilities(rest, onComplete);
+        break;
+    }
+  }
+
+  private playSummonToDeckAnimation(
+    sourceCard: Card,
+    cardId: string,
+    count: number,
+    onComplete: () => void,
+  ): void {
+    const centerX = GAME_W / 2;
+    const centerY = GAME_H / 2;
+    const cardScale = 1.4;
+    const scaledW = CARD_W * cardScale;
+    const spacing = scaledW + 24;
+    const totalWidth = count * scaledW + (count - 1) * 24;
+    const startX = centerX - totalWidth / 2 + scaledW / 2;
+
+    // Dark overlay behind the cards
+    const overlay = this.add.graphics();
+    overlay.setDepth(499);
+    overlay.fillStyle(0x000000, 0.6);
+    overlay.fillRect(0, 0, GAME_W, GAME_H);
+
+    // Smoke particles burst from producer card
+    const emitter = this.add.particles(sourceCard.x, sourceCard.y, "particle_circle", {
+      speed: { min: 30, max: 80 },
+      scale: { start: 0.8, end: 0 },
+      alpha: { start: 0.6, end: 0 },
+      tint: 0x886699,
+      lifespan: 600,
+      quantity: 12,
+      emitting: false,
+    });
+    emitter.setDepth(501);
+    emitter.explode(12);
+    this.time.delayedCall(800, () => emitter.destroy());
+
+    // Create temp cards at the producer card's position (small scale)
+    const tempCards: Card[] = [];
+    const cardDatas: CardData[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const data = getCard(cardId);
+      cardDatas.push(data);
+      const card = new Card(this, sourceCard.x, sourceCard.y, data);
+      card.setScale(0.3);
+      card.setDepth(500);
+      card.disableInteractive();
+      card.reveal();
+      tempCards.push(card);
+    }
+
+    // Fly cards from producer to screen center while scaling up
+    let arrivedAtCenter = 0;
+    tempCards.forEach((card, i) => {
+      const targetX = startX + i * spacing;
+      this.tweens.add({
+        targets: card,
+        x: targetX,
+        y: centerY,
+        scaleX: cardScale,
+        scaleY: cardScale,
+        duration: 400,
+        delay: i * 80,
+        ease: "Power2",
+        onComplete: () => {
+          arrivedAtCenter++;
+          if (arrivedAtCenter === tempCards.length) {
+            // Hold at center for ~1.5s, then fly to deck
+            this.time.delayedCall(1500, () => {
+              this.flySummonedCardsToDeck(tempCards, cardDatas, overlay, onComplete);
+            });
+          }
+        },
+      });
+    });
+  }
+
+  private flySummonedCardsToDeck(
+    tempCards: Card[],
+    cardDatas: CardData[],
+    overlay: Phaser.GameObjects.Graphics,
+    onComplete: () => void,
+  ): void {
+    const deckWorldX = 350;
+    const deckWorldY = 200;
+    let completed = 0;
+
+    // Fade out overlay alongside card flight
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => overlay.destroy(),
+    });
+
+    tempCards.forEach((card, i) => {
+      this.tweens.add({
+        targets: card,
+        x: deckWorldX,
+        y: deckWorldY,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 500,
+        delay: i * 100,
+        ease: "Power2",
+        onUpdate: () => {
+          // Once card is near the deck, drop it behind
+          const dx = Math.abs(card.x - deckWorldX);
+          const dy = Math.abs(card.y - deckWorldY);
+          if (dx < CARD_W && dy < CARD_H) {
+            card.setDepth(-1);
+          }
+        },
+        onComplete: () => {
+          card.destroy();
+          completed++;
+          if (completed === tempCards.length) {
+            this.deck.mergeCards(cardDatas);
+            this.updateDeckVisual();
+            this.updateHUD();
+            onComplete();
+          }
+        },
+      });
     });
   }
 

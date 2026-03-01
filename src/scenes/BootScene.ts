@@ -65,6 +65,13 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Generate a small circle texture for particle effects
+    const gfx = this.add.graphics();
+    gfx.fillStyle(0xffffff);
+    gfx.fillCircle(8, 8, 8);
+    gfx.generateTexture("particle_circle", 16, 16);
+    gfx.destroy();
+
     this.scene.start("GameScene");
   }
 }
