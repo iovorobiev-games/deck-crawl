@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { CardData, CardType, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
+import { getAbility } from "../data/abilityRegistry";
 
 export const CARD_W = 171;
 export const CARD_H = 202;
@@ -79,8 +80,16 @@ export class Card extends Phaser.GameObjects.Container {
   private buildDescriptionText(): string {
     const d = this.cardData;
     switch (d.type) {
-      case CardType.Monster:
-        return `HP: ${d.value}`;
+      case CardType.Monster: {
+        let text = `HP: ${d.value}`;
+        if (d.abilities) {
+          for (const ab of d.abilities) {
+            const def = getAbility(ab.abilityId);
+            text += `\n${def.description}`;
+          }
+        }
+        return text;
+      }
       case CardType.Chest: {
         let text = `Lock: ${d.lockDifficulty ?? 0}`;
         if (d.trapDamage) text += `\nTrap: -${d.trapDamage} HP`;

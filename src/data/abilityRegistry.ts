@@ -1,6 +1,6 @@
-export type AbilityTrigger = "dragOnPlayerPortrait" | "onReveal" | "onExplore" | "onDamage";
+export type AbilityTrigger = "dragOnPlayerPortrait" | "onReveal" | "onExplore" | "onDamage" | "passive";
 
-export type AbilityEffect = "healPlayer" | "damagePlayer" | "shuffleIntoDeck" | "absorbDamage";
+export type AbilityEffect = "healPlayer" | "damagePlayer" | "shuffleIntoDeck" | "absorbDamage" | "modifyAgility";
 
 export interface AbilityDef {
   id: string;
@@ -38,6 +38,12 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "onDamage",
     effect: "absorbDamage",
     description: "Absorbs damage before it reaches HP",
+  },
+  agility_drain: {
+    id: "agility_drain",
+    trigger: "passive",
+    effect: "modifyAgility",
+    description: "-1 Agility",
   },
 };
 
