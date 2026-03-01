@@ -48,6 +48,7 @@ export const dungeonConfig: DungeonConfig = {
         { id: "fireball_scroll", count: 1 },
         { id: "iron_chest", count: 2 },
         { id: "attack_from_shadows", count: 1 },
+        { id: "altar_of_luck", count: 1 },
       ],
       boss: "vengeful_revenant",
       key: "temple_key",
