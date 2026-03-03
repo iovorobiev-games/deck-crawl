@@ -16,6 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Build:** `npm run build` (runs `tsc && vite build`, outputs to `dist/`)
 - **Preview production build:** `npm run preview`
 - **Type-check only:** `npx tsc --noEmit`
+- **Git in worktrees:** Use `git -C <path>` instead of `cd <path> && git ...`. The `-C` flag tells git to run from the given directory. This avoids permission issues since `Bash(git *)` is auto-allowed but `cd <path> && git ...` cannot be glob-matched reliably.
 
 No unit tests exist. ALWAYS use ui-test skill to verify changes visually.
 
