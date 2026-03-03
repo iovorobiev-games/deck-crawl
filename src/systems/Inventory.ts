@@ -65,4 +65,23 @@ export class Inventory extends Phaser.Events.EventEmitter {
     }
     return total;
   }
+
+  get agilityBonus(): number {
+    let total = 0;
+    for (const def of SLOT_DEFS) {
+      if (def.name.startsWith("backpack")) continue;
+      const item = this.slots.get(def.name);
+      if (item) total += (item.agilityBonus ?? 0);
+    }
+    return total;
+  }
+
+  get maxHpBonus(): number {
+    let total = 0;
+    for (const def of SLOT_DEFS) {
+      const item = this.slots.get(def.name);
+      if (item) total += (item.maxHpBonus ?? 0);
+    }
+    return total;
+  }
 }

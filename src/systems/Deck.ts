@@ -60,4 +60,18 @@ export class Deck {
   hasCard(id: string): boolean {
     return this.cards.some(c => c.id === id);
   }
+
+  removeFirstByTag(tag: string): CardData | null {
+    const idx = this.cards.findIndex(c => c.tag === tag);
+    if (idx === -1) return null;
+    return this.cards.splice(idx, 1)[0];
+  }
+
+  buffCardById(id: string, amount: number): void {
+    for (const card of this.cards) {
+      if (card.id === id) {
+        card.value += amount;
+      }
+    }
+  }
 }
