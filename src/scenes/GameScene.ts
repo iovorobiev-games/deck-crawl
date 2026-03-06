@@ -273,7 +273,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier());
+    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier() + this.tempWeaponBonus);
     this.updateMonsterBuffIndicators();
   }
 
@@ -981,6 +981,7 @@ export class GameScene extends Phaser.Scene {
           this.fireAbilities(dragOnTrapAbilities, () => {});
           const trapCell = this.grid.findCard(trapTarget);
           if (trapCell) this.grid.removeCard(trapCell.col, trapCell.row);
+          this.updateExploreButtonState();
           trapTarget.resolve(() => {});
           card.disableInteractive();
           card.resolve(() => { this.finishDrag(); });
@@ -1017,6 +1018,7 @@ export class GameScene extends Phaser.Scene {
               this.tempWeaponBonus += ab.params.amount as number;
             }
           }
+          this.updatePlayerStats();
           this.fireAbilities(dragOnWeaponAbilities, () => {});
           card.disableInteractive();
           card.resolve(() => { this.finishDrag(); });
@@ -1670,6 +1672,71 @@ export class GameScene extends Phaser.Scene {
                 }
               }
             }
+
+            // Highlight portrait if item has dragOnPlayerPortrait ability
+            if (this.collectAbilities("dragOnPlayerPortrait", item).length > 0) {
+              if (this.playerView.isPointOver(world.x, world.y)) {
+                const ability = item.abilities!.find((a) => {
+                  const aDef = getAbility(a.abilityId);
+                  return aDef.trigger === "dragOnPlayerPortrait";
+                })!;
+                this.playerView.showDropHighlight(ability.params.amount as number);
+              } else {
+                this.playerView.hideDropHighlight();
+              }
+            }
+
+            // Highlight trap cards if item has dragOnTrap ability
+            if (this.collectAbilities("dragOnTrap", item).length > 0) {
+              const trapTarget = this.findTrapAtPoint(world.x, world.y);
+              for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                  const gc = this.grid.getCardAt(c, r);
+                  if (gc && gc.cardData.type === CardType.Trap) {
+                    gc.setHighlight(gc === trapTarget);
+                  }
+                }
+              }
+            }
+
+            // Highlight monster cards if item has dragOnMonster ability
+            if (this.collectAbilities("dragOnMonster", item).length > 0) {
+              const monsterTarget = this.findMonsterAtPoint(world.x, world.y);
+              for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                  const gc = this.grid.getCardAt(c, r);
+                  if (gc && gc.cardData.type === CardType.Monster) {
+                    gc.setHighlight(gc === monsterTarget);
+                  }
+                }
+              }
+            }
+
+            // Highlight chest cards if item has dragOnChest ability
+            if (this.collectAbilities("dragOnChest", item).length > 0) {
+              const chestTarget = this.findChestAtPoint(world.x, world.y);
+              for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                  const gc = this.grid.getCardAt(c, r);
+                  if (gc && gc.cardData.type === CardType.Chest) {
+                    gc.setHighlight(gc === chestTarget);
+                  }
+                }
+              }
+            }
+
+            // Highlight weapon slots if item has dragOnWeapon ability
+            if (this.collectAbilities("dragOnWeapon", item).length > 0) {
+              const weaponSlot = this.findWeaponSlotAtPoint(world.x, world.y);
+              for (const slotDef of SLOT_DEFS) {
+                if (slotDef.accepted.includes("weapon") && this.inventory.getItem(slotDef.name)) {
+                  this.inventoryView.setSlotHighlight(
+                    slotDef.name,
+                    slotDef.name === weaponSlot ? "valid" : "valid_dim"
+                  );
+                }
+              }
+            }
           }
         };
         const onUp = (p: Phaser.Input.Pointer) => {
@@ -1694,6 +1761,110 @@ export class GameScene extends Phaser.Scene {
                 return;
               }
               doorCard.setHighlight(false);
+            }
+          }
+
+          // Clear grid card highlights
+          this.clearGridHighlights();
+
+          // Check if item with dragOnPlayerPortrait dropped on portrait
+          const invPortraitAbilities = this.collectAbilities("dragOnPlayerPortrait", item);
+          if (invPortraitAbilities.length > 0 && this.playerView.isPointOver(world.x, world.y)) {
+            this.playerView.hideDropHighlight();
+            this.inventoryView.clearAllHighlights();
+            this.inventory.unequip(def.name);
+            ghost.destroy();
+            // Fire healing
+            for (const ab of invPortraitAbilities) {
+              const aDef = getAbility(ab.abilityId);
+              if (aDef.effect === "healPlayer") {
+                this.player.heal(ab.params.amount as number);
+              }
+            }
+            this.fireAbilities(invPortraitAbilities, () => {});
+            return;
+          }
+          this.playerView.hideDropHighlight();
+
+          // Check if item with dragOnTrap dropped on a trap
+          const invTrapAbilities = this.collectAbilities("dragOnTrap", item);
+          if (invTrapAbilities.length > 0) {
+            const trapTarget = this.findTrapAtPoint(world.x, world.y);
+            if (trapTarget) {
+              this.inventoryView.clearAllHighlights();
+              this.inventory.unequip(def.name);
+              ghost.destroy();
+              this.fireAbilities(invTrapAbilities, () => {});
+              const trapCell = this.grid.findCard(trapTarget);
+              if (trapCell) this.grid.removeCard(trapCell.col, trapCell.row);
+              this.updateExploreButtonState();
+              trapTarget.resolve(() => {});
+              return;
+            }
+          }
+
+          // Check if item with dragOnMonster dropped on a monster
+          const invMonsterAbilities = this.collectAbilities("dragOnMonster", item);
+          if (invMonsterAbilities.length > 0) {
+            const monsterTarget = this.findMonsterAtPoint(world.x, world.y);
+            if (monsterTarget) {
+              this.inventoryView.clearAllHighlights();
+              this.inventory.unequip(def.name);
+              ghost.destroy();
+              this.dragTargetMonster = monsterTarget;
+              this.fireDragOnMonsterAbilities(invMonsterAbilities, monsterTarget, () => {
+                this.dragTargetMonster = null;
+              });
+              return;
+            }
+          }
+
+          // Check if item with dragOnWeapon dropped on an equipped weapon
+          const invWeaponAbilities = this.collectAbilities("dragOnWeapon", item);
+          if (invWeaponAbilities.length > 0) {
+            const weaponSlot = this.findWeaponSlotAtPoint(world.x, world.y);
+            if (weaponSlot) {
+              this.inventoryView.clearAllHighlights();
+              this.inventory.unequip(def.name);
+              ghost.destroy();
+              for (const ab of invWeaponAbilities) {
+                const aDef = getAbility(ab.abilityId);
+                if (aDef.effect === "tempBuffWeapon") {
+                  this.tempWeaponBonus += ab.params.amount as number;
+                }
+              }
+              this.updatePlayerStats();
+              this.fireAbilities(invWeaponAbilities, () => {});
+              return;
+            }
+          }
+
+          // Check if item with dragOnChest dropped on a chest
+          const invChestAbilities = this.collectAbilities("dragOnChest", item);
+          if (invChestAbilities.length > 0) {
+            const chestTarget = this.findChestAtPoint(world.x, world.y);
+            if (chestTarget) {
+              this.inventoryView.clearAllHighlights();
+              this.inventory.unequip(def.name);
+              ghost.destroy();
+              // Auto-open the chest: reveal loot without agility check
+              const chestCell = this.grid.findCard(chestTarget);
+              const lootInfo = this.chestLoot.get(chestTarget);
+              if (chestCell && lootInfo) {
+                this.grid.removeCard(chestCell.col, chestCell.row);
+                chestTarget.resolve(() => {});
+                // Reveal the loot card
+                lootInfo.cardBack.destroy();
+                const lootCard = new Card(this, lootInfo.cardBack.x, lootInfo.cardBack.y + TREASURE_OFFSET_Y, lootInfo.lootData);
+                this.grid.placeCard(chestCell.col, chestCell.row, lootCard);
+                lootCard.reveal();
+                this.setupCardInteraction(lootCard);
+                this.chestLoot.delete(chestTarget);
+              } else if (chestCell) {
+                this.grid.removeCard(chestCell.col, chestCell.row);
+                chestTarget.resolve(() => {});
+              }
+              return;
             }
           }
 

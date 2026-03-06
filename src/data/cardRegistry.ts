@@ -53,7 +53,7 @@ export const cardRegistry: Record<string, CardData> = {
 
   // --- Treasure - Shields ---
   wooden_shield: { id: "wooden_shield", type: CardType.Treasure, name: "Wooden Shield", value: 0, description: "Absorbs 2 damage", slot: "weapon", image: "wooden_shield", abilities: [{ abilityId: "armour", params: { amount: 2 } }] },
-  spiked_shield: { id: "spiked_shield", type: CardType.Treasure, name: "Spiked Shield", value: 0, description: "Absorbs 3 damage", slot: "weapon", image: "spiked_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
+  spiked_shield: { id: "spiked_shield", type: CardType.Treasure, name: "Spiked Shield", value: 1, description: "+1 power, absorbs 3 damage", slot: "weapon", image: "spiked_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
   guardsman_shield: { id: "guardsman_shield", type: CardType.Treasure, name: "Guardsman Shield", value: 0, description: "Absorbs 3 damage", slot: "weapon", image: "knights_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
 
   // --- Treasure - Armour ---
@@ -76,10 +76,10 @@ export const cardRegistry: Record<string, CardData> = {
   lockpick: { id: "lockpick", type: CardType.Treasure, name: "Lockpick", value: 0, description: "Drag onto chest to auto-open", slot: "backpack", image: "lockpicks", abilities: [{ abilityId: "auto_open_chest", params: {} }] },
 
   // --- Scrolls ---
-  fireball_scroll: { id: "fireball_scroll", type: CardType.Treasure, name: "Scroll of Fireball", value: 0, description: "Reduce target and adjacent monsters' power by 2", image: "scroll_of_fireball", abilities: [{ abilityId: "reduce_adjacent_monsters", params: { amount: 2 } }] },
-  scroll_of_fire_bolt: { id: "scroll_of_fire_bolt", type: CardType.Treasure, name: "Scroll of Fire Bolt", value: 0, description: "Reduce 1 enemy power by 2", image: "scroll_of_firebolt", abilities: [{ abilityId: "reduce_target_monster", params: { amount: 2 } }] },
-  scroll_of_cleansing: { id: "scroll_of_cleansing", type: CardType.Treasure, name: "Scroll of Cleansing", value: 0, description: "Removes a dark event from the deck", image: "scroll_of_cleansing", abilities: [{ abilityId: "remove_dark_event", params: {} }] },
-  scroll_of_blessing: { id: "scroll_of_blessing", type: CardType.Treasure, name: "Scroll of Blessing", value: 0, description: "Adds +2 to your fate deck", image: "scroll_of_blessing", abilities: [{ abilityId: "add_fate_modifier", params: { modifier: 2 } }] },
+  fireball_scroll: { id: "fireball_scroll", type: CardType.Treasure, name: "Scroll of Fireball", value: 0, description: "Reduce target and adjacent monsters' power by 2", slot: "backpack", image: "scroll_of_fireball", abilities: [{ abilityId: "reduce_adjacent_monsters", params: { amount: 2 } }] },
+  scroll_of_fire_bolt: { id: "scroll_of_fire_bolt", type: CardType.Treasure, name: "Scroll of Fire Bolt", value: 0, description: "Reduce 1 enemy power by 2", slot: "backpack", image: "scroll_of_firebolt", abilities: [{ abilityId: "reduce_target_monster", params: { amount: 2 } }] },
+  scroll_of_cleansing: { id: "scroll_of_cleansing", type: CardType.Treasure, name: "Scroll of Cleansing", value: 0, description: "Removes a dark event from the deck", slot: "backpack", image: "scroll_of_cleansing", abilities: [{ abilityId: "remove_dark_event", params: {} }] },
+  scroll_of_blessing: { id: "scroll_of_blessing", type: CardType.Treasure, name: "Scroll of Blessing", value: 0, description: "Adds +2 to your fate deck", slot: "backpack", image: "scroll_of_blessing", abilities: [{ abilityId: "add_fate_modifier", params: { modifier: 2 } }] },
 
   // --- Other tools ---
   whetstone: { id: "whetstone", type: CardType.Potion, name: "Whetstone", value: 0, description: "Drag onto weapon to sharpen", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "apply_to_weapon", params: { amount: 1 } }] },
