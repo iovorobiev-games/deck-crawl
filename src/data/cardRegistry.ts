@@ -12,9 +12,9 @@ export const cardRegistry: Record<string, CardData> = {
   swarm_of_bats: { id: "swarm_of_bats", type: CardType.Monster, name: "Swarm Of Bats", value: 1, description: "Weakens your agility", image: "swarm_of_bats", abilities: [{ abilityId: "agility_drain", params: { amount: -1 } }] },
 
   // --- Bosses ---
-  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 3, description: "Leader of the cult", image: "cultist", isBoss: true },
-  vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 2, description: "An undead spirit of vengeance", image: "vengeful_revenant", isBoss: true, abilities: [{ abilityId: "revenant_return", params: {} }, { abilityId: "power_drain", params: { amount: -1 } }] },
-  crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 3, description: "The master of this dungeon", image: "crypt_lord", isBoss: true, abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }, { abilityId: "return_conditional", params: { requiredDiscardId: "phylactery" } }] },
+  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 3, description: "Leader of the cult", image: "cultist" },
+  vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 2, description: "An undead spirit of vengeance", image: "vengeful_revenant", abilities: [{ abilityId: "revenant_return", params: {} }, { abilityId: "power_drain", params: { amount: -1 } }] },
+  crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 3, description: "The master of this dungeon", image: "crypt_lord", abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }, { abilityId: "return_conditional", params: { requiredDiscardId: "phylactery" } }] },
 
   // --- Tentacle chain ---
   tentacle: { id: "tentacle", type: CardType.Monster, name: "Tentacle", value: 2, description: "A writhing appendage", image: "horrendous_tentacle", abilities: [{ abilityId: "tentacle_summon", params: { cardId: "horrendous_tentacle", count: 1 } }] },
