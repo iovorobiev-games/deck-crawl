@@ -71,6 +71,27 @@ export class BootScene extends Phaser.Scene {
     this.load.image("poison", "sprites/poison.PNG");
     this.load.image("rusty_sword", "sprites/rusty_sword.PNG");
     this.load.image("weapon_degradation", "sprites/weapon_degradation.PNG");
+
+    // New card art sprites
+    this.load.image("Zombie", "sprites/Zombie.PNG");
+    this.load.image("dark_knight", "sprites/dark_knight.PNG");
+    this.load.image("knights_sword", "sprites/knights_sword.PNG");
+    this.load.image("shortbow", "sprites/shortbow.PNG");
+    this.load.image("elven_bow", "sprites/elven_bow.PNG");
+    this.load.image("spiked_shield", "sprites/spiked_shield.PNG");
+    this.load.image("knights_shield", "sprites/knights_shield.PNG");
+    this.load.image("cloak_of_swiftness", "sprites/cloak_of_swiftness.PNG");
+    this.load.image("quiver", "sprites/quiver.PNG");
+    this.load.image("phylactery", "sprites/phylactery.PNG");
+    this.load.image("lockpicks", "sprites/lockpicks.PNG");
+    this.load.image("disarming_kit", "sprites/disarming_kit.PNG");
+    this.load.image("scroll_of_firebolt", "sprites/scroll_of_firebolt.PNG");
+    this.load.image("scroll_of_cleansing", "sprites/scroll_of_cleansing.PNG");
+    this.load.image("scroll_of_blessing", "sprites/scroll_of_blessing.PNG");
+    this.load.image("bow_shot", "sprites/bow_shot.PNG");
+    this.load.image("hidden_pit", "sprites/hidden_pit.PNG");
+    this.load.image("ominuous_chest", "sprites/ominuous_chest.PNG");
+    this.load.image("strong_chest", "sprites/strong_chest.PNG");
   }
 
   create(): void {

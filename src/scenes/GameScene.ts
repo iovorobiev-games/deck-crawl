@@ -61,6 +61,9 @@ export class GameScene extends Phaser.Scene {
   private levelIndicator!: Phaser.GameObjects.Text;
   private levelFlavorText!: Phaser.GameObjects.Text;
   private backgroundImage!: Phaser.GameObjects.Image;
+  private discardedCardIds: Set<string> = new Set();
+  private tempWeaponBonus = 0;
+  private dragTargetMonster: Card | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -255,7 +258,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updatePlayerStats(): void {
-    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier(), this.getPassivePowerModifier());
+    const newMaxHp = 10 + this.inventory.maxHpBonus;
+    if (newMaxHp !== this.player.maxHp) {
+      const diff = newMaxHp - this.player.maxHp;
+      this.player.maxHp = newMaxHp;
+      if (diff > 0) {
+        // MaxHP increased — heal the difference
+        this.player.heal(diff);
+      } else {
+        // MaxHP decreased — cap current HP
+        if (this.player.hp > this.player.maxHp) {
+          this.player.hp = this.player.maxHp;
+          this.player.emit("hpChanged", this.player.hp, this.player.maxHp);
+        }
+      }
+    }
+    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier());
     this.updateMonsterBuffIndicators();
   }
 
@@ -617,6 +635,35 @@ export class GameScene extends Phaser.Scene {
           processNext(idx + 1);
           break;
         }
+        case "reduceRandomEnemyPower": {
+          const amount = ability.params.amount as number;
+          // Find all monsters on the grid
+          const monsters: Card[] = [];
+          for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+              const gc = this.grid.getCardAt(c, r);
+              if (gc && gc.cardData.type === CardType.Monster) {
+                monsters.push(gc);
+              }
+            }
+          }
+          if (monsters.length > 0) {
+            const target = monsters[Math.floor(Math.random() * monsters.length)];
+            const newValue = Math.max(0, target.cardData.value - amount);
+            target.updateValue(newValue);
+            if (newValue <= 0) {
+              const deadCell = this.grid.findCard(target);
+              if (deadCell) this.grid.removeCard(deadCell.col, deadCell.row);
+              this.freeGuardedLootIfAny(target);
+              target.resolve(() => processNext(idx + 1));
+            } else {
+              processNext(idx + 1);
+            }
+          } else {
+            processNext(idx + 1);
+          }
+          break;
+        }
         default:
           processNext(idx + 1);
           break;
@@ -876,6 +923,20 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
+      // Highlight chest cards if dragging a card with dragOnChest ability
+      const hasDragOnChest = this.collectAbilities("dragOnChest", card.cardData).length > 0;
+      if (hasDragOnChest) {
+        const chestTarget = this.findChestAtPoint(world.x, world.y);
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const gc = this.grid.getCardAt(c, r);
+            if (gc && gc.cardData.type === CardType.Chest) {
+              gc.setHighlight(gc === chestTarget);
+            }
+          }
+        }
+      }
+
       // Highlight weapon slots if dragging a card with dragOnWeapon ability
       const hasDragOnWeapon = this.collectAbilities("dragOnWeapon", card.cardData).length > 0;
       if (hasDragOnWeapon) {
@@ -933,7 +994,10 @@ export class GameScene extends Phaser.Scene {
         const monsterTarget = this.findMonsterAtPoint(world.x, world.y);
         if (monsterTarget) {
           this.inventoryView.clearAllHighlights();
-          this.fireAbilities(dragOnMonsterAbilities, () => {});
+          this.dragTargetMonster = monsterTarget;
+          this.fireDragOnMonsterAbilities(dragOnMonsterAbilities, monsterTarget, () => {
+            this.dragTargetMonster = null;
+          });
           card.disableInteractive();
           card.resolve(() => { this.finishDrag(); });
           return;
@@ -946,7 +1010,44 @@ export class GameScene extends Phaser.Scene {
         const weaponSlot = this.findWeaponSlotAtPoint(world.x, world.y);
         if (weaponSlot) {
           this.inventoryView.clearAllHighlights();
+          // Process temp buff abilities
+          for (const ab of dragOnWeaponAbilities) {
+            const def = getAbility(ab.abilityId);
+            if (def.effect === "tempBuffWeapon") {
+              this.tempWeaponBonus += ab.params.amount as number;
+            }
+          }
           this.fireAbilities(dragOnWeaponAbilities, () => {});
+          card.disableInteractive();
+          card.resolve(() => { this.finishDrag(); });
+          return;
+        }
+      }
+
+      // Check if card with dragOnChest dropped on a chest
+      const dragOnChestAbilities = this.collectAbilities("dragOnChest", card.cardData);
+      if (dragOnChestAbilities.length > 0) {
+        const chestTarget = this.findChestAtPoint(world.x, world.y);
+        if (chestTarget) {
+          this.inventoryView.clearAllHighlights();
+          // Auto-open the chest: reveal loot without agility check
+          const chestCell = this.grid.findCard(chestTarget);
+          const lootInfo = this.chestLoot.get(chestTarget);
+          if (chestCell && lootInfo) {
+            this.grid.removeCard(chestCell.col, chestCell.row);
+            chestTarget.resolve(() => {});
+            // Reveal the loot card
+            lootInfo.cardBack.destroy();
+            const lootCard = new Card(this, lootInfo.cardBack.x, lootInfo.cardBack.y + TREASURE_OFFSET_Y, lootInfo.lootData);
+            this.grid.placeCard(chestCell.col, chestCell.row, lootCard);
+            lootCard.reveal();
+            this.setupCardInteraction(lootCard);
+            this.chestLoot.delete(chestTarget);
+          } else if (chestCell) {
+            // Chest without loot info — just resolve it
+            this.grid.removeCard(chestCell.col, chestCell.row);
+            chestTarget.resolve(() => {});
+          }
           card.disableInteractive();
           card.resolve(() => { this.finishDrag(); });
           return;
@@ -1121,10 +1222,112 @@ export class GameScene extends Phaser.Scene {
         });
         return; // async — don't fall through to chain below
       }
+      case "triggerBowAbility": {
+        // Find equipped bow and fire its onEquip abilities
+        for (const slotName of ["weapon1", "weapon2"]) {
+          const item = this.inventory.getItem(slotName);
+          if (item?.tag === "bow" && item.abilities) {
+            const bowEquipAbilities = item.abilities.filter(a => getAbility(a.abilityId).trigger === "onEquip");
+            if (bowEquipAbilities.length > 0) {
+              this.fireAbilities(bowEquipAbilities, () => {
+                this.fireAbilities(rest, onComplete, sourcePos);
+              }, sourcePos);
+              return;
+            }
+          }
+        }
+        break;
+      }
     }
 
     // Chain to next ability
     this.fireAbilities(rest, onComplete, sourcePos);
+  }
+
+  private fireDragOnMonsterAbilities(abilities: CardAbility[], target: Card, onComplete: () => void): void {
+    if (abilities.length === 0) {
+      onComplete();
+      return;
+    }
+    const [current, ...rest] = abilities;
+    const def = getAbility(current.abilityId);
+    switch (def.effect) {
+      case "reduceTargetMonsterPower": {
+        const amount = current.params.amount as number;
+        const newValue = Math.max(0, target.cardData.value - amount);
+        target.updateValue(newValue);
+        if (newValue <= 0) {
+          const cell = this.grid.findCard(target);
+          if (cell) this.grid.removeCard(cell.col, cell.row);
+          target.resolve(() => {
+            this.freeGuardedLootIfAny(target);
+            this.fireDragOnMonsterAbilities(rest, target, onComplete);
+          });
+        } else {
+          this.fireDragOnMonsterAbilities(rest, target, onComplete);
+        }
+        break;
+      }
+      case "reduceAdjacentMonsterPower": {
+        const amount = current.params.amount as number;
+        // Reduce target
+        const newValue = Math.max(0, target.cardData.value - amount);
+        target.updateValue(newValue);
+        // Reduce adjacent monsters
+        const adjacent = this.getAdjacentCards(target);
+        for (const adj of adjacent) {
+          if (adj.cardData.type === CardType.Monster) {
+            const adjNewValue = Math.max(0, adj.cardData.value - amount);
+            adj.updateValue(adjNewValue);
+          }
+        }
+        // Clean up dead monsters (target first, then adjacent)
+        const deadMonsters: Card[] = [];
+        if (newValue <= 0) deadMonsters.push(target);
+        for (const adj of adjacent) {
+          if (adj.cardData.type === CardType.Monster && adj.cardData.value <= 0) {
+            deadMonsters.push(adj);
+          }
+        }
+        this.resolveDeadMonsters(deadMonsters, () => {
+          this.fireDragOnMonsterAbilities(rest, target, onComplete);
+        });
+        break;
+      }
+      default:
+        this.fireDragOnMonsterAbilities(rest, target, onComplete);
+        break;
+    }
+  }
+
+  private resolveDeadMonsters(monsters: Card[], onComplete: () => void): void {
+    if (monsters.length === 0) {
+      onComplete();
+      return;
+    }
+    const [current, ...rest] = monsters;
+    const cell = this.grid.findCard(current);
+    if (cell) this.grid.removeCard(cell.col, cell.row);
+    this.freeGuardedLootIfAny(current);
+    current.resolve(() => {
+      this.resolveDeadMonsters(rest, onComplete);
+    });
+  }
+
+  private freeGuardedLootIfAny(monsterCard: Card): void {
+    const guardedLoot = monsterCard.guardedLoot;
+    if (!guardedLoot) return;
+    // Try to find a free cell to place the loot
+    const emptySlots = this.grid.getEmptySlots();
+    if (emptySlots.length > 0) {
+      const slot = emptySlots[0];
+      this.freeGuardedLoot(guardedLoot, slot);
+    } else {
+      // No space — just destroy the loot
+      guardedLoot.destroy();
+    }
+    this.guardedByMonster.delete(guardedLoot);
+    monsterCard.guardedLoot = null;
   }
 
   private static readonly DRAG_TRIGGERS: AbilityTrigger[] = [
@@ -1132,6 +1335,7 @@ export class GameScene extends Phaser.Scene {
     "dragOnTrap",
     "dragOnWeapon",
     "dragOnMonster",
+    "dragOnChest",
   ];
 
   /** Check if a card has any drag-type ability. */
@@ -1171,6 +1375,38 @@ export class GameScene extends Phaser.Scene {
       }
     }
     return null;
+  }
+
+  /** Find a chest card at the given world coordinates on the grid. */
+  private findChestAtPoint(x: number, y: number): Card | null {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && gridCard.cardData.type === CardType.Chest) {
+          if (Math.abs(x - gridCard.x) < CARD_W / 2 && Math.abs(y - gridCard.y) < CARD_H / 2) {
+            return gridCard;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Get all cards adjacent (up/down/left/right) to the given card on the grid. */
+  private getAdjacentCards(card: Card): Card[] {
+    const cell = this.grid.findCard(card);
+    if (!cell) return [];
+    const adjacent: Card[] = [];
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (const [dc, dr] of dirs) {
+      const nc = cell.col + dc;
+      const nr = cell.row + dr;
+      if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS) {
+        const adjCard = this.grid.getCardAt(nc, nr);
+        if (adjCard) adjacent.push(adjCard);
+      }
+    }
+    return adjacent;
   }
 
   /** Find an equipped weapon slot at the given world coordinates. */
@@ -1546,6 +1782,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.isResolving = true;
+    this.discardedCardIds.add(card.cardData.id);
 
     // Fire onResolve abilities before resolving
     const resolveAbilities = this.collectAbilities("onResolve", card.cardData);
@@ -1589,6 +1826,35 @@ export class GameScene extends Phaser.Scene {
           this.executeOnResolveAbilities(card, rest, onComplete);
         });
         break;
+      case "removeDarkEvent": {
+        // Remove first card with tag "dark" from deck
+        this.deck.removeFirstByTag("dark");
+        this.executeOnResolveAbilities(card, rest, onComplete);
+        break;
+      }
+      case "addFateModifier": {
+        const modifier = current.params.modifier as number;
+        this.player.fateDeck.push(modifier);
+        this.executeOnResolveAbilities(card, rest, onComplete);
+        break;
+      }
+      case "buffMonsterType": {
+        const monsterId = current.params.monsterId as string;
+        const amount = current.params.amount as number;
+        // Buff monsters on grid
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const gc = this.grid.getCardAt(c, r);
+            if (gc && gc.cardData.id === monsterId) {
+              gc.updateValue(gc.cardData.value + amount);
+            }
+          }
+        }
+        // Buff monsters in deck
+        this.deck.buffCardById(monsterId, amount);
+        this.executeOnResolveAbilities(card, rest, onComplete);
+        break;
+      }
       default:
         this.executeOnResolveAbilities(card, rest, onComplete);
         break;
@@ -1844,7 +2110,7 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         // Step 2: After a brief hold, fly fate card into player portrait
         this.time.delayedCall(300, () => {
-          const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier());
+          const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier() + this.tempWeaponBonus);
 
           this.tweens.add({
             targets: fateCard,
@@ -1918,7 +2184,16 @@ export class GameScene extends Phaser.Scene {
     // Fire onCounterAttack abilities from equipped items before damage
     const counterAbilities = this.collectEquippedAbilities("onCounterAttack");
     this.fireAbilities(counterAbilities, () => {
-      const damage = monsterCard.cardData.value + this.getMonsterPowerBuff();
+      // Calculate bonus counter damage from monster's own abilities
+      let bonusDamage = 0;
+      const monsterCounterAbilities = this.collectAbilities("onCounterAttack", monsterCard.cardData);
+      for (const ab of monsterCounterAbilities) {
+        const def = getAbility(ab.abilityId);
+        if (def.effect === "bonusCounterDamage") {
+          bonusDamage += ab.params.amount as number;
+        }
+      }
+      const damage = monsterCard.cardData.value + this.getMonsterPowerBuff() + bonusDamage;
       this.playDamagePlayerEffect(monsterCard, damage, () => {
         this.combatCleanup(monsterCard, fateModifier);
       });
@@ -2092,6 +2367,19 @@ export class GameScene extends Phaser.Scene {
       this.updateHUD();
     }
 
+    // Handle returnSelfConditional — return to deck if condition met
+    const conditionalReturn = monsterDeathAbilities.filter(a => getAbility(a.abilityId).effect === "returnSelfConditional");
+    for (const ab of conditionalReturn) {
+      const requiredDiscardId = ab.params.requiredDiscardId as string;
+      if (!this.discardedCardIds.has(requiredDiscardId)) {
+        // Condition met: card NOT discarded, so monster returns
+        const freshCopy = getCard(monsterCard.cardData.id);
+        this.deck.mergeCards([freshCopy]);
+        this.updateDeckVisual();
+        this.updateHUD();
+      }
+    }
+
     monsterCard.resolve(() => {
       // Shuffle fate card back
       this.player.shuffleFateCardBack(fateModifier);
@@ -2129,6 +2417,7 @@ export class GameScene extends Phaser.Scene {
         this.freeGuardedLoot(guardedLoot, cellPos);
       }
 
+      this.tempWeaponBonus = 0;
       this.isResolving = false;
       this.combatMonster = null;
 
@@ -2347,7 +2636,7 @@ export class GameScene extends Phaser.Scene {
       ease: "Back.easeOut",
       onComplete: () => {
         this.time.delayedCall(300, () => {
-          const modifiedAgility = Math.max(0, this.player.agility + modifier + this.getPassiveAgilityModifier());
+          const modifiedAgility = Math.max(0, this.player.agility + this.inventory.agilityBonus + modifier + this.getPassiveAgilityModifier());
 
           this.tweens.add({
             targets: fateCard,
@@ -2670,7 +2959,7 @@ export class GameScene extends Phaser.Scene {
       ease: "Back.easeOut",
       onComplete: () => {
         this.time.delayedCall(300, () => {
-          const modifiedAgility = Math.max(0, this.player.agility + modifier + this.getPassiveAgilityModifier());
+          const modifiedAgility = Math.max(0, this.player.agility + this.inventory.agilityBonus + modifier + this.getPassiveAgilityModifier());
 
           this.tweens.add({
             targets: fateCard,

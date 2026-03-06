@@ -27,6 +27,9 @@ export interface CardData {
   isBoss?: boolean;
   deckLevel?: number;
   abilities?: CardAbility[];
+  agilityBonus?: number;
+  maxHpBonus?: number;
+  tag?: string;
   exchangePrice?: { resource: "gold" | "hp"; amount: number };
   exchangeReward?: { type: "treasure"; cardId: string } | { type: "fate"; modifier: number };
 }

@@ -3,6 +3,7 @@ export type AbilityTrigger =
   | "dragOnTrap"
   | "dragOnWeapon"
   | "dragOnMonster"
+  | "dragOnChest"
   | "onReveal"
   | "onExplore"
   | "onDamage"
@@ -24,7 +25,18 @@ export type AbilityEffect =
   | "modifyAgility"
   | "modifyPower"
   | "modifyMonsterPower"
-  | "reduceWeaponPower";
+  | "reduceWeaponPower"
+  | "reduceRandomEnemyPower"
+  | "reduceTargetMonsterPower"
+  | "reduceAdjacentMonsterPower"
+  | "autoOpenChest"
+  | "tempBuffWeapon"
+  | "removeDarkEvent"
+  | "addFateModifier"
+  | "buffMonsterType"
+  | "returnSelfConditional"
+  | "bonusCounterDamage"
+  | "triggerBowAbility";
 
 export interface AbilityDef {
   id: string;
@@ -194,6 +206,72 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "onReveal",
     effect: "reduceWeaponPower",
     description: "Reduces weapon power by 1",
+  },
+  reduce_random_enemy: {
+    id: "reduce_random_enemy",
+    trigger: "onReveal",
+    effect: "reduceRandomEnemyPower",
+    description: "Reduces a random enemy's power",
+  },
+  reduce_target_monster: {
+    id: "reduce_target_monster",
+    trigger: "dragOnMonster",
+    effect: "reduceTargetMonsterPower",
+    description: "Reduces target monster's power",
+  },
+  reduce_adjacent_monsters: {
+    id: "reduce_adjacent_monsters",
+    trigger: "dragOnMonster",
+    effect: "reduceAdjacentMonsterPower",
+    description: "Reduces target and adjacent monsters' power",
+  },
+  auto_open_chest: {
+    id: "auto_open_chest",
+    trigger: "dragOnChest",
+    effect: "autoOpenChest",
+    description: "Drag onto a chest to open it",
+  },
+  temp_buff_weapon: {
+    id: "temp_buff_weapon",
+    trigger: "dragOnWeapon",
+    effect: "tempBuffWeapon",
+    description: "Temporarily boosts weapon power for next battle",
+  },
+  remove_dark_event: {
+    id: "remove_dark_event",
+    trigger: "onResolve",
+    effect: "removeDarkEvent",
+    description: "Removes a dark event from the deck",
+  },
+  add_fate_modifier: {
+    id: "add_fate_modifier",
+    trigger: "onResolve",
+    effect: "addFateModifier",
+    description: "Adds a modifier to your fate deck",
+  },
+  buff_monster_type: {
+    id: "buff_monster_type",
+    trigger: "onResolve",
+    effect: "buffMonsterType",
+    description: "Strengthens a specific monster type",
+  },
+  return_conditional: {
+    id: "return_conditional",
+    trigger: "onMonsterDeath",
+    effect: "returnSelfConditional",
+    description: "Returns to deck if condition met",
+  },
+  bonus_counter_damage: {
+    id: "bonus_counter_damage",
+    trigger: "onCounterAttack",
+    effect: "bonusCounterDamage",
+    description: "Deals extra damage on counterattack",
+  },
+  quiver_trigger: {
+    id: "quiver_trigger",
+    trigger: "onEquip",
+    effect: "triggerBowAbility",
+    description: "Triggers equipped bow's ability",
   },
 };
 
