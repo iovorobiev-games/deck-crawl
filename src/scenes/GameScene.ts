@@ -9,7 +9,6 @@ import { Grid, COLS, ROWS } from "../systems/Grid";
 import { Player } from "../systems/Player";
 import { Inventory, SLOT_DEFS } from "../systems/Inventory";
 import { CardType, CardData } from "../entities/CardData";
-import { lootPool } from "../data/deckConfig";
 import { dungeonConfig, DungeonLevel } from "../data/dungeonConfig";
 import { getCard } from "../data/cardRegistry";
 import { getAbility, AbilityTrigger, CardAbility } from "../data/abilityRegistry";
@@ -440,7 +439,8 @@ export class GameScene extends Phaser.Scene {
               plan.slot = { col: lootCell.col, row: lootCell.row };
             }
           } else {
-            plan.generatedLoot = this.pickRandomLoot();
+            const loot = this.deck.drawLoot();
+            if (loot) plan.generatedLoot = loot;
           }
         }
       }
@@ -458,6 +458,7 @@ export class GameScene extends Phaser.Scene {
   private processCardQueue(plans: { cardData: CardData; slot?: { col: number; row: number }; existingLoot?: Card; generatedLoot?: CardData }[], index: number): void {
     if (index >= plans.length) {
       this.updatePlayerStats();
+      this.updateDeckVisual();
       this.updateExploreButtonState();
       return;
     }
@@ -486,7 +487,7 @@ export class GameScene extends Phaser.Scene {
     const pos = this.grid.worldPos(plan.slot.col, plan.slot.row);
 
     if (plan.cardData.type === CardType.Monster) {
-      let lootCard: Card;
+      let lootCard: Card | null = null;
 
       if (plan.existingLoot) {
         lootCard = plan.existingLoot;
@@ -494,8 +495,8 @@ export class GameScene extends Phaser.Scene {
         if (lootCell) this.grid.removeCard(lootCell.col, lootCell.row);
         lootCard.setPosition(pos.x, pos.y - TREASURE_OFFSET_Y);
         lootCard.setDepth(5);
-      } else {
-        lootCard = new Card(this, pos.x, pos.y - TREASURE_OFFSET_Y, plan.generatedLoot!);
+      } else if (plan.generatedLoot) {
+        lootCard = new Card(this, pos.x, pos.y - TREASURE_OFFSET_Y, plan.generatedLoot);
         lootCard.setDepth(5);
         lootCard.reveal();
       }
@@ -505,22 +506,25 @@ export class GameScene extends Phaser.Scene {
       this.grid.placeCard(plan.slot.col, plan.slot.row, monsterCard);
       monsterCard.reveal();
 
-      monsterCard.guardedLoot = lootCard;
-      this.guardedByMonster.set(lootCard, monsterCard);
-
-      this.setupGuardedLootInteraction(lootCard, monsterCard);
+      if (lootCard) {
+        monsterCard.guardedLoot = lootCard;
+        this.guardedByMonster.set(lootCard, monsterCard);
+        this.setupGuardedLootInteraction(lootCard, monsterCard);
+      }
       this.setupCardInteraction(monsterCard);
     } else if (plan.cardData.type === CardType.Chest) {
-      const lootData = this.pickRandomLoot();
-      const cardBack = this.createCardBack(pos.x, pos.y - TREASURE_OFFSET_Y);
-      cardBack.setDepth(5);
+      const lootData = this.deck.drawLoot();
 
       const chestCard = new Card(this, pos.x, pos.y, plan.cardData);
       chestCard.setDepth(10);
       this.grid.placeCard(plan.slot.col, plan.slot.row, chestCard);
       chestCard.reveal();
 
-      this.chestLoot.set(chestCard, { lootData, cardBack });
+      if (lootData) {
+        const cardBack = this.createCardBack(pos.x, pos.y - TREASURE_OFFSET_Y);
+        cardBack.setDepth(5);
+        this.chestLoot.set(chestCard, { lootData, cardBack });
+      }
       this.setupCardInteraction(chestCard);
     } else if (plan.cardData.type === CardType.Door) {
       const doorCard = new Card(this, pos.x, pos.y, plan.cardData);
@@ -725,11 +729,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
     return keyCards[0] ?? nonKeyCards[0] ?? null;
-  }
-
-  private pickRandomLoot(): CardData {
-    const id = lootPool[Math.floor(Math.random() * lootPool.length)];
-    return getCard(id);
   }
 
   private setupGuardedLootInteraction(lootCard: Card, monsterCard: Card): void {

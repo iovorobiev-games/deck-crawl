@@ -1,4 +1,4 @@
-import { CardData } from "../entities/CardData";
+import { CardData, CardType } from "../entities/CardData";
 import { DeckEntry } from "../data/deckConfig";
 import { DungeonLevel } from "../data/dungeonConfig";
 import { getCard } from "../data/cardRegistry";
@@ -65,6 +65,16 @@ export class Deck {
     const idx = this.cards.findIndex(c => c.tag === tag);
     if (idx === -1) return null;
     return this.cards.splice(idx, 1)[0];
+  }
+
+  drawLoot(): CardData | null {
+    const index = this.cards.findIndex(c =>
+      c.type === CardType.Treasure ||
+      c.type === CardType.Potion ||
+      c.type === CardType.Scroll
+    );
+    if (index === -1) return null;
+    return this.cards.splice(index, 1)[0];
   }
 
   buffCardById(id: string, amount: number): void {
