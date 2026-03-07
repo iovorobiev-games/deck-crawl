@@ -269,7 +269,7 @@ const abilityRegistry: Record<string, AbilityDef> = {
   },
   quiver_trigger: {
     id: "quiver_trigger",
-    trigger: "onEquip",
+    trigger: "onDiscard",
     effect: "triggerBowAbility",
     description: "Triggers equipped bow's ability",
   },

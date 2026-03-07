@@ -22,6 +22,7 @@ export class Card extends Phaser.GameObjects.Container {
   private nameText!: Phaser.GameObjects.Text;
   private descrText!: Phaser.GameObjects.Text;
   private highlightGfx: Phaser.GameObjects.Graphics | null = null;
+  private dropTargetGfx: Phaser.GameObjects.Graphics | null = null;
   private buffText: Phaser.GameObjects.Text | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, data: CardData) {
@@ -58,7 +59,7 @@ export class Card extends Phaser.GameObjects.Container {
 
     // 4. Title text on the top stripe
     this.nameText = this.scene.add.text(0, TITLE_Y, this.cardData.name, {
-      fontSize: "12px",
+      fontSize: "14px",
       fontFamily: "monospace",
       color: CardTitleColorMap[type],
       fontStyle: "bold",
@@ -69,7 +70,7 @@ export class Card extends Phaser.GameObjects.Container {
 
     // 5. Mechanical description text on description BG
     this.descrText = this.scene.add.text(0, DESCR_Y, this.buildDescriptionText(), {
-      fontSize: "11px",
+      fontSize: "13px",
       fontFamily: "monospace",
       color: "#ddd",
       align: "center",
@@ -80,17 +81,10 @@ export class Card extends Phaser.GameObjects.Container {
 
   private buildDescriptionText(): string {
     const d = this.cardData;
+    if (d.description) return d.description;
     switch (d.type) {
-      case CardType.Monster: {
-        let text = `HP: ${d.value}`;
-        if (d.abilities) {
-          for (const ab of d.abilities) {
-            const def = getAbility(ab.abilityId);
-            text += `\n${def.description}`;
-          }
-        }
-        return text;
-      }
+      case CardType.Monster:
+        return `Power: ${d.value}`;
       case CardType.Chest: {
         let text = `Lock: ${d.lockDifficulty ?? 0}`;
         if (d.trapDamage) text += `\nTrap: -${d.trapDamage} HP`;
@@ -101,23 +95,10 @@ export class Card extends Phaser.GameObjects.Container {
         if (d.trapDamage) text += `\nDamage: ${d.trapDamage}`;
         return text;
       }
-      case CardType.Treasure: {
-        if (d.slot && !d.isKey) {
-          const armourAbility = d.abilities?.find(a => a.abilityId === "armour");
-          if (armourAbility) {
-            const text = `Armour: ${armourAbility.params.amount}`;
-            return d.value > 0 ? `${text}\n+${d.value} power` : text;
-          }
-          return `+${d.value} power`;
-        }
-        return d.description;
-      }
-      case CardType.Potion:
-        return d.description;
       case CardType.Door:
         return "Locked";
       default:
-        return d.description || (d.value > 0 ? `Value: ${d.value}` : "");
+        return d.value > 0 ? `Value: ${d.value}` : "";
     }
   }
 
@@ -131,6 +112,25 @@ export class Card extends Phaser.GameObjects.Container {
       alpha: 1,
       duration: 300,
       ease: "Back.easeOut",
+      onComplete: onComplete ? () => onComplete() : undefined,
+    });
+  }
+
+  dealFrom(fromX: number, fromY: number, onComplete?: () => void): void {
+    const targetX = this.x;
+    const targetY = this.y;
+    this.setPosition(fromX, fromY);
+    this.setScale(0.5);
+    this.setAlpha(0);
+    this.scene.tweens.add({
+      targets: this,
+      x: targetX,
+      y: targetY,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 1,
+      duration: 400,
+      ease: "Power2",
       onComplete: onComplete ? () => onComplete() : undefined,
     });
   }
@@ -194,6 +194,24 @@ export class Card extends Phaser.GameObjects.Container {
       if (this.buffText) {
         this.buffText.destroy();
         this.buffText = null;
+      }
+    }
+  }
+
+  setDropTargetHighlight(on: boolean): void {
+    if (on) {
+      if (!this.dropTargetGfx) {
+        this.dropTargetGfx = this.scene.add.graphics();
+        this.dropTargetGfx.fillStyle(0xff0000, 0.15);
+        this.dropTargetGfx.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
+        this.dropTargetGfx.lineStyle(3, 0xff3333, 0.8);
+        this.dropTargetGfx.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
+        this.add(this.dropTargetGfx);
+      }
+    } else {
+      if (this.dropTargetGfx) {
+        this.dropTargetGfx.destroy();
+        this.dropTargetGfx = null;
       }
     }
   }

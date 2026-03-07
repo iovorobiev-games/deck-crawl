@@ -16,7 +16,7 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
     fateDeck: number[]
   ) {
     super(scene, 0, 0);
-    this.setDepth(1000);
+    this.setDepth(10000);
 
     // Full-screen backdrop to dismiss on click
     const backdrop = scene.add.rectangle(

@@ -292,6 +292,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (item?.abilities) {
         for (const ab of item.abilities) {
@@ -323,6 +324,7 @@ export class GameScene extends Phaser.Scene {
     }
     // Scan inventory slots
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (item?.abilities) {
         for (const ab of item.abilities) {
@@ -485,6 +487,8 @@ export class GameScene extends Phaser.Scene {
 
   private placeGridCard(plan: { cardData: CardData; slot: { col: number; row: number }; existingLoot?: Card; generatedLoot?: CardData }): void {
     const pos = this.grid.worldPos(plan.slot.col, plan.slot.row);
+    const deckX = 350;
+    const deckY = 200;
 
     if (plan.cardData.type === CardType.Monster) {
       let lootCard: Card | null = null;
@@ -504,7 +508,7 @@ export class GameScene extends Phaser.Scene {
       const monsterCard = new Card(this, pos.x, pos.y, plan.cardData);
       monsterCard.setDepth(10);
       this.grid.placeCard(plan.slot.col, plan.slot.row, monsterCard);
-      monsterCard.reveal();
+      monsterCard.dealFrom(deckX, deckY);
 
       if (lootCard) {
         monsterCard.guardedLoot = lootCard;
@@ -518,7 +522,7 @@ export class GameScene extends Phaser.Scene {
       const chestCard = new Card(this, pos.x, pos.y, plan.cardData);
       chestCard.setDepth(10);
       this.grid.placeCard(plan.slot.col, plan.slot.row, chestCard);
-      chestCard.reveal();
+      chestCard.dealFrom(deckX, deckY);
 
       if (lootData) {
         const cardBack = this.createCardBack(pos.x, pos.y - TREASURE_OFFSET_Y);
@@ -529,12 +533,12 @@ export class GameScene extends Phaser.Scene {
     } else if (plan.cardData.type === CardType.Door) {
       const doorCard = new Card(this, pos.x, pos.y, plan.cardData);
       this.grid.placeCard(plan.slot.col, plan.slot.row, doorCard);
-      doorCard.reveal();
+      doorCard.dealFrom(deckX, deckY);
       this.setupDoorInteraction(doorCard);
     } else {
       const card = new Card(this, pos.x, pos.y, plan.cardData);
       this.grid.placeCard(plan.slot.col, plan.slot.row, card);
-      card.reveal(() => {
+      card.dealFrom(deckX, deckY, () => {
         this.executeOnRevealAbilities(card, plan.cardData);
       });
       this.setupCardInteraction(card);
@@ -841,7 +845,7 @@ export class GameScene extends Phaser.Scene {
       this.grid.removeCard(cell.col, cell.row);
     }
 
-    card.setDepth(500);
+    card.setDepth(6000);
     card.setScale(0.85);
 
     // Show slot highlights immediately
@@ -850,6 +854,18 @@ export class GameScene extends Phaser.Scene {
         def.name,
         this.inventory.canEquip(def.name, card.cardData) ? "valid" : "invalid"
       );
+    }
+
+    // Show red drop-target highlights on all monsters if card has dragOnMonster ability
+    if (this.collectAbilities("dragOnMonster", card.cardData).length > 0) {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const gc = this.grid.getCardAt(c, r);
+          if (gc && gc.cardData.type === CardType.Monster) {
+            gc.setDropTargetHighlight(true);
+          }
+        }
+      }
     }
 
     const onMove = (pointer: Phaser.Input.Pointer) => {
@@ -1112,7 +1128,10 @@ export class GameScene extends Phaser.Scene {
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const gc = this.grid.getCardAt(c, r);
-        if (gc) gc.setHighlight(false);
+        if (gc) {
+          gc.setHighlight(false);
+          gc.setDropTargetHighlight(false);
+        }
       }
     }
   }
@@ -1182,6 +1201,7 @@ export class GameScene extends Phaser.Scene {
   private collectEquippedAbilities(trigger: AbilityTrigger): CardAbility[] {
     const results: CardAbility[] = [];
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (!item?.abilities) continue;
       for (const ab of item.abilities) {
@@ -1431,14 +1451,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   private reduceEquippedWeaponPower(amount: number): void {
-    for (const slotName of ["weapon1", "weapon2"]) {
-      const item = this.inventory.getItem(slotName);
-      if (item && item.slot === "weapon" && !item.isKey) {
-        item.value = Math.max(0, item.value - amount);
-        this.inventoryView.refreshSlot(slotName);
-        this.inventory.emit("statsChanged");
-        return;
-      }
+    const w1 = this.inventory.getItem("weapon1");
+    const w2 = this.inventory.getItem("weapon2");
+    const w1Valid = w1 && w1.slot === "weapon" && !w1.isKey;
+    const w2Valid = w2 && w2.slot === "weapon" && !w2.isKey;
+    let targetSlot: string | null = null;
+    if (w1Valid && w2Valid) {
+      targetSlot = w2!.value > w1!.value ? "weapon2" : "weapon1";
+    } else if (w1Valid) {
+      targetSlot = "weapon1";
+    } else if (w2Valid) {
+      targetSlot = "weapon2";
+    }
+    if (targetSlot) {
+      const item = this.inventory.getItem(targetSlot)!;
+      item.value = Math.max(0, item.value - amount);
+      this.inventoryView.refreshSlot(targetSlot);
+      this.inventory.emit("statsChanged");
     }
   }
 
@@ -1531,7 +1560,7 @@ export class GameScene extends Phaser.Scene {
       cardDatas.push(data);
       const card = new Card(this, sourcePos.x, sourcePos.y, data);
       card.setScale(0.3);
-      card.setDepth(500);
+      card.setDepth(6000);
       card.disableInteractive();
       card.reveal();
       tempCards.push(card);
@@ -1634,13 +1663,24 @@ export class GameScene extends Phaser.Scene {
           if (!dragging && Math.sqrt(dx * dx + dy * dy) > 24) {
             dragging = true;
             ghost = this.inventoryView.createDragGhost(item);
-            ghost.setDepth(500);
+            ghost.setDepth(6000);
             this.add.existing(ghost);
             this.inventoryView.setSlotContentAlpha(def.name, 0.3);
             // Show initial slot highlights
             for (const slotDef of SLOT_DEFS) {
               const canEquip = this.inventory.canEquip(slotDef.name, item);
               this.inventoryView.setSlotHighlight(slotDef.name, canEquip ? "valid_dim" : "invalid_dim");
+            }
+            // Show red drop-target highlights on all monsters if item has dragOnMonster ability
+            if (this.collectAbilities("dragOnMonster", item).length > 0) {
+              for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                  const gc = this.grid.getCardAt(c, r);
+                  if (gc && gc.cardData.type === CardType.Monster) {
+                    gc.setDropTargetHighlight(true);
+                  }
+                }
+              }
             }
           }
 
@@ -1881,10 +1921,6 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             const displaced = this.inventory.unequip(def.name);
             const previous = this.inventory.equip(overSlot, item);
-            // Fire onEquip for the moved item in its new slot
-            const equipAbilities = this.collectAbilities("onEquip", item);
-            const slotOrigin = this.inventoryView.getSlotWorldPos(def.name);
-            this.fireAbilities(equipAbilities, () => {}, slotOrigin ?? undefined);
             if (previous) {
               // Fire onDiscard for the displaced item
               const discardAbilities = this.collectAbilities("onDiscard", previous);
@@ -1894,6 +1930,10 @@ export class GameScene extends Phaser.Scene {
                 this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
               }
             }
+          } else if (item.isKey) {
+            // Key cards cannot be discarded — snap back
+            ghost.destroy();
+            this.inventoryView.setSlotContentAlpha(def.name, 1);
           } else {
             // Dropped elsewhere — discard
             // Fire onDiscard for the item being discarded
@@ -2097,7 +2137,7 @@ export class GameScene extends Phaser.Scene {
     this.levelFlavorText.setAlpha(0.3);
 
     // Bring monster to top
-    card.setDepth(100);
+    card.setDepth(4500);
 
     // Create clickable overlay behind fight button (to cancel combat)
     this.combatOverlay = this.add.rectangle(
@@ -2108,7 +2148,7 @@ export class GameScene extends Phaser.Scene {
       0x000000,
       0.01
     );
-    this.combatOverlay.setDepth(50);
+    this.combatOverlay.setDepth(4000);
     this.combatOverlay.setInteractive();
     this.combatOverlay.on("pointerdown", () => this.exitCombatMode());
 
@@ -2116,7 +2156,7 @@ export class GameScene extends Phaser.Scene {
     const btnW = 160;
     const btnH = 60;
     this.fightBtn = this.add.container(card.x, card.y + CARD_H / 2 + 48);
-    this.fightBtn.setDepth(110);
+    this.fightBtn.setDepth(5000);
 
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0xcc3333, 1);
@@ -2232,7 +2272,7 @@ export class GameScene extends Phaser.Scene {
     const fateCardW = 100;
     const fateCardH = 140;
     const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
-    fateCard.setDepth(200);
+    fateCard.setDepth(9000);
     fateCard.setScale(0.3);
 
     const fateBg = this.add.graphics();
@@ -2444,7 +2484,7 @@ export class GameScene extends Phaser.Scene {
         fontFamily: "monospace",
         color: "#ff4444",
         fontStyle: "bold",
-      }).setOrigin(0.5).setDepth(200);
+      }).setOrigin(0.5).setDepth(9000);
 
       this.tweens.add({
         targets: floatText,
@@ -2632,7 +2672,7 @@ export class GameScene extends Phaser.Scene {
     this.levelFlavorText.setAlpha(0.3);
 
     // Bring chest to top
-    card.setDepth(100);
+    card.setDepth(4500);
 
     // Create clickable overlay behind crack button (to cancel)
     this.chestOverlay = this.add.rectangle(
@@ -2643,7 +2683,7 @@ export class GameScene extends Phaser.Scene {
       0x000000,
       0.01
     );
-    this.chestOverlay.setDepth(50);
+    this.chestOverlay.setDepth(4000);
     this.chestOverlay.setInteractive();
     this.chestOverlay.on("pointerdown", () => this.exitChestMode());
 
@@ -2651,7 +2691,7 @@ export class GameScene extends Phaser.Scene {
     const btnW = 160;
     const btnH = 60;
     this.crackBtn = this.add.container(card.x, card.y + CARD_H / 2 + 48);
-    this.crackBtn.setDepth(110);
+    this.crackBtn.setDepth(5000);
 
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0x88664d, 1);
@@ -2759,7 +2799,7 @@ export class GameScene extends Phaser.Scene {
     const fateCardW = 100;
     const fateCardH = 140;
     const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
-    fateCard.setDepth(200);
+    fateCard.setDepth(9000);
     fateCard.setScale(0.3);
 
     const fateBg = this.add.graphics();
@@ -2956,7 +2996,7 @@ export class GameScene extends Phaser.Scene {
     this.levelFlavorText.setAlpha(0.3);
 
     // Bring trap to top
-    card.setDepth(100);
+    card.setDepth(4500);
 
     // Create clickable overlay behind disarm button (to cancel)
     this.trapOverlay = this.add.rectangle(
@@ -2967,7 +3007,7 @@ export class GameScene extends Phaser.Scene {
       0x000000,
       0.01
     );
-    this.trapOverlay.setDepth(50);
+    this.trapOverlay.setDepth(4000);
     this.trapOverlay.setInteractive();
     this.trapOverlay.on("pointerdown", () => this.exitTrapMode());
 
@@ -2975,7 +3015,7 @@ export class GameScene extends Phaser.Scene {
     const btnW = 160;
     const btnH = 60;
     this.disarmBtn = this.add.container(card.x, card.y + CARD_H / 2 + 48);
-    this.disarmBtn.setDepth(110);
+    this.disarmBtn.setDepth(5000);
 
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0xdd8833, 1);
@@ -3083,7 +3123,7 @@ export class GameScene extends Phaser.Scene {
     const fateCardW = 100;
     const fateCardH = 140;
     const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
-    fateCard.setDepth(200);
+    fateCard.setDepth(9000);
     fateCard.setScale(0.3);
 
     const fateBg = this.add.graphics();
@@ -3255,7 +3295,7 @@ export class GameScene extends Phaser.Scene {
     this.levelFlavorText.setAlpha(0.3);
 
     // Bring card to top
-    card.setDepth(100);
+    card.setDepth(4500);
 
     // Create clickable overlay behind button (to cancel)
     this.exchangerOverlay = this.add.rectangle(
@@ -3266,7 +3306,7 @@ export class GameScene extends Phaser.Scene {
       0x000000,
       0.01
     );
-    this.exchangerOverlay.setDepth(50);
+    this.exchangerOverlay.setDepth(4000);
     this.exchangerOverlay.setInteractive();
     this.exchangerOverlay.on("pointerdown", () => this.exitExchangerMode());
 
@@ -3274,7 +3314,7 @@ export class GameScene extends Phaser.Scene {
     const btnW = 160;
     const btnH = 60;
     this.exchangerBtn = this.add.container(card.x, card.y + CARD_H / 2 + 48);
-    this.exchangerBtn.setDepth(110);
+    this.exchangerBtn.setDepth(5000);
 
     const price = card.cardData.exchangePrice!;
     const canAfford = price.resource === "gold"
@@ -3402,7 +3442,7 @@ export class GameScene extends Phaser.Scene {
       const fateCardW = 100;
       const fateCardH = 140;
       const fateCard = this.add.container(card.x, card.y);
-      fateCard.setDepth(200);
+      fateCard.setDepth(9000);
       fateCard.setScale(0.5);
 
       const fateBg = this.add.graphics();
@@ -3584,25 +3624,8 @@ export class GameScene extends Phaser.Scene {
 
   private createCardBack(x: number, y: number): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
-    const gfx = this.add.graphics();
-    gfx.fillStyle(0x2a2a4e, 1);
-    gfx.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 16);
-    gfx.lineStyle(2, 0x4444aa, 0.8);
-    gfx.strokeRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 16);
-    gfx.lineStyle(2, 0x5555bb, 0.5);
-    gfx.strokeRect(-CARD_W / 2 + 24, -CARD_H / 2 + 30, CARD_W - 48, CARD_H - 60);
-    container.add(gfx);
-
-    const questionMark = this.add
-      .text(0, 0, "?", {
-        fontSize: "48px",
-        fontFamily: "monospace",
-        color: "#5555bb",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-    container.add(questionMark);
-
+    const img = this.add.image(0, 0, "card_back");
+    container.add(img);
     return container;
   }
 
