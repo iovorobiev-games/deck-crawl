@@ -146,7 +146,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
     const ART_CENTER_Y = -8;
     const DESCR_BG_W = 163;
     const DESCR_BG_H = 74;
-    const TITLE_Y = -FULL_CARD_H / 2 + 16;
+    const TITLE_Y = -FULL_CARD_H / 2 + 6 + 16;
     const DESCR_Y = FULL_CARD_H / 2 - DESCR_BG_H / 2;
 
     // Background sprite
@@ -173,7 +173,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
       color: CardTitleColorMap[item.type],
       fontStyle: "bold",
       align: "center",
-      wordWrap: { width: FULL_CARD_W - 20 },
+      wordWrap: { width: 148 },
     }).setOrigin(0.5);
     mc.add(nameText);
 

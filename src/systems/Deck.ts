@@ -5,6 +5,7 @@ import { getCard } from "../data/cardRegistry";
 
 export class Deck {
   private cards: CardData[] = [];
+  private lootPool: CardData[] = [];
 
   constructor(config: DeckEntry[]) {
     this.expandEntries(config);
@@ -19,14 +20,24 @@ export class Deck {
     }
   }
 
+  private expandLootEntries(config: DeckEntry[]): void {
+    for (const entry of config) {
+      for (let i = 0; i < entry.count; i++) {
+        this.lootPool.push(getCard(entry.id));
+      }
+    }
+  }
+
   static fromDungeonLevel(level: DungeonLevel): Deck {
     const deck = new Deck([]);
     deck.expandEntries(level.cards);
+    deck.expandLootEntries(level.loot);
     const bossCard = getCard(level.boss);
     bossCard.isBoss = true;
     deck.cards.push(bossCard);
     deck.cards.push(getCard(level.door));
     deck.shuffle();
+    deck.shuffleLoot();
     return deck;
   }
 
@@ -42,6 +53,13 @@ export class Deck {
     for (let i = this.cards.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+    }
+  }
+
+  private shuffleLoot(): void {
+    for (let i = this.lootPool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.lootPool[i], this.lootPool[j]] = [this.lootPool[j], this.lootPool[i]];
     }
   }
 
@@ -68,13 +86,8 @@ export class Deck {
   }
 
   drawLoot(): CardData | null {
-    const index = this.cards.findIndex(c =>
-      c.type === CardType.Treasure ||
-      c.type === CardType.Potion ||
-      c.type === CardType.Scroll
-    );
-    if (index === -1) return null;
-    return this.cards.splice(index, 1)[0];
+    if (this.lootPool.length === 0) return null;
+    return this.lootPool.splice(0, 1)[0];
   }
 
   buffCardById(id: string, amount: number): void {

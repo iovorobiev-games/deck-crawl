@@ -4,6 +4,7 @@ export interface DungeonLevel {
   name: string;
   flavorText: string;
   cards: DeckEntry[];
+  loot: DeckEntry[];
   boss: string;
   key: string;
   door: string;
@@ -21,7 +22,6 @@ export const dungeonConfig: DungeonConfig = {
       name: "Greeting Hall",
       flavorText: "The entrance is deceptively calm...",
       cards: [
-        // Encounters
         { id: "skeleton", count: 2 },
         { id: "skeleton_archer", count: 1 },
         { id: "zombie", count: 3 },
@@ -32,7 +32,8 @@ export const dungeonConfig: DungeonConfig = {
         { id: "gold_pile_small", count: 1 },
         { id: "gold_pile_3", count: 1 },
         { id: "lesser_health_potion", count: 1 },
-        // Treasure / loot
+      ],
+      loot: [
         { id: "minor_health_potion", count: 1 },
         { id: "lockpick", count: 1 },
         { id: "disarm_kit", count: 1 },
@@ -51,7 +52,6 @@ export const dungeonConfig: DungeonConfig = {
       name: "Underground Temple",
       flavorText: "Ancient carvings line the walls...",
       cards: [
-        // Encounters
         { id: "cultist", count: 2 },
         { id: "bloated_zombie", count: 2 },
         { id: "zombie", count: 1 },
@@ -66,7 +66,8 @@ export const dungeonConfig: DungeonConfig = {
         { id: "gold_pile_3", count: 1 },
         { id: "gold_pile_medium", count: 1 },
         { id: "quiver", count: 1 },
-        // Treasure / loot
+      ],
+      loot: [
         { id: "minor_health_potion", count: 1 },
         { id: "rusty_armour", count: 1 },
         { id: "lockpick", count: 1 },
@@ -86,7 +87,6 @@ export const dungeonConfig: DungeonConfig = {
       name: "Torture Rooms",
       flavorText: "Screams echo from the darkness...",
       cards: [
-        // Encounters
         { id: "swarm_of_bats", count: 1 },
         { id: "skeleton", count: 1 },
         { id: "skeleton_archer", count: 2 },
@@ -102,7 +102,8 @@ export const dungeonConfig: DungeonConfig = {
         { id: "quiver", count: 1 },
         { id: "gold_pile_large", count: 1 },
         { id: "rusty_sword", count: 1 },
-        // Treasure / loot
+      ],
+      loot: [
         { id: "phylactery", count: 1 },
         { id: "health_potion", count: 1 },
         { id: "elven_bow", count: 1 },

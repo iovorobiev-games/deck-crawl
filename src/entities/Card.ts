@@ -10,7 +10,7 @@ const ART_MAX_H = 110;
 const ART_CENTER_Y = -8;
 const DESCR_BG_W = 163;
 const DESCR_BG_H = 74;
-const TITLE_Y = -CARD_H / 2 + 16;
+const TITLE_Y = -CARD_H / 2 + 6 + 16; // 6px margin from top + half of 32px rect
 const DESCR_Y = CARD_H / 2 - DESCR_BG_H / 2;
 
 export class Card extends Phaser.GameObjects.Container {
@@ -64,7 +64,7 @@ export class Card extends Phaser.GameObjects.Container {
       color: CardTitleColorMap[type],
       fontStyle: "bold",
       align: "center",
-      wordWrap: { width: CARD_W - 20 },
+      wordWrap: { width: 148 },
     }).setOrigin(0.5);
     this.add(this.nameText);
 

@@ -2261,7 +2261,10 @@ export class GameScene extends Phaser.Scene {
 
   private executeCombat(monsterCard: Card): void {
     // Disable fight button and overlay clicks during combat
-    if (this.fightBtn) this.fightBtn.disableInteractive();
+    if (this.fightBtn) {
+      this.fightBtn.disableInteractive();
+      this.fightBtn.setDepth(500);
+    }
     if (this.combatOverlay) this.combatOverlay.disableInteractive();
 
     // Step 1: Draw & reveal fate card
@@ -2789,7 +2792,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private executeCrack(chestCard: Card): void {
-    if (this.crackBtn) this.crackBtn.disableInteractive();
+    if (this.crackBtn) {
+      this.crackBtn.disableInteractive();
+      this.crackBtn.setDepth(500);
+    }
     if (this.chestOverlay) this.chestOverlay.disableInteractive();
 
     const modifier = this.player.drawFateCard();
@@ -3113,7 +3119,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private executeDisarm(trapCard: Card): void {
-    if (this.disarmBtn) this.disarmBtn.disableInteractive();
+    if (this.disarmBtn) {
+      this.disarmBtn.disableInteractive();
+      this.disarmBtn.setDepth(500);
+    }
     if (this.trapOverlay) this.trapOverlay.disableInteractive();
 
     // Reuse the same fate card + agility check flow as chest cracking
@@ -3415,7 +3424,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private executeExchange(card: Card): void {
-    if (this.exchangerBtn) this.exchangerBtn.disableInteractive();
+    if (this.exchangerBtn) {
+      this.exchangerBtn.disableInteractive();
+      this.exchangerBtn.setDepth(500);
+    }
     if (this.exchangerOverlay) this.exchangerOverlay.disableInteractive();
 
     const price = card.cardData.exchangePrice!;
