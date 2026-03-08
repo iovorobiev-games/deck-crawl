@@ -74,9 +74,9 @@ export const CardTitleColorMap: Record<CardType, string> = {
   [CardType.Monster]: "#ffdddd",
   [CardType.Trap]: "#ffdddd",
   [CardType.Chest]: "#ffdddd",
-  [CardType.Treasure]: "#fff8e0",
-  [CardType.Potion]: "#fff8e0",
-  [CardType.Scroll]: "#fff8e0",
-  [CardType.Door]: "#fff8e0",
+  [CardType.Treasure]: "#240a0e",
+  [CardType.Potion]: "#240a0e",
+  [CardType.Scroll]: "#240a0e",
+  [CardType.Door]: "#240a0e",
   [CardType.Event]: "#e8ddff",
 };

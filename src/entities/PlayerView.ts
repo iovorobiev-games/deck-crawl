@@ -152,7 +152,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
   }
 
   showTempPower(value: number): void {
-    this.powerText.setText(`\u2694${value}`);
+    this.powerText.setText(`${value}`);
   }
 
   restorePower(player: Player, equipPowerBonus = 0): void {
@@ -160,11 +160,11 @@ export class PlayerView extends Phaser.GameObjects.Container {
   }
 
   showTempAgility(value: number): void {
-    this.agilityText.setText(`\u25C6${value}`);
+    this.agilityText.setText(`${value}`);
   }
 
   restoreAgility(player: Player): void {
-    this.agilityText.setText(`\u25C6${player.agility}`);
+    this.agilityText.setText(`${player.agility}`);
   }
 
   showDropHighlight(amount: number): void {

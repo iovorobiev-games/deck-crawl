@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { Inventory, SLOT_DEFS, SlotDef } from "../systems/Inventory";
-import { CardData, CardColorMap } from "./CardData";
+import { CardData, CardColorMap, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
+import { CARD_W as FULL_CARD_W, CARD_H as FULL_CARD_H } from "./Card";
 
 const SLOT_W = 157;
 const SLOT_H = 186;
@@ -136,79 +137,57 @@ export class InventoryView extends Phaser.GameObjects.Container {
 
   private createMiniCard(item: CardData): Phaser.GameObjects.Container {
     const mc = this.scene.add.container(0, 0);
-    const color = CardColorMap[item.type];
-    const miniW = SLOT_W - 20;
-    const miniH = SLOT_H - 20;
+    const scaleX = (SLOT_W - 10) / FULL_CARD_W;
+    const scaleY = (SLOT_H - 10) / FULL_CARD_H;
+    const s = Math.min(scaleX, scaleY);
 
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x1a1a2e, 1);
-    bg.fillRoundedRect(-miniW / 2, -miniH / 2, miniW, miniH, 8);
-    bg.lineStyle(1, color, 1);
-    bg.strokeRoundedRect(-miniW / 2, -miniH / 2, miniW, miniH, 8);
-    // Color band
-    bg.fillStyle(color, 1);
-    bg.fillRoundedRect(-miniW / 2, -miniH / 2, miniW, 36, {
-      tl: 8,
-      tr: 8,
-      bl: 0,
-      br: 0,
-    });
-    mc.add(bg);
+    const ART_MAX_W = 130;
+    const ART_MAX_H = 110;
+    const ART_CENTER_Y = -8;
+    const DESCR_BG_W = 163;
+    const DESCR_BG_H = 74;
+    const TITLE_Y = -FULL_CARD_H / 2 + 6 + 16;
+    const DESCR_Y = FULL_CARD_H / 2 - DESCR_BG_H / 2;
 
-    const nameText = this.scene.add
-      .text(0, 4, item.name, {
-        fontSize: "18px",
-        fontFamily: "monospace",
-        color: "#ddd",
-        align: "center",
-        wordWrap: { width: miniW - 12 },
-      })
-      .setOrigin(0.5);
-    mc.add(nameText);
+    // Background sprite
+    const bgSprite = this.scene.add.image(0, 0, CardBackgroundMap[item.type]);
+    mc.add(bgSprite);
 
-    const armourAbility = item.abilities?.find(a => a.abilityId === "armour");
-    if (item.value > 0 && armourAbility) {
-      // Show both power and armour
-      const valText = this.scene.add
-        .text(0, miniH / 2 - 46, `+${item.value}`, {
-          fontSize: "24px",
-          fontFamily: "monospace",
-          color: "#ffdd44",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5);
-      mc.add(valText);
-      const armourText = this.scene.add
-        .text(0, miniH / 2 - 22, `\u25C6 ${armourAbility.params.amount}`, {
-          fontSize: "24px",
-          fontFamily: "monospace",
-          color: "#55aaff",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5);
-      mc.add(armourText);
-    } else if (armourAbility) {
-      const armourText = this.scene.add
-        .text(0, miniH / 2 - 32, `\u25C6 ${armourAbility.params.amount}`, {
-          fontSize: "28px",
-          fontFamily: "monospace",
-          color: "#55aaff",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5);
-      mc.add(armourText);
-    } else if (item.value > 0) {
-      const valText = this.scene.add
-        .text(0, miniH / 2 - 32, `+${item.value}`, {
-          fontSize: "28px",
-          fontFamily: "monospace",
-          color: "#ffdd44",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5);
-      mc.add(valText);
+    // Card art
+    if (item.image) {
+      const cardImage = this.scene.add.image(0, ART_CENTER_Y, item.image);
+      const tex = cardImage.texture.getSourceImage();
+      const artScale = Math.min(ART_MAX_W / tex.width, ART_MAX_H / tex.height);
+      cardImage.setScale(artScale);
+      mc.add(cardImage);
     }
 
+    // Description BG
+    const descrSprite = this.scene.add.image(0, DESCR_Y, CardDescrMap[item.type]);
+    mc.add(descrSprite);
+
+    // Title text
+    const nameText = this.scene.add.text(0, TITLE_Y, item.name, {
+      fontSize: "14px",
+      fontFamily: "monospace",
+      color: CardTitleColorMap[item.type],
+      fontStyle: "bold",
+      align: "center",
+      wordWrap: { width: 148 },
+    }).setOrigin(0.5);
+    mc.add(nameText);
+
+    // Description text
+    const descrText = this.scene.add.text(0, DESCR_Y, item.description || "", {
+      fontSize: "13px",
+      fontFamily: "monospace",
+      color: "#ddd",
+      align: "center",
+      wordWrap: { width: DESCR_BG_W - 16 },
+    }).setOrigin(0.5);
+    mc.add(descrText);
+
+    mc.setScale(s);
     return mc;
   }
 

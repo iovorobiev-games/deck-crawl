@@ -79,6 +79,7 @@ export class Inventory extends Phaser.Events.EventEmitter {
   get maxHpBonus(): number {
     let total = 0;
     for (const def of SLOT_DEFS) {
+      if (def.name.startsWith("backpack")) continue;
       const item = this.slots.get(def.name);
       if (item) total += (item.maxHpBonus ?? 0);
     }
