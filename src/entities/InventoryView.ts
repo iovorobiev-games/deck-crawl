@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { Inventory, SLOT_DEFS, SlotDef } from "../systems/Inventory";
-import { CardData, CardColorMap, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
+import { CardData, CardType, CardColorMap, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
 import { CARD_W as FULL_CARD_W, CARD_H as FULL_CARD_H } from "./Card";
 
 const SLOT_W = 157;
@@ -186,6 +186,34 @@ export class InventoryView extends Phaser.GameObjects.Container {
       wordWrap: { width: DESCR_BG_W - 16 },
     }).setOrigin(0.5);
     mc.add(descrText);
+
+    // Power icon — bottom-left
+    const hasPower = item.type === CardType.Monster || (item.slot && item.slot !== "backpack" && item.value > 0 && !item.isKey);
+    if (hasPower) {
+      const iconX = -FULL_CARD_W / 2 + 15;
+      const iconY = FULL_CARD_H / 2 - 12;
+      mc.add(this.scene.add.image(iconX, iconY, "icon_card_power"));
+      mc.add(this.scene.add.text(iconX + 3.5, iconY - 3.5, `${item.value}`, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: "#240a0e",
+        fontStyle: "bold",
+      }).setOrigin(0.5));
+    }
+
+    // Shield icon — bottom-right
+    const armourAbility = item.abilities?.find(a => a.abilityId === "armour");
+    if (armourAbility) {
+      const iconX = FULL_CARD_W / 2 - 9;
+      const iconY = FULL_CARD_H / 2 - 12;
+      mc.add(this.scene.add.image(iconX, iconY, "icon_shield"));
+      mc.add(this.scene.add.text(iconX, iconY - 4, `${armourAbility.params.amount}`, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: "#240a0e",
+        fontStyle: "bold",
+      }).setOrigin(0.5));
+    }
 
     mc.setScale(s);
     return mc;
