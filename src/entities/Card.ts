@@ -91,10 +91,10 @@ export class Card extends Phaser.GameObjects.Container {
 
     // Power icon — bottom-left corner of card
     // Show for monsters and equippable items that grant power (not backpack-only items like potions)
-    const hasPower = d.type === CardType.Monster || (d.slot && d.slot !== "backpack" && d.value > 0);
+    const hasPower = d.type === CardType.Monster || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey);
     if (hasPower) {
-      const iconX = -CARD_W / 2;
-      const iconY = CARD_H / 2;
+      const iconX = -CARD_W / 2 + 15;
+      const iconY = CARD_H / 2 - 12;
       this.powerIcon = this.scene.add.image(iconX, iconY, "icon_card_power");
       this.add(this.powerIcon);
       // Text sits in a 32x32 rect: margins top 4, left 18, right 11, bottom 11
@@ -111,8 +111,8 @@ export class Card extends Phaser.GameObjects.Container {
     // Shield icon — bottom-right corner of card
     const armourAbility = d.abilities?.find(a => a.abilityId === "armour");
     if (armourAbility) {
-      const iconX = CARD_W / 2;
-      const iconY = CARD_H / 2;
+      const iconX = CARD_W / 2 - 9;
+      const iconY = CARD_H / 2 - 12;
       this.shieldIcon = this.scene.add.image(iconX, iconY, "icon_shield");
       this.add(this.shieldIcon);
       this.shieldValueText = this.scene.add.text(iconX, iconY - 4, `${armourAbility.params.amount}`, {
