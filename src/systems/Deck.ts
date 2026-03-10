@@ -48,6 +48,13 @@ export class Deck {
     this.shuffle();
   }
 
+  mergeLoot(newLoot: CardData[]): void {
+    for (const card of newLoot) {
+      this.lootPool.push(card);
+    }
+    this.shuffleLoot();
+  }
+
   private shuffle(): void {
     // Fisher-Yates
     for (let i = this.cards.length - 1; i > 0; i--) {
@@ -88,6 +95,10 @@ export class Deck {
   drawLoot(): CardData | null {
     if (this.lootPool.length === 0) return null;
     return this.lootPool.splice(0, 1)[0];
+  }
+
+  drainLoot(): CardData[] {
+    return this.lootPool.splice(0, this.lootPool.length);
   }
 
   buffCardById(id: string, amount: number): void {
