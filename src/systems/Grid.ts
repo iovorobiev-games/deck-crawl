@@ -1,6 +1,6 @@
 import { Card, CARD_W, CARD_H } from "../entities/Card";
 
-export const COLS = 5;
+export const COLS = 4;
 export const ROWS = 3;
 const GAP_X = 16;
 const GAP_Y = 32;

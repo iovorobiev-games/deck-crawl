@@ -12,7 +12,7 @@ export const cardRegistry: Record<string, CardData> = {
   swarm_of_bats: { id: "swarm_of_bats", type: CardType.Monster, name: "Swarm Of Bats", value: 1, description: "1 Power  -1 Agility", image: "swarm_of_bats", abilities: [{ abilityId: "agility_drain", params: { amount: -1 } }] },
 
   // --- Bosses ---
-  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 3, description: "3 Power", image: "cultist" },
+  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 3, description: "3 Power", image: "cultist", abilities: [{ abilityId: "cultist_ritual", params: { cardId: "dark_ritual", count: 1 } }] },
   vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 2, description: "Power 2,\nReturns back to the Dungeon deck after death and gets type Dark Event.\n-1 Power while on the game field", image: "vengeful_revenant", abilities: [{ abilityId: "revenant_return", params: {} }, { abilityId: "power_drain", params: { amount: -1 } }] },
   crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 3, description: "Power 3,\nWhile Phylactery is not in discard, goes back to dungeon deck after death.\nWhile on the game field, adds skeleton to the dungeon deck on explore", image: "crypt_lord", abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }, { abilityId: "return_conditional", params: { requiredDiscardId: "phylactery" } }] },
 
