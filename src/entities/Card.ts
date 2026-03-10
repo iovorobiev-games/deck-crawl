@@ -11,7 +11,7 @@ const ART_CENTER_Y = -8;
 const DESCR_BG_W = 163;
 const DESCR_BG_H = 74;
 const TITLE_Y = -CARD_H / 2 + 6 + 16; // 6px margin from top + half of 32px rect
-const DESCR_Y = CARD_H / 2 - DESCR_BG_H / 2;
+const DESCR_Y = CARD_H / 2 - DESCR_BG_H / 2 - 6;
 
 export class Card extends Phaser.GameObjects.Container {
   cardData: CardData;

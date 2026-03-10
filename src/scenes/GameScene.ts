@@ -63,6 +63,7 @@ export class GameScene extends Phaser.Scene {
   private discardedCardIds: Set<string> = new Set();
   private tempWeaponBonus = 0;
   private dragTargetMonster: Card | null = null;
+  private hoverPreviewCard: Card | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -525,7 +526,7 @@ export class GameScene extends Phaser.Scene {
       chestCard.dealFrom(deckX, deckY);
 
       if (lootData) {
-        const cardBack = this.createCardBack(pos.x, pos.y - TREASURE_OFFSET_Y);
+        const cardBack = this.createCardBack(pos.x, pos.y - TREASURE_OFFSET_Y+24);
         cardBack.setDepth(5);
         this.chestLoot.set(chestCard, { lootData, cardBack });
       }
@@ -787,12 +788,47 @@ export class GameScene extends Phaser.Scene {
     return this.isEquippable(card) || this.hasDragAbility(card);
   }
 
+  private getLinkedCardId(card: Card): string | null {
+    if (!card.cardData.abilities) return null;
+    for (const ab of card.cardData.abilities) {
+      const cardId = ab.params.cardId;
+      if (typeof cardId === "string") return cardId;
+    }
+    return null;
+  }
+
+  private showHoverPreview(card: Card): void {
+    this.hideHoverPreview();
+    const linkedId = this.getLinkedCardId(card);
+    if (!linkedId) return;
+    const previewData = getCard(linkedId);
+    const previewX = card.x + CARD_W + 12;
+    const showRight = previewX + CARD_W / 2 <= GAME_W;
+    const x = showRight ? previewX : card.x - CARD_W - 12;
+    const preview = new Card(this, x, card.y, previewData);
+    preview.setAlpha(0.9);
+    preview.setDepth(50);
+    preview.disableInteractive();
+    this.hoverPreviewCard = preview;
+  }
+
+  private hideHoverPreview(): void {
+    if (this.hoverPreviewCard) {
+      this.hoverPreviewCard.destroy();
+      this.hoverPreviewCard = null;
+    }
+  }
+
   private setupCardInteraction(card: Card): void {
     card.on("pointerover", () => {
-      if (!this.isResolving && !this.isDragging) card.setHighlight(true);
+      if (!this.isResolving && !this.isDragging) {
+        card.setHighlight(true);
+        this.showHoverPreview(card);
+      }
     });
     card.on("pointerout", () => {
       card.setHighlight(false);
+      this.hideHoverPreview();
     });
     card.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.isResolving) return;
@@ -838,6 +874,7 @@ export class GameScene extends Phaser.Scene {
     this.isDragging = true;
     this.isResolving = true;
     card.setHighlight(false);
+    this.hideHoverPreview();
 
     const cell = this.grid.findCard(card);
     if (cell) {
