@@ -3750,6 +3750,7 @@ export class GameScene extends Phaser.Scene {
           const tempDeck = Deck.fromDungeonLevel(nextLevel);
           const newCards = tempDeck.draw(tempDeck.remaining);
           this.deck.mergeCards(newCards);
+          this.deck.mergeLoot(tempDeck.drainLoot());
 
           this.currentLevelKey = getCard(nextLevel.key);
 
