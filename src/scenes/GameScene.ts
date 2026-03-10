@@ -134,6 +134,7 @@ export class GameScene extends Phaser.Scene {
   private updateHUD(): void {
     this.deckText.setText(`Deck: ${this.deck.remaining} cards`);
     this.goldText.setText(`Gold: ${this.player.gold}`);
+    this.playerView?.updateGold(this.player.gold);
   }
 
   private createGridBackground(): void {
@@ -210,6 +211,7 @@ export class GameScene extends Phaser.Scene {
   private createPlayerView(): void {
     this.playerView = new PlayerView(this, GAME_W / 2, 910);
     this.playerView.updateStats(this.player);
+    this.playerView.updateGold(this.player.gold);
 
     this.playerView.on("pointerdown", () => {
       if (this.fateDeckPopup) return;

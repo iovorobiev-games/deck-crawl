@@ -24,6 +24,10 @@ export class Card extends Phaser.GameObjects.Container {
   private highlightGfx: Phaser.GameObjects.Graphics | null = null;
   private dropTargetGfx: Phaser.GameObjects.Graphics | null = null;
   private buffText: Phaser.GameObjects.Text | null = null;
+  private powerIcon: Phaser.GameObjects.Image | null = null;
+  private powerValueText: Phaser.GameObjects.Text | null = null;
+  private shieldIcon: Phaser.GameObjects.Image | null = null;
+  private shieldValueText: Phaser.GameObjects.Text | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, data: CardData) {
     super(scene, x, y);
@@ -77,6 +81,48 @@ export class Card extends Phaser.GameObjects.Container {
       wordWrap: { width: DESCR_BG_W - 16 },
     }).setOrigin(0.5);
     this.add(this.descrText);
+
+    // 6. Stat icons (power, shield) on card corners
+    this.createStatIcons();
+  }
+
+  private createStatIcons(): void {
+    const d = this.cardData;
+
+    // Power icon — bottom-left corner of card
+    // Show for monsters and equippable items that grant power (not backpack-only items like potions)
+    const hasPower = d.type === CardType.Monster || (d.slot && d.slot !== "backpack" && d.value > 0);
+    if (hasPower) {
+      const iconX = -CARD_W / 2;
+      const iconY = CARD_H / 2;
+      this.powerIcon = this.scene.add.image(iconX, iconY, "icon_card_power");
+      this.add(this.powerIcon);
+      // Text sits in a 32x32 rect: margins top 4, left 18, right 11, bottom 11
+      // Center of that rect relative to icon center: (+3.5, -3.5)
+      this.powerValueText = this.scene.add.text(iconX + 3.5, iconY - 3.5, `${d.value}`, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: "#240a0e",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.add(this.powerValueText);
+    }
+
+    // Shield icon — bottom-right corner of card
+    const armourAbility = d.abilities?.find(a => a.abilityId === "armour");
+    if (armourAbility) {
+      const iconX = CARD_W / 2;
+      const iconY = CARD_H / 2;
+      this.shieldIcon = this.scene.add.image(iconX, iconY, "icon_shield");
+      this.add(this.shieldIcon);
+      this.shieldValueText = this.scene.add.text(iconX, iconY - 4, `${armourAbility.params.amount}`, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: "#240a0e",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.add(this.shieldValueText);
+    }
   }
 
   private buildDescriptionText(): string {
@@ -84,7 +130,7 @@ export class Card extends Phaser.GameObjects.Container {
     if (d.description) return d.description;
     switch (d.type) {
       case CardType.Monster:
-        return `Power: ${d.value}`;
+        return "";
       case CardType.Chest: {
         let text = `Lock: ${d.lockDifficulty ?? 0}`;
         if (d.trapDamage) text += `\nTrap: -${d.trapDamage} HP`;
@@ -154,6 +200,9 @@ export class Card extends Phaser.GameObjects.Container {
   updateValue(newValue: number): void {
     this.cardData.value = newValue;
     this.descrText.setText(this.buildDescriptionText());
+    if (this.powerValueText) {
+      this.powerValueText.setText(`${newValue}`);
+    }
   }
 
   markDoorOpened(): void {

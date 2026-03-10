@@ -18,6 +18,8 @@ export class PlayerView extends Phaser.GameObjects.Container {
   private portraitSprite!: Phaser.GameObjects.Image;
   private highlightTween: Phaser.Tweens.Tween | null = null;
   private healPreviewText: Phaser.GameObjects.Text | null = null;
+  private goldGroup!: Phaser.GameObjects.Container;
+  private goldText!: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -113,6 +115,25 @@ export class PlayerView extends Phaser.GameObjects.Container {
       .setOrigin(0.5, 0.5);
     this.agilityGroup.add(this.agilityText);
     this.add(this.agilityGroup);
+
+    // Gold — bottom-right corner of portrait
+    // Portrait is 202x243, so right edge = 101, bottom = 121.5
+    // Icon center X at portrait right edge, bottom a few px below portrait bottom
+    const goldIconX = 101;
+    const goldIconBottomY = 121.5 + 4; // 4px below portrait bottom
+    const goldIconCenterY = goldIconBottomY - 50; // gold.PNG is 100px tall, half = 50
+    this.goldGroup = this.scene.add.container(goldIconX, goldIconCenterY);
+    this.goldGroup.add(this.scene.add.image(0, 0, "icon_gold"));
+    this.goldText = this.scene.add
+      .text(0, 4, "0", {
+        fontSize: "32px",
+        fontFamily: "monospace",
+        color: "#f6d4b1",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5, 0.5);
+    this.goldGroup.add(this.goldText);
+    this.add(this.goldGroup);
   }
 
   updateStats(player: Player, equipPowerBonus = 0, agilityModifier = 0, powerModifier = 0): void {
@@ -123,6 +144,10 @@ export class PlayerView extends Phaser.GameObjects.Container {
     const effectiveAgility = player.agility + agilityModifier;
     this.agilityText.setText(`${effectiveAgility}`);
     this.agilityText.setColor(agilityModifier < 0 ? "#cc3333" : "#240a0e");
+  }
+
+  updateGold(gold: number): void {
+    this.goldText.setText(`${gold}`);
   }
 
   slideFateDeckUp(scene: Phaser.Scene): void {

@@ -3,24 +3,24 @@ import { CardType, CardData } from "../entities/CardData";
 export const cardRegistry: Record<string, CardData> = {
   // --- Monsters ---
   skeleton_warrior: { id: "skeleton_warrior", type: CardType.Monster, name: "Skeleton Warrior", value: 3, description: "A shambling skeleton", image: "Skeleton War" },
-  skeleton: { id: "skeleton", type: CardType.Monster, name: "Skeleton", value: 1, description: "1 Power", image: "Skeleton War" },
-  zombie: { id: "zombie", type: CardType.Monster, name: "Zombie", value: 2, description: "2 Power", image: "Zombie" },
-  bloated_zombie: { id: "bloated_zombie", type: CardType.Monster, name: "Bloated Zombie", value: 2, description: "2 Power +1 damage", image: "Zombie", abilities: [{ abilityId: "bonus_counter_damage", params: { amount: 1 } }] },
-  dark_knight: { id: "dark_knight", type: CardType.Monster, name: "Dark Knight", value: 4, description: "4 Power", image: "dark_knight" },
-  skeleton_archer: { id: "skeleton_archer", type: CardType.Monster, name: "Skeleton Archer", value: 1, description: "Power 1.\nInserts Attack From Shadows into the dungeon deck on explore", image: "Skeleton Archer", abilities: [{ abilityId: "summonToDeck", params: { cardId: "attack_from_shadows", count: 1 } }] },
+  skeleton: { id: "skeleton", type: CardType.Monster, name: "Skeleton", value: 1, description: "", image: "Skeleton War" },
+  zombie: { id: "zombie", type: CardType.Monster, name: "Zombie", value: 2, description: "", image: "Zombie" },
+  bloated_zombie: { id: "bloated_zombie", type: CardType.Monster, name: "Bloated Zombie", value: 2, description: "+1 counter damage", image: "Zombie", abilities: [{ abilityId: "bonus_counter_damage", params: { amount: 1 } }] },
+  dark_knight: { id: "dark_knight", type: CardType.Monster, name: "Dark Knight", value: 4, description: "", image: "dark_knight" },
+  skeleton_archer: { id: "skeleton_archer", type: CardType.Monster, name: "Skeleton Archer", value: 1, description: "Inserts Attack From Shadows into the dungeon deck on explore", image: "Skeleton Archer", abilities: [{ abilityId: "summonToDeck", params: { cardId: "attack_from_shadows", count: 1 } }] },
 
-  swarm_of_bats: { id: "swarm_of_bats", type: CardType.Monster, name: "Swarm Of Bats", value: 1, description: "1 Power  -1 Agility", image: "swarm_of_bats", abilities: [{ abilityId: "agility_drain", params: { amount: -1 } }] },
+  swarm_of_bats: { id: "swarm_of_bats", type: CardType.Monster, name: "Swarm Of Bats", value: 1, description: "-1 Agility", image: "swarm_of_bats", abilities: [{ abilityId: "agility_drain", params: { amount: -1 } }] },
 
   // --- Bosses ---
-  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 3, description: "3 Power", image: "cultist", abilities: [{ abilityId: "cultist_ritual", params: { cardId: "dark_ritual", count: 1 } }] },
-  vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 2, description: "Power 2,\nReturns back to the Dungeon deck after death and gets type Dark Event.\n-1 Power while on the game field", image: "vengeful_revenant", abilities: [{ abilityId: "revenant_return", params: {} }, { abilityId: "power_drain", params: { amount: -1 } }] },
-  crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 3, description: "Power 3,\nWhile Phylactery is not in discard, goes back to dungeon deck after death.\nWhile on the game field, adds skeleton to the dungeon deck on explore", image: "crypt_lord", abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }, { abilityId: "return_conditional", params: { requiredDiscardId: "phylactery" } }] },
+  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 3, description: "", image: "cultist", abilities: [{ abilityId: "cultist_ritual", params: { cardId: "dark_ritual", count: 1 } }] },
+  vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 2, description: "Returns back to the Dungeon deck after death and gets type Dark Event.\n-1 Power while on the game field", image: "vengeful_revenant", abilities: [{ abilityId: "revenant_return", params: {} }, { abilityId: "power_drain", params: { amount: -1 } }] },
+  crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 3, description: "While Phylactery is not in discard, goes back to dungeon deck after death.\nWhile on the game field, adds skeleton to the dungeon deck on explore", image: "crypt_lord", abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }, { abilityId: "return_conditional", params: { requiredDiscardId: "phylactery" } }] },
 
   // --- Tentacle chain ---
   tentacle: { id: "tentacle", type: CardType.Monster, name: "Tentacle", value: 2, description: "A writhing appendage", image: "horrendous_tentacle", abilities: [{ abilityId: "tentacle_summon", params: { cardId: "horrendous_tentacle", count: 1 } }] },
-  horrendous_tentacle: { id: "horrendous_tentacle", type: CardType.Monster, name: "Horrendous Tentacle", value: 4, description: "Power 2.\nOnce 3 of these appear from the Dungeon Deck, Put Horror From The Beyond into the Dungeon Deck", image: "horrendous_tentacle", abilities: [{ abilityId: "horrendous_summon", params: { cardId: "terrible_tentacle", count: 1 } }] },
+  horrendous_tentacle: { id: "horrendous_tentacle", type: CardType.Monster, name: "Horrendous Tentacle", value: 4, description: "Once 3 of these appear from the Dungeon Deck, Put Horror From The Beyond into the Dungeon Deck", image: "horrendous_tentacle", abilities: [{ abilityId: "horrendous_summon", params: { cardId: "terrible_tentacle", count: 1 } }] },
   terrible_tentacle: { id: "terrible_tentacle", type: CardType.Monster, name: "Terrible Tentacle", value: 6, description: "An enormous tentacle", image: "horrendous_tentacle", abilities: [{ abilityId: "terrible_summon", params: { cardId: "terror_from_beyond", count: 1 } }] },
-  terror_from_beyond: { id: "terror_from_beyond", type: CardType.Monster, name: "Terror From The Beyond", value: 15, description: "Power 10. Deals 1 damage for every action which is not fighting Horror from The Beyond", image: "horror_from_beyond", abilities: [{ abilityId: "terror_reveal_damage", params: { amount: 5 } }, { abilityId: "terror_explore_damage", params: { amount: 2 } }, { abilityId: "terror_buff_monsters", params: { amount: 2 } }] },
+  terror_from_beyond: { id: "terror_from_beyond", type: CardType.Monster, name: "Terror From The Beyond", value: 15, description: "Deals 1 damage for every action which is not fighting Horror from The Beyond", image: "horror_from_beyond", abilities: [{ abilityId: "terror_reveal_damage", params: { amount: 5 } }, { abilityId: "terror_explore_damage", params: { amount: 2 } }, { abilityId: "terror_buff_monsters", params: { amount: 2 } }] },
 
   // --- Potions ---
   health_potion: { id: "health_potion", type: CardType.Potion, name: "Healing Potion", value: 4, description: "Heals 4 HP", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "healing", params: { amount: 4 } }] },
@@ -43,29 +43,29 @@ export const cardRegistry: Record<string, CardData> = {
   gold_pile_large: { id: "gold_pile_large", type: CardType.Treasure, name: "Pile of Gold", value: 6, description: "6 Gold Coins", image: "pile_of_gold" },
 
   // --- Treasure - Weapons ---
-  guardsman_sword: { id: "guardsman_sword", type: CardType.Treasure, name: "Guardsman Sword", value: 1, description: "Power +1", slot: "weapon", image: "shortsword" },
-  short_sword: { id: "short_sword", type: CardType.Treasure, name: "Short Sword", value: 2, description: "+2 power, heals 1 HP on equip", slot: "weapon", image: "shortsword", abilities: [{ abilityId: "equip_heal", params: { amount: 1 } }] },
-  knights_sword: { id: "knights_sword", type: CardType.Treasure, name: "Knights Sword", value: 2, description: "Power +2", slot: "weapon", image: "knights_sword" },
-  battle_axe: { id: "battle_axe", type: CardType.Treasure, name: "Battle Axe", value: 4, description: "+4 power", slot: "weapon", image: "crude_axe" },
+  guardsman_sword: { id: "guardsman_sword", type: CardType.Treasure, name: "Guardsman Sword", value: 1, description: "", slot: "weapon", image: "shortsword" },
+  short_sword: { id: "short_sword", type: CardType.Treasure, name: "Short Sword", value: 2, description: "Heals 1 HP on equip", slot: "weapon", image: "shortsword", abilities: [{ abilityId: "equip_heal", params: { amount: 1 } }] },
+  knights_sword: { id: "knights_sword", type: CardType.Treasure, name: "Knights Sword", value: 2, description: "", slot: "weapon", image: "knights_sword" },
+  battle_axe: { id: "battle_axe", type: CardType.Treasure, name: "Battle Axe", value: 4, description: "", slot: "weapon", image: "crude_axe" },
   shortbow: { id: "shortbow", type: CardType.Treasure, name: "Shortbow", value: 0, description: "Adds 3 Bow Shot cards into a dungeon deck", slot: "weapon", image: "shortbow", tag: "bow", abilities: [{ abilityId: "equip_degrade", params: { cardId: "bow_shot", count: 3 } }] },
   elven_bow: { id: "elven_bow", type: CardType.Treasure, name: "Elven Bow", value: 0, description: "Adds 3 Strong Bow Shot cards into a dungeon deck.\nAgility +1", slot: "weapon", image: "elven_bow", tag: "bow", agilityBonus: 1, abilities: [{ abilityId: "equip_degrade", params: { cardId: "strong_bow_shot", count: 3 } }] },
-  ogre_axe: { id: "ogre_axe", type: CardType.Treasure, name: "Ogre Axe", value: 2, description: "Power +2.\nAdds Weapon Degradation to Dungeon Deck if equipped", slot: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+  ogre_axe: { id: "ogre_axe", type: CardType.Treasure, name: "Ogre Axe", value: 2, description: "Adds Weapon Degradation to Dungeon Deck if equipped", slot: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
 
   // --- Treasure - Shields ---
   wooden_shield: { id: "wooden_shield", type: CardType.Treasure, name: "Wooden Shield", value: 0, description: "Blocks 2 Damage", slot: "weapon", image: "wooden_shield", abilities: [{ abilityId: "armour", params: { amount: 2 } }] },
-  spiked_shield: { id: "spiked_shield", type: CardType.Treasure, name: "Spiked Shield", value: 1, description: "Blocks 3 Damage. Power +1", slot: "weapon", image: "spiked_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
+  spiked_shield: { id: "spiked_shield", type: CardType.Treasure, name: "Spiked Shield", value: 1, description: "", slot: "weapon", image: "spiked_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
   guardsman_shield: { id: "guardsman_shield", type: CardType.Treasure, name: "Guardsman Shield", value: 0, description: "Absorb 3 Damage (Hands)", slot: "weapon", image: "knights_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
 
   // --- Treasure - Armour ---
-  leather_armour: { id: "leather_armour", type: CardType.Treasure, name: "Leather Armour", value: 1, description: "+1 power, cursed: 1 damage on discard", slot: "armour", image: "rusty_cuirass", abilities: [{ abilityId: "discard_damage", params: { amount: 1 } }] },
-  chain_mail: { id: "chain_mail", type: CardType.Treasure, name: "Chain Mail", value: 3, description: "+3 power", slot: "armour", image: "metal_cuirass" },
+  leather_armour: { id: "leather_armour", type: CardType.Treasure, name: "Leather Armour", value: 1, description: "Cursed: 1 damage on discard", slot: "armour", image: "rusty_cuirass", abilities: [{ abilityId: "discard_damage", params: { amount: 1 } }] },
+  chain_mail: { id: "chain_mail", type: CardType.Treasure, name: "Chain Mail", value: 3, description: "", slot: "armour", image: "metal_cuirass" },
   cloak_of_swiftness: { id: "cloak_of_swiftness", type: CardType.Treasure, name: "Cloak of Swiftness", value: 0, description: "+1 agility", slot: "armour", image: "cloak_of_swiftness", agilityBonus: 1 },
   rusty_armour: { id: "rusty_armour", type: CardType.Treasure, name: "Rusty Armour", value: 0, description: "Adds 1 Max HP", slot: "armour", image: "rusty_cuirass", maxHpBonus: 1 },
   guardsman_armour: { id: "guardsman_armour", type: CardType.Treasure, name: "Guardsman Armour", value: 0, description: "Adds +2 Max HP", slot: "armour", image: "metal_cuirass", maxHpBonus: 2 },
 
   // --- Treasure - Head ---
-  iron_helm: { id: "iron_helm", type: CardType.Treasure, name: "Iron Helm", value: 1, description: "+1 power, heals 1 HP on kill", slot: "head", abilities: [{ abilityId: "vampiric", params: { amount: 1 } }] },
-  crown: { id: "crown", type: CardType.Treasure, name: "Crown", value: 2, description: "+2 power, cursed: 1 damage on counterattack", slot: "head", abilities: [{ abilityId: "thorns", params: { amount: 1 } }] },
+  iron_helm: { id: "iron_helm", type: CardType.Treasure, name: "Iron Helm", value: 1, description: "Heals 1 HP on kill", slot: "head", abilities: [{ abilityId: "vampiric", params: { amount: 1 } }] },
+  crown: { id: "crown", type: CardType.Treasure, name: "Crown", value: 2, description: "Cursed: 1 damage on counterattack", slot: "head", abilities: [{ abilityId: "thorns", params: { amount: 1 } }] },
 
   // --- Treasure - Backpack ---
   quiver: { id: "quiver", type: CardType.Treasure, name: "Quiver", value: 0, description: "Triggers Bow ability (if bow is available)", slot: "backpack", image: "quiver", abilities: [{ abilityId: "quiver_trigger", params: {} }] },
@@ -86,8 +86,8 @@ export const cardRegistry: Record<string, CardData> = {
   disarm_kit: { id: "disarm_kit", type: CardType.Potion, name: "Disarming Kit", value: 0, description: "Disarms traps", slot: "backpack", image: "disarming_kit", abilities: [{ abilityId: "disarm_tool", params: { amount: 1 } }] },
 
   // --- Degrading weapons ---
-  rusty_sword: { id: "rusty_sword", type: CardType.Treasure, name: "Rusty Sword", value: 1, description: "+1 Power.\nAdds Weapon Degradation to Dungeon Deck when equipped", slot: "weapon", image: "rusty_sword", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
-  crude_axe: { id: "crude_axe", type: CardType.Treasure, name: "Crude Axe", value: 2, description: "+2 power, degrades", slot: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+  rusty_sword: { id: "rusty_sword", type: CardType.Treasure, name: "Rusty Sword", value: 1, description: "Adds Weapon Degradation to Dungeon Deck when equipped", slot: "weapon", image: "rusty_sword", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+  crude_axe: { id: "crude_axe", type: CardType.Treasure, name: "Crude Axe", value: 2, description: "Degrades", slot: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
 
   // --- Events ---
   merchant: { id: "merchant", type: CardType.Event, name: "Merchant", value: 0, description: "Trade goods" },
