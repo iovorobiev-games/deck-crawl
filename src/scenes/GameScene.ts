@@ -24,7 +24,7 @@ export class GameScene extends Phaser.Scene {
   private deck!: Deck;
   private grid!: Grid;
   private deckText!: Phaser.GameObjects.Text;
-  private goldText!: Phaser.GameObjects.Text;
+  private goldText!: Phaser.GameObjects.Text; // hidden, kept for alpha toggling
   private exploreBtn!: Phaser.GameObjects.Container;
   private exploreBtnBg!: Phaser.GameObjects.Graphics;
   private exploreBtnText!: Phaser.GameObjects.Text;
@@ -125,7 +125,7 @@ export class GameScene extends Phaser.Scene {
       fontSize: "28px",
       fontFamily: "monospace",
       color: "#ddaa22",
-    }).setOrigin(0.5, 0);
+    }).setOrigin(0.5, 0).setVisible(false);
     this.deckGroup.add(this.goldText);
 
     this.updateHUD();
