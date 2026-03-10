@@ -552,43 +552,56 @@ export class GameScene extends Phaser.Scene {
   private presentEventCard(cardData: CardData, onComplete: () => void): void {
     this.isResolving = true;
 
-    // Dark overlay
-    const overlay = this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.6);
+    // Dark overlay — starts fully transparent
+    const overlay = this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0);
     overlay.setDepth(900);
 
-    // Create card at screen center
-    const card = new Card(this, GAME_W / 2, GAME_H / 2, cardData);
+    // Create card at the dungeon deck position
+    const card = new Card(this, 350, 200, cardData);
     card.setDepth(910);
-    card.setScale(0);
-    card.setAlpha(0);
 
-    // Custom reveal tween to scale 1.8
+    // Phase 1: Card travels from deck to center while background darkens
     this.tweens.add({
       targets: card,
-      scaleX: 1.8,
-      scaleY: 1.8,
-      alpha: 1,
-      duration: 400,
-      ease: "Back.easeOut",
+      x: GAME_W / 2,
+      y: GAME_H / 2,
+      duration: 500,
+      ease: "Power2",
+    });
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.6,
+      duration: 500,
+      ease: "Power2",
       onComplete: () => {
-        // Hold for readability, then execute abilities
-        this.time.delayedCall(1500, () => {
-          this.executeOnRevealAbilities(card, cardData, () => {
-            // Fire onResolve abilities before visual resolve
-            const resolveAbilities = this.collectAbilities("onResolve", cardData);
-            this.executeOnResolveAbilities(card, resolveAbilities, () => {
-              // Resolve card (shrink & destroy)
-              card.resolve(() => {
-                overlay.destroy();
-                this.isResolving = false;
-                if (this.player.hp <= 0) {
-                  this.showGameOver();
-                  return;
-                }
-                onComplete();
+        // Phase 2: Card scales up at center
+        this.tweens.add({
+          targets: card,
+          scaleX: 1.8,
+          scaleY: 1.8,
+          duration: 400,
+          ease: "Back.easeOut",
+          onComplete: () => {
+            // Hold for readability, then execute abilities
+            this.time.delayedCall(1500, () => {
+              this.executeOnRevealAbilities(card, cardData, () => {
+                // Fire onResolve abilities before visual resolve
+                const resolveAbilities = this.collectAbilities("onResolve", cardData);
+                this.executeOnResolveAbilities(card, resolveAbilities, () => {
+                  // Resolve card (shrink & destroy)
+                  card.resolve(() => {
+                    overlay.destroy();
+                    this.isResolving = false;
+                    if (this.player.hp <= 0) {
+                      this.showGameOver();
+                      return;
+                    }
+                    onComplete();
+                  });
+                });
               });
             });
-          });
+          },
         });
       },
     });
@@ -3715,12 +3728,13 @@ export class GameScene extends Phaser.Scene {
     doorCard.markDoorOpened();
 
     this.time.delayedCall(600, () => {
-      const cell = this.grid.findCard(doorCard);
-      if (cell) this.grid.removeCard(cell.col, cell.row);
-      doorCard.destroy();
-
+      // Clear all grid cards except the door
       this.clearGrid(() => {
         if (this.currentLevelIndex >= this.dungeonLevels.length - 1) {
+          // Remove door before showing win screen
+          const cell = this.grid.findCard(doorCard);
+          if (cell) this.grid.removeCard(cell.col, cell.row);
+          doorCard.destroy();
           this.showWinScreen();
           return;
         }
@@ -3728,33 +3742,77 @@ export class GameScene extends Phaser.Scene {
         this.currentLevelIndex++;
         const nextLevel = this.dungeonLevels[this.currentLevelIndex];
 
-        // Build next level's cards and merge into current deck
-        const tempDeck = Deck.fromDungeonLevel(nextLevel);
-        const newCards = tempDeck.draw(tempDeck.remaining);
-        this.deck.mergeCards(newCards);
+        // Animate card-back sprites from door to deck, then remove door
+        this.animateCardsToDeck(doorCard.x, doorCard.y, () => {
+          // Build next level's cards and merge into current deck
+          const tempDeck = Deck.fromDungeonLevel(nextLevel);
+          const newCards = tempDeck.draw(tempDeck.remaining);
+          this.deck.mergeCards(newCards);
 
-        this.currentLevelKey = getCard(nextLevel.key);
+          this.currentLevelKey = getCard(nextLevel.key);
 
-        // Update HUD
-        this.updateHUD();
-        this.updateDeckVisual();
-        this.updateLevelIndicator();
+          // Update HUD
+          this.updateHUD();
+          this.updateDeckVisual();
+          this.updateLevelIndicator();
 
-        // Re-enable explore button
-        this.enableExploreButton();
+          // Now remove the door with a resolve animation
+          const cell = this.grid.findCard(doorCard);
+          if (cell) this.grid.removeCard(cell.col, cell.row);
+          doorCard.resolve(() => {
+            // Re-enable explore button
+            this.enableExploreButton();
 
-        this.isResolving = false;
-        this.drawAndPlaceCards(3);
-      });
+            this.isResolving = false;
+            this.drawAndPlaceCards(3);
+          });
+        });
+      }, doorCard);
     });
   }
 
-  private clearGrid(onComplete: () => void): void {
-    const cards = this.grid.getAllCards();
-    const toDestroy: Phaser.GameObjects.GameObject[] = [...cards];
+  private animateCardsToDeck(
+    fromX: number,
+    fromY: number,
+    onComplete: () => void
+  ): void {
+    const cardCount = 5;
+    const staggerDelay = 100;
+    const duration = 550;
+    const targetX = 350;
+    const targetY = 200;
+    let completed = 0;
 
-    // Collect associated objects
+    for (let i = 0; i < cardCount; i++) {
+      const cardSprite = this.add.image(fromX, fromY, "card_back");
+      cardSprite.setDepth(800);
+
+      this.time.delayedCall(i * staggerDelay, () => {
+        this.tweens.add({
+          targets: cardSprite,
+          x: targetX,
+          y: targetY,
+          duration,
+          ease: "Power2",
+          onComplete: () => {
+            cardSprite.destroy();
+            completed++;
+            if (completed === cardCount) {
+              onComplete();
+            }
+          },
+        });
+      });
+    }
+  }
+
+  private clearGrid(onComplete: () => void, skip?: Card): void {
+    const cards = this.grid.getAllCards();
+    const toDestroy: Phaser.GameObjects.GameObject[] = [];
+
     for (const card of cards) {
+      if (card === skip) continue;
+      toDestroy.push(card);
       if (card.guardedLoot) {
         toDestroy.push(card.guardedLoot);
       }
