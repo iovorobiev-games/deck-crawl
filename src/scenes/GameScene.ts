@@ -655,8 +655,31 @@ export class GameScene extends Phaser.Scene {
         }
         case "reduceWeaponPower": {
           const amount = ability.params.amount as number;
-          this.reduceEquippedWeaponPower(amount);
-          processNext(idx + 1);
+          // Bug 7: Find which weapon slot will be affected and play hit animation
+          const targetSlot = this.findFirstWeaponSlot();
+          if (targetSlot) {
+            this.playHitOnSlotAnimation(
+              { x: card.x, y: card.y },
+              targetSlot,
+              () => {
+                this.reduceEquippedWeaponPower(amount);
+                processNext(idx + 1);
+              },
+            );
+          } else {
+            this.reduceEquippedWeaponPower(amount);
+            processNext(idx + 1);
+          }
+          break;
+        }
+        case "removeFromDeck": {
+          const removeCardId = ability.params.cardId as string;
+          this.playRemoveFromDeckAnimation(removeCardId, () => processNext(idx + 1));
+          break;
+        }
+        case "addFateModifier": {
+          const mod = ability.params.modifier as number;
+          this.playFlyToFateDeckAnimation({ x: card.x, y: card.y }, mod, () => processNext(idx + 1));
           break;
         }
         case "reduceRandomEnemyPower": {
@@ -1302,6 +1325,21 @@ export class GameScene extends Phaser.Scene {
         }
         break;
       }
+      case "removeFromDeck": {
+        const cardId = current.params.cardId as string;
+        this.playRemoveFromDeckAnimation(cardId, () => {
+          this.fireAbilities(rest, onComplete, sourcePos);
+        });
+        return; // async
+      }
+      case "addFateModifier": {
+        const modifier = current.params.modifier as number;
+        const origin = sourcePos ?? { x: GAME_W / 2, y: GAME_H / 2 };
+        this.playFlyToFateDeckAnimation(origin, modifier, () => {
+          this.fireAbilities(rest, onComplete, sourcePos);
+        });
+        return; // async
+      }
     }
 
     // Chain to next ability
@@ -1514,6 +1552,17 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Find the first equipped non-key weapon slot name, or null. */
+  private findFirstWeaponSlot(): string | null {
+    for (const slotName of ["weapon1", "weapon2"]) {
+      const item = this.inventory.getItem(slotName);
+      if (item && item.slot === "weapon" && !item.isKey) {
+        return slotName;
+      }
+    }
+    return null;
+  }
+
   private collectOnExploreAbilities(): Array<{ card: Card; ability: CardAbility }> {
     const results: Array<{ card: Card; ability: CardAbility }> = [];
     for (const card of this.grid.getOccupiedCards()) {
@@ -1554,6 +1603,20 @@ export class GameScene extends Phaser.Scene {
           this.executeOnExploreAbilities(rest, onComplete);
         });
         break;
+      case "removeFromDeck": {
+        const removeId = current.ability.params.cardId as string;
+        this.playRemoveFromDeckAnimation(removeId, () => {
+          this.executeOnExploreAbilities(rest, onComplete);
+        });
+        break;
+      }
+      case "addFateModifier": {
+        const mod = current.ability.params.modifier as number;
+        this.playFlyToFateDeckAnimation({ x: current.card.x, y: current.card.y }, mod, () => {
+          this.executeOnExploreAbilities(rest, onComplete);
+        });
+        break;
+      }
       default:
         this.executeOnExploreAbilities(rest, onComplete);
         break;
@@ -1682,6 +1745,261 @@ export class GameScene extends Phaser.Scene {
           }
         },
       });
+    });
+  }
+
+  /**
+   * Bug 4: Generic animation for when an ability removes a card from the dungeon deck.
+   * A temporary card slides out from the deck area, pauses so the player can see it,
+   * then fades away.
+   */
+  private playRemoveFromDeckAnimation(
+    cardId: string,
+    onComplete: () => void,
+  ): void {
+    const removed = this.deck.removeCardById(cardId);
+    if (!removed) {
+      onComplete();
+      return;
+    }
+
+    this.updateDeckVisual();
+    this.updateHUD();
+
+    const deckWorldX = 350;
+    const deckWorldY = 200;
+
+    // Create a temp card at the deck position
+    const tempCard = new Card(this, deckWorldX, deckWorldY, removed);
+    tempCard.setDepth(500);
+    tempCard.setScale(0.5);
+    tempCard.setAlpha(0);
+    tempCard.disableInteractive();
+
+    // Slide card out from deck to the right
+    const targetX = deckWorldX + 200;
+    const targetY = deckWorldY;
+
+    this.tweens.add({
+      targets: tempCard,
+      x: targetX,
+      y: targetY,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      alpha: 1,
+      duration: 400,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        // Hold for ~1 second so the player can see the removed card
+        this.time.delayedCall(1000, () => {
+          // Fade and shrink away
+          this.tweens.add({
+            targets: tempCard,
+            alpha: 0,
+            scaleX: 0,
+            scaleY: 0,
+            duration: 400,
+            ease: "Power2",
+            onComplete: () => {
+              tempCard.destroy();
+              onComplete();
+            },
+          });
+        });
+      },
+    });
+  }
+
+  /**
+   * Bug 7: Generic hit animation for abilities that target a grid object or inventory slot.
+   * Reuses the same shake pattern as combat hit animations.
+   */
+  private playHitOnTargetAnimation(
+    sourcePos: { x: number; y: number },
+    target: Phaser.GameObjects.Container,
+    onComplete: () => void,
+  ): void {
+    // Create a brief projectile that flies from source to target
+    const projectile = this.add.graphics();
+    projectile.fillStyle(0xff4444, 0.8);
+    projectile.fillCircle(0, 0, 8);
+    projectile.setPosition(sourcePos.x, sourcePos.y);
+    projectile.setDepth(950);
+
+    this.tweens.add({
+      targets: projectile,
+      x: target.x,
+      y: target.y,
+      duration: 300,
+      ease: "Power2",
+      onComplete: () => {
+        projectile.destroy();
+
+        // Shake the target (same pattern as combat monster hit)
+        const origX = target.x;
+        this.tweens.add({
+          targets: target,
+          x: origX + 10,
+          duration: 50,
+          yoyo: true,
+          repeat: 3,
+          onComplete: () => {
+            target.x = origX;
+
+            // Red flash on target
+            const flashRect = this.add.graphics();
+            flashRect.fillStyle(0xff0000, 0.3);
+            flashRect.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
+            flashRect.setDepth(951);
+            target.add(flashRect);
+
+            this.tweens.add({
+              targets: flashRect,
+              alpha: 0,
+              duration: 300,
+              onComplete: () => {
+                flashRect.destroy();
+                onComplete();
+              },
+            });
+          },
+        });
+      },
+    });
+  }
+
+  /**
+   * Bug 7: Play hit animation on an inventory slot (for weapon degradation etc.).
+   */
+  private playHitOnSlotAnimation(
+    sourcePos: { x: number; y: number },
+    slotName: string,
+    onComplete: () => void,
+  ): void {
+    const slotContainer = this.inventoryView.getSlotContainer(slotName);
+    const slotPos = this.inventoryView.getSlotWorldPos(slotName);
+    if (!slotContainer || !slotPos) {
+      onComplete();
+      return;
+    }
+
+    // Create a brief projectile that flies from source to slot
+    const projectile = this.add.graphics();
+    projectile.fillStyle(0xff4444, 0.8);
+    projectile.fillCircle(0, 0, 8);
+    projectile.setPosition(sourcePos.x, sourcePos.y);
+    projectile.setDepth(950);
+
+    this.tweens.add({
+      targets: projectile,
+      x: slotPos.x,
+      y: slotPos.y,
+      duration: 300,
+      ease: "Power2",
+      onComplete: () => {
+        projectile.destroy();
+
+        // Shake the slot
+        const origX = slotContainer.x;
+        this.tweens.add({
+          targets: slotContainer,
+          x: origX + 8,
+          duration: 50,
+          yoyo: true,
+          repeat: 3,
+          onComplete: () => {
+            slotContainer.x = origX;
+
+            // Red flash on slot
+            const flashRect = this.add.graphics();
+            flashRect.fillStyle(0xff0000, 0.4);
+            flashRect.fillRoundedRect(-78, -93, 157, 186, 12);
+            slotContainer.add(flashRect);
+
+            this.tweens.add({
+              targets: flashRect,
+              alpha: 0,
+              duration: 300,
+              onComplete: () => {
+                flashRect.destroy();
+                onComplete();
+              },
+            });
+          },
+        });
+      },
+    });
+  }
+
+  /**
+   * Bug 8: Animate a card flying from its grid position to the fate deck area,
+   * used when addFateModifier ability fires.
+   */
+  private playFlyToFateDeckAnimation(
+    sourcePos: { x: number; y: number },
+    modifier: number,
+    onComplete: () => void,
+  ): void {
+    // Add the modifier to the player's fate deck
+    this.player.fateDeck.push(modifier);
+    // Shuffle
+    for (let i = this.player.fateDeck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.player.fateDeck[i], this.player.fateDeck[j]] = [this.player.fateDeck[j], this.player.fateDeck[i]];
+    }
+
+    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+    const fateCardW = 100;
+    const fateCardH = 140;
+
+    // Create a fate card visual at the source position
+    const fateCard = this.add.container(sourcePos.x, sourcePos.y);
+    fateCard.setDepth(920);
+    fateCard.setScale(0.8);
+
+    const fateBg = this.add.graphics();
+    fateBg.fillStyle(0x1a1a2e, 1);
+    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+    fateBg.lineStyle(2, 0x4444aa, 0.8);
+    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+    fateCard.add(fateBg);
+
+    const modLabel = modifier > 0 ? `+${modifier}` : `${modifier}`;
+    const modColor = modifier > 0 ? "#44dd88" : modifier < 0 ? "#ff5555" : "#888888";
+    const modText = this.add
+      .text(0, 0, modLabel, {
+        fontSize: "40px",
+        fontFamily: "monospace",
+        color: modColor,
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    fateCard.add(modText);
+
+    // Scale up briefly, then fly to fate deck
+    this.tweens.add({
+      targets: fateCard,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 300,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        this.time.delayedCall(400, () => {
+          this.tweens.add({
+            targets: fateCard,
+            x: fateDeckPos.x,
+            y: fateDeckPos.y,
+            scaleX: 0.3,
+            scaleY: 0.3,
+            duration: 600,
+            ease: "Power2",
+            onComplete: () => {
+              fateCard.destroy();
+              onComplete();
+            },
+          });
+        });
+      },
     });
   }
 
@@ -2091,10 +2409,18 @@ export class GameScene extends Phaser.Scene {
         this.executeOnResolveAbilities(card, rest, onComplete);
         break;
       }
+      case "removeFromDeck": {
+        const cardId = current.params.cardId as string;
+        this.playRemoveFromDeckAnimation(cardId, () => {
+          this.executeOnResolveAbilities(card, rest, onComplete);
+        });
+        break;
+      }
       case "addFateModifier": {
         const modifier = current.params.modifier as number;
-        this.player.fateDeck.push(modifier);
-        this.executeOnResolveAbilities(card, rest, onComplete);
+        this.playFlyToFateDeckAnimation({ x: card.x, y: card.y }, modifier, () => {
+          this.executeOnResolveAbilities(card, rest, onComplete);
+        });
         break;
       }
       case "buffMonsterType": {
@@ -2138,6 +2464,20 @@ export class GameScene extends Phaser.Scene {
         const cardId = current.params.cardId as string;
         const count = current.params.count as number;
         this.playSummonToDeckAnimation(trapCard, cardId, count, () => {
+          this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
+        });
+        break;
+      }
+      case "removeFromDeck": {
+        const cardId = current.params.cardId as string;
+        this.playRemoveFromDeckAnimation(cardId, () => {
+          this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
+        });
+        break;
+      }
+      case "addFateModifier": {
+        const modifier = current.params.modifier as number;
+        this.playFlyToFateDeckAnimation({ x: trapCard.x, y: trapCard.y }, modifier, () => {
           this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
         });
         break;

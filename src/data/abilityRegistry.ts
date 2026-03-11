@@ -32,6 +32,7 @@ export type AbilityEffect =
   | "autoOpenChest"
   | "tempBuffWeapon"
   | "removeDarkEvent"
+  | "removeFromDeck"
   | "addFateModifier"
   | "buffMonsterType"
   | "returnSelfConditional"
@@ -272,6 +273,18 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "onDiscard",
     effect: "triggerBowAbility",
     description: "Triggers equipped bow's ability",
+  },
+  purify_deck: {
+    id: "purify_deck",
+    trigger: "onResolve",
+    effect: "removeFromDeck",
+    description: "Removes a dark card from the deck",
+  },
+  bless_fate: {
+    id: "bless_fate",
+    trigger: "onResolve",
+    effect: "addFateModifier",
+    description: "Adds a +2 fate card to your fate deck",
   },
 };
 

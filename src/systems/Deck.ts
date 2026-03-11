@@ -92,6 +92,12 @@ export class Deck {
     return this.cards.splice(idx, 1)[0];
   }
 
+  removeCardById(id: string): CardData | null {
+    const idx = this.cards.findIndex(c => c.id === id);
+    if (idx === -1) return null;
+    return this.cards.splice(idx, 1)[0];
+  }
+
   drawLoot(): CardData | null {
     if (this.lootPool.length === 0) return null;
     return this.lootPool.splice(0, 1)[0];
