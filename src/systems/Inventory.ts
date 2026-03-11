@@ -31,6 +31,9 @@ export class Inventory extends Phaser.Events.EventEmitter {
     const def = SLOT_DEFS.find((d) => d.name === slotName);
     if (!def) return false;
     if (!card.slot) return false;
+    // Prevent equipping on top of a key card
+    const current = this.slots.get(slotName);
+    if (current?.isKey) return false;
     return def.accepted.includes(card.slot);
   }
 
