@@ -659,7 +659,7 @@ export class GameScene extends Phaser.Scene {
           const targetSlot = this.findFirstWeaponSlot();
           if (targetSlot) {
             this.playHitOnSlotAnimation(
-              { x: card.x, y: card.y },
+              card,
               targetSlot,
               () => {
                 this.reduceEquippedWeaponPower(amount);
@@ -696,16 +696,18 @@ export class GameScene extends Phaser.Scene {
           }
           if (monsters.length > 0) {
             const target = monsters[Math.floor(Math.random() * monsters.length)];
-            const newValue = Math.max(0, target.cardData.value - amount);
-            target.updateValue(newValue);
-            if (newValue <= 0) {
-              const deadCell = this.grid.findCard(target);
-              if (deadCell) this.grid.removeCard(deadCell.col, deadCell.row);
-              this.freeGuardedLootIfAny(target);
-              target.resolve(() => processNext(idx + 1));
-            } else {
-              processNext(idx + 1);
-            }
+            this.playHitOnTargetAnimation(card, target, () => {
+              const newValue = Math.max(0, target.cardData.value - amount);
+              target.updateValue(newValue);
+              if (newValue <= 0) {
+                const deadCell = this.grid.findCard(target);
+                if (deadCell) this.grid.removeCard(deadCell.col, deadCell.row);
+                this.freeGuardedLootIfAny(target);
+                target.resolve(() => processNext(idx + 1));
+              } else {
+                processNext(idx + 1);
+              }
+            });
           } else {
             processNext(idx + 1);
           }
@@ -1157,7 +1159,8 @@ export class GameScene extends Phaser.Scene {
         this.inventory.equip(slotName, card.cardData);
         // Fire onEquip for the newly equipped card (skip for backpack slots)
         const equipAbilities = slotName.startsWith("backpack") ? [] : this.collectAbilities("onEquip", card.cardData);
-        const cardPos = { x: card.x, y: card.y };
+        const slotPos = this.inventoryView.getSlotWorldPos(slotName);
+        const cardPos = slotPos ?? { x: card.x, y: card.y };
         card.disableInteractive();
         card.resolve(() => {});
         this.fireAbilities(equipAbilities, () => {
@@ -1245,7 +1248,13 @@ export class GameScene extends Phaser.Scene {
     cardData: CardData,
   ): CardAbility[] {
     if (!cardData.abilities) return [];
-    return cardData.abilities.filter((a) => getAbility(a.abilityId).trigger === trigger);
+    // onEquip abilities fire only once per card
+    if (trigger === "onEquip" && cardData.equipTriggered) return [];
+    const results = cardData.abilities.filter((a) => getAbility(a.abilityId).trigger === trigger);
+    if (trigger === "onEquip" && results.length > 0) {
+      cardData.equipTriggered = true;
+    }
+    return results;
   }
 
   /** Collect abilities matching a trigger from all equipped inventory items. */
@@ -1324,6 +1333,20 @@ export class GameScene extends Phaser.Scene {
           this.fireAbilities(rest, onComplete, sourcePos);
         });
         return; // async
+      }
+      case "buffMonsterType": {
+        const monsterId = current.params.monsterId as string;
+        const amount = current.params.amount as number;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const gc = this.grid.getCardAt(c, r);
+            if (gc && gc.cardData.id === monsterId) {
+              gc.updateValue(gc.cardData.value + amount);
+            }
+          }
+        }
+        this.deck.buffCardById(monsterId, amount);
+        break;
       }
     }
 
@@ -1796,124 +1819,236 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Bug 7: Generic hit animation for abilities that target a grid object or inventory slot.
-   * Reuses the same shake pattern as combat hit animations.
+   * Dim everything except the given cards — same as enterCombatMode dimming.
    */
-  private playHitOnTargetAnimation(
-    sourcePos: { x: number; y: number },
-    target: Phaser.GameObjects.Container,
-    onComplete: () => void,
-  ): void {
-    // Create a brief projectile that flies from source to target
-    const projectile = this.add.graphics();
-    projectile.fillStyle(0xff4444, 0.8);
-    projectile.fillCircle(0, 0, 8);
-    projectile.setPosition(sourcePos.x, sourcePos.y);
-    projectile.setDepth(950);
-
-    this.tweens.add({
-      targets: projectile,
-      x: target.x,
-      y: target.y,
-      duration: 300,
-      ease: "Power2",
-      onComplete: () => {
-        projectile.destroy();
-
-        // Shake the target (same pattern as combat monster hit)
-        const origX = target.x;
-        this.tweens.add({
-          targets: target,
-          x: origX + 10,
-          duration: 50,
-          yoyo: true,
-          repeat: 3,
-          onComplete: () => {
-            target.x = origX;
-
-            // Red flash on target
-            const flashRect = this.add.graphics();
-            flashRect.fillStyle(0xff0000, 0.3);
-            flashRect.fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 8);
-            flashRect.setDepth(951);
-            target.add(flashRect);
-
-            this.tweens.add({
-              targets: flashRect,
-              alpha: 0,
-              duration: 300,
-              onComplete: () => {
-                flashRect.destroy();
-                onComplete();
-              },
-            });
-          },
-        });
-      },
-    });
+  private dimNonParticipants(except: Phaser.GameObjects.Container[]): void {
+    const exceptSet = new Set(except);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && !exceptSet.has(gridCard)) {
+          gridCard.setAlpha(0.3);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(0.3);
+            gridCard.guardedLoot.disableInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(0.3);
+        }
+      }
+    }
+    this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
+    this.deckVisual.forEach(img => img.setAlpha(0.3));
+    this.deckText.setAlpha(0.3);
+    this.goldText.setAlpha(0.3);
+    this.exploreBtn.setAlpha(0.3);
+    this.levelIndicator.setAlpha(0.3);
+    this.levelFlavorText.setAlpha(0.3);
   }
 
   /**
-   * Bug 7: Play hit animation on an inventory slot (for weapon degradation etc.).
+   * Restore everything after dimNonParticipants.
+   */
+  private undimAll(): void {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard) {
+          gridCard.setAlpha(1);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(1);
+            gridCard.guardedLoot.setDepth(5);
+            gridCard.guardedLoot.setInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+        }
+      }
+    }
+    this.gridBgGraphics.forEach(img => img.setAlpha(1));
+    this.deckVisual.forEach(img => img.setAlpha(1));
+    this.deckText.setAlpha(1);
+    this.goldText.setAlpha(1);
+    this.exploreBtn.setAlpha(1);
+    this.levelIndicator.setAlpha(1);
+    this.levelFlavorText.setAlpha(1);
+  }
+
+  /**
+   * Bug 7: Full combat-style attack animation — dim, scale down, lunge, shake, return, undim.
+   */
+  private playHitOnTargetAnimation(
+    source: Phaser.GameObjects.Container,
+    target: Phaser.GameObjects.Container,
+    onComplete: () => void,
+  ): void {
+    // Step 1: Dim everything except source and target
+    this.dimNonParticipants([source, target]);
+    source.setDepth(4500);
+    target.setDepth(4500);
+
+    // Step 2: Scale source down to 1.0 if enlarged (event cards are 1.8x)
+    const sourceOrigScaleX = source.scaleX;
+    const sourceOrigScaleY = source.scaleY;
+    const needsScaleDown = sourceOrigScaleX > 1.05 || sourceOrigScaleY > 1.05;
+
+    const doLunge = () => {
+      const sourceOrigX = source.x;
+      const sourceOrigY = source.y;
+      const attackX = sourceOrigX + (target.x - sourceOrigX) * 0.6;
+      const attackY = sourceOrigY + (target.y - sourceOrigY) * 0.6;
+
+      // Step 3: Lunge source toward target
+      this.tweens.add({
+        targets: source,
+        x: attackX,
+        y: attackY,
+        duration: 250,
+        ease: "Power2",
+        onComplete: () => {
+          // Step 4: Shake target on hit
+          const origTargetX = target.x;
+          this.tweens.add({
+            targets: target,
+            x: origTargetX + 10,
+            duration: 50,
+            yoyo: true,
+            repeat: 3,
+            onComplete: () => {
+              target.x = origTargetX;
+              // Step 5: Return source
+              this.tweens.add({
+                targets: source,
+                x: sourceOrigX,
+                y: sourceOrigY,
+                duration: 250,
+                ease: "Power2",
+                onComplete: () => {
+                  // Step 6: Restore scale if we changed it
+                  if (needsScaleDown) {
+                    this.tweens.add({
+                      targets: source,
+                      scaleX: sourceOrigScaleX,
+                      scaleY: sourceOrigScaleY,
+                      duration: 300,
+                      ease: "Power2",
+                      onComplete: () => {
+                        this.undimAll();
+                        source.setDepth(910);
+                        target.setDepth(10);
+                        onComplete();
+                      },
+                    });
+                  } else {
+                    this.undimAll();
+                    source.setDepth(10);
+                    target.setDepth(10);
+                    onComplete();
+                  }
+                },
+              });
+            },
+          });
+        },
+      });
+    };
+
+    if (needsScaleDown) {
+      this.tweens.add({
+        targets: source,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 300,
+        ease: "Power2",
+        onComplete: doLunge,
+      });
+    } else {
+      doLunge();
+    }
+  }
+
+  /**
+   * Bug 7: Full combat-style attack animation toward an inventory slot.
    */
   private playHitOnSlotAnimation(
-    sourcePos: { x: number; y: number },
+    source: Phaser.GameObjects.Container,
     slotName: string,
     onComplete: () => void,
   ): void {
-    const slotContainer = this.inventoryView.getSlotContainer(slotName);
     const slotPos = this.inventoryView.getSlotWorldPos(slotName);
-    if (!slotContainer || !slotPos) {
+    if (!slotPos) {
       onComplete();
       return;
     }
 
-    // Create a brief projectile that flies from source to slot
-    const projectile = this.add.graphics();
-    projectile.fillStyle(0xff4444, 0.8);
-    projectile.fillCircle(0, 0, 8);
-    projectile.setPosition(sourcePos.x, sourcePos.y);
-    projectile.setDepth(950);
+    // Step 1: Dim everything except source
+    this.dimNonParticipants([source]);
+    source.setDepth(4500);
 
-    this.tweens.add({
-      targets: projectile,
-      x: slotPos.x,
-      y: slotPos.y,
-      duration: 300,
-      ease: "Power2",
-      onComplete: () => {
-        projectile.destroy();
+    // Step 2: Scale source down to 1.0 if enlarged
+    const sourceOrigScaleX = source.scaleX;
+    const sourceOrigScaleY = source.scaleY;
+    const needsScaleDown = sourceOrigScaleX > 1.05 || sourceOrigScaleY > 1.05;
 
-        // Shake the slot
-        const origX = slotContainer.x;
-        this.tweens.add({
-          targets: slotContainer,
-          x: origX + 8,
-          duration: 50,
-          yoyo: true,
-          repeat: 3,
-          onComplete: () => {
-            slotContainer.x = origX;
+    const doLunge = () => {
+      const sourceOrigX = source.x;
+      const sourceOrigY = source.y;
+      const attackX = sourceOrigX + (slotPos.x - sourceOrigX) * 0.6;
+      const attackY = sourceOrigY + (slotPos.y - sourceOrigY) * 0.6;
 
-            // Red flash on slot
-            const flashRect = this.add.graphics();
-            flashRect.fillStyle(0xff0000, 0.4);
-            flashRect.fillRoundedRect(-78, -93, 157, 186, 12);
-            slotContainer.add(flashRect);
-
-            this.tweens.add({
-              targets: flashRect,
-              alpha: 0,
-              duration: 300,
-              onComplete: () => {
-                flashRect.destroy();
+      // Step 3: Lunge source toward slot
+      this.tweens.add({
+        targets: source,
+        x: attackX,
+        y: attackY,
+        duration: 250,
+        ease: "Power2",
+        onComplete: () => {
+          // Step 4: Return source
+          this.tweens.add({
+            targets: source,
+            x: sourceOrigX,
+            y: sourceOrigY,
+            duration: 250,
+            ease: "Power2",
+            onComplete: () => {
+              // Step 5: Restore scale if we changed it
+              if (needsScaleDown) {
+                this.tweens.add({
+                  targets: source,
+                  scaleX: sourceOrigScaleX,
+                  scaleY: sourceOrigScaleY,
+                  duration: 300,
+                  ease: "Power2",
+                  onComplete: () => {
+                    this.undimAll();
+                    source.setDepth(910);
+                    onComplete();
+                  },
+                });
+              } else {
+                this.undimAll();
+                source.setDepth(10);
                 onComplete();
-              },
-            });
-          },
-        });
-      },
-    });
+              }
+            },
+          });
+        },
+      });
+    };
+
+    if (needsScaleDown) {
+      this.tweens.add({
+        targets: source,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 300,
+        ease: "Power2",
+        onComplete: doLunge,
+      });
+    } else {
+      doLunge();
+    }
   }
 
   /**
@@ -2269,7 +2404,7 @@ export class GameScene extends Phaser.Scene {
             this.inventory.equip(overSlot, item);
             // Fire onEquip for the moved item in its new slot (skip for backpack slots)
             const equipAbilities = overSlot.startsWith("backpack") ? [] : this.collectAbilities("onEquip", item);
-            const slotOrigin = this.inventoryView.getSlotWorldPos(def.name);
+            const slotOrigin = this.inventoryView.getSlotWorldPos(overSlot);
             this.fireAbilities(equipAbilities, () => {}, slotOrigin ?? undefined);
           } else if (item.isKey) {
             // Key cards cannot be discarded — snap back
@@ -2279,7 +2414,8 @@ export class GameScene extends Phaser.Scene {
             // Dropped elsewhere — discard
             // Fire onDiscard for the item being discarded
             const discardAbilities = this.collectAbilities("onDiscard", item);
-            this.fireAbilities(discardAbilities, () => {});
+            const discardSlotPos = this.inventoryView.getSlotWorldPos(def.name);
+            this.fireAbilities(discardAbilities, () => {}, discardSlotPos ?? undefined);
             this.inventory.unequip(def.name);
             ghost.destroy();
             this.inventoryView.playDissolveAt(this, world.x, world.y, item);

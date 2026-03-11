@@ -246,7 +246,7 @@ const abilityRegistry: Record<string, AbilityDef> = {
   },
   add_fate_modifier: {
     id: "add_fate_modifier",
-    trigger: "onResolve",
+    trigger: "onDiscard",
     effect: "addFateModifier",
     description: "Adds a modifier to your fate deck",
   },
