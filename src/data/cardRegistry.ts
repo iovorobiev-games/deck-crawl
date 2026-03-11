@@ -54,7 +54,7 @@ export const cardRegistry: Record<string, CardData> = {
   merchant: { id: "merchant", type: CardType.Event, name: "Merchant", value: 0, description: "Trade goods" },
   attack_from_shadows: { id: "attack_from_shadows", type: CardType.Event, name: "Attack from Shadows", value: 1, description: "A hidden blade strikes!", image: "attack_from_shadows", abilities: [{ abilityId: "attack_from_shadows", params: { amount: 1 } }] },
   dark_ritual: { id: "dark_ritual", type: CardType.Event, name: "Dark Ritual", value: 0, description: "Summons a tentacle", image: "dark_ritual", abilities: [{ abilityId: "dark_ritual_summon", params: { cardId: "tentacle", count: 1 } }] },
-  deadly_poisoning: { id: "deadly_poisoning", type: CardType.Event, name: "Deadly Poisoning", value: 1, description: "Poison courses through your veins", image: "poison", abilities: [{ abilityId: "deadly_poison_damage", params: { amount: 1 } }] },
+  deadly_poisoning: { id: "deadly_poisoning", type: CardType.Event, name: "Deadly Poisoning", value: 1, description: "Poison courses through your veins", image: "poison", abilities: [{ abilityId: "deadly_poison_damage", params: { amount: 1, ignoresArmor: 1 } }] },
   weapon_degradation: { id: "weapon_degradation", type: CardType.Event, name: "Weapon Degradation", value: 0, description: "Your weapon dulls", image: "weapon_degradation", abilities: [{ abilityId: "weapon_degrade", params: { amount: 1 } }] },
   altar_of_luck: { id: "altar_of_luck", type: CardType.Treasure, name: "Altar Of Luck", value: 0, description: "Pay 1 gold: +2 fate", image: "altar_of_luck", exchangePrice: { resource: "gold", amount: 1 }, exchangeReward: { type: "fate", modifier: 2 } },
 
