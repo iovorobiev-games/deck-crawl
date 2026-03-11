@@ -655,8 +655,31 @@ export class GameScene extends Phaser.Scene {
         }
         case "reduceWeaponPower": {
           const amount = ability.params.amount as number;
-          this.reduceEquippedWeaponPower(amount);
-          processNext(idx + 1);
+          // Bug 7: Find which weapon slot will be affected and play hit animation
+          const targetSlot = this.findFirstWeaponSlot();
+          if (targetSlot) {
+            this.playHitOnSlotAnimation(
+              card,
+              targetSlot,
+              () => {
+                this.reduceEquippedWeaponPower(amount);
+                processNext(idx + 1);
+              },
+            );
+          } else {
+            this.reduceEquippedWeaponPower(amount);
+            processNext(idx + 1);
+          }
+          break;
+        }
+        case "removeFromDeck": {
+          const removeCardId = ability.params.cardId as string;
+          this.playRemoveFromDeckAnimation(removeCardId, () => processNext(idx + 1));
+          break;
+        }
+        case "addFateModifier": {
+          const mod = ability.params.modifier as number;
+          this.playFlyToFateDeckAnimation({ x: card.x, y: card.y }, mod, () => processNext(idx + 1));
           break;
         }
         case "reduceRandomEnemyPower": {
@@ -673,16 +696,18 @@ export class GameScene extends Phaser.Scene {
           }
           if (monsters.length > 0) {
             const target = monsters[Math.floor(Math.random() * monsters.length)];
-            const newValue = Math.max(0, target.cardData.value - amount);
-            target.updateValue(newValue);
-            if (newValue <= 0) {
-              const deadCell = this.grid.findCard(target);
-              if (deadCell) this.grid.removeCard(deadCell.col, deadCell.row);
-              this.freeGuardedLootIfAny(target);
-              target.resolve(() => processNext(idx + 1));
-            } else {
-              processNext(idx + 1);
-            }
+            this.playHitOnTargetAnimation(card, target, () => {
+              const newValue = Math.max(0, target.cardData.value - amount);
+              target.updateValue(newValue);
+              if (newValue <= 0) {
+                const deadCell = this.grid.findCard(target);
+                if (deadCell) this.grid.removeCard(deadCell.col, deadCell.row);
+                this.freeGuardedLootIfAny(target);
+                target.resolve(() => processNext(idx + 1));
+              } else {
+                processNext(idx + 1);
+              }
+            });
           } else {
             processNext(idx + 1);
           }
@@ -763,28 +788,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private freeGuardedLoot(lootCard: Card, cellPos: { col: number; row: number }): void {
-    // Clear guard links
     this.guardedByMonster.delete(lootCard);
-
-    // Remove all existing listeners from guarded interaction
     lootCard.removeAllListeners();
-
-    const targetPos = this.grid.worldPos(cellPos.col, cellPos.row);
     lootCard.setAlpha(1);
-
-    this.tweens.add({
-      targets: lootCard,
-      x: targetPos.x,
-      y: targetPos.y,
-      duration: 400,
-      ease: "Back.easeOut",
-      onComplete: () => {
-        lootCard.setDepth(0);
-        lootCard.restoreFullHitArea();
-        this.grid.placeCard(cellPos.col, cellPos.row, lootCard);
-        this.setupCardInteraction(lootCard);
-      },
-    });
+    lootCard.setDepth(0);
+    lootCard.restoreFullHitArea();
+    this.grid.placeCard(cellPos.col, cellPos.row, lootCard);
+    this.setupCardInteraction(lootCard);
   }
 
   private isEquippable(card: Card): boolean {
@@ -1144,21 +1154,13 @@ export class GameScene extends Phaser.Scene {
 
       const slotName = this.inventoryView.getSlotAtPoint(world.x, world.y);
 
-      if (slotName && this.inventory.canEquip(slotName, card.cardData)) {
-        // Equip item
-        const previous = this.inventory.equip(slotName, card.cardData);
-        if (previous) {
-          // Fire onDiscard for the displaced item
-          const discardAbilities = this.collectAbilities("onDiscard", previous);
-          this.fireAbilities(discardAbilities, () => {});
-          const slotPos = this.inventoryView.getSlotWorldPos(slotName);
-          if (slotPos) {
-            this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
-          }
-        }
-        // Fire onEquip for the newly equipped card
-        const equipAbilities = this.collectAbilities("onEquip", card.cardData);
-        const cardPos = { x: card.x, y: card.y };
+      if (slotName && this.inventory.canEquip(slotName, card.cardData) && !this.inventory.getItem(slotName)) {
+        // Equip item (only into empty slots — no displacement allowed)
+        this.inventory.equip(slotName, card.cardData);
+        // Fire onEquip for the newly equipped card (skip for backpack slots)
+        const equipAbilities = slotName.startsWith("backpack") ? [] : this.collectAbilities("onEquip", card.cardData);
+        const slotPos = this.inventoryView.getSlotWorldPos(slotName);
+        const cardPos = slotPos ?? { x: card.x, y: card.y };
         card.disableInteractive();
         card.resolve(() => {});
         this.fireAbilities(equipAbilities, () => {
@@ -1246,7 +1248,13 @@ export class GameScene extends Phaser.Scene {
     cardData: CardData,
   ): CardAbility[] {
     if (!cardData.abilities) return [];
-    return cardData.abilities.filter((a) => getAbility(a.abilityId).trigger === trigger);
+    // onEquip abilities fire only once per card
+    if (trigger === "onEquip" && cardData.equipTriggered) return [];
+    const results = cardData.abilities.filter((a) => getAbility(a.abilityId).trigger === trigger);
+    if (trigger === "onEquip" && results.length > 0) {
+      cardData.equipTriggered = true;
+    }
+    return results;
   }
 
   /** Collect abilities matching a trigger from all equipped inventory items. */
@@ -1309,6 +1317,35 @@ export class GameScene extends Phaser.Scene {
             }
           }
         }
+        break;
+      }
+      case "removeFromDeck": {
+        const cardId = current.params.cardId as string;
+        this.playRemoveFromDeckAnimation(cardId, () => {
+          this.fireAbilities(rest, onComplete, sourcePos);
+        });
+        return; // async
+      }
+      case "addFateModifier": {
+        const modifier = current.params.modifier as number;
+        const origin = sourcePos ?? { x: GAME_W / 2, y: GAME_H / 2 };
+        this.playFlyToFateDeckAnimation(origin, modifier, () => {
+          this.fireAbilities(rest, onComplete, sourcePos);
+        });
+        return; // async
+      }
+      case "buffMonsterType": {
+        const monsterId = current.params.monsterId as string;
+        const amount = current.params.amount as number;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const gc = this.grid.getCardAt(c, r);
+            if (gc && gc.cardData.id === monsterId) {
+              gc.updateValue(gc.cardData.value + amount);
+            }
+          }
+        }
+        this.deck.buffCardById(monsterId, amount);
         break;
       }
     }
@@ -1523,6 +1560,17 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Find the first equipped non-key weapon slot name, or null. */
+  private findFirstWeaponSlot(): string | null {
+    for (const slotName of ["weapon1", "weapon2"]) {
+      const item = this.inventory.getItem(slotName);
+      if (item && item.slot === "weapon" && !item.isKey) {
+        return slotName;
+      }
+    }
+    return null;
+  }
+
   private collectOnExploreAbilities(): Array<{ card: Card; ability: CardAbility }> {
     const results: Array<{ card: Card; ability: CardAbility }> = [];
     for (const card of this.grid.getOccupiedCards()) {
@@ -1563,6 +1611,20 @@ export class GameScene extends Phaser.Scene {
           this.executeOnExploreAbilities(rest, onComplete);
         });
         break;
+      case "removeFromDeck": {
+        const removeId = current.ability.params.cardId as string;
+        this.playRemoveFromDeckAnimation(removeId, () => {
+          this.executeOnExploreAbilities(rest, onComplete);
+        });
+        break;
+      }
+      case "addFateModifier": {
+        const mod = current.ability.params.modifier as number;
+        this.playFlyToFateDeckAnimation({ x: current.card.x, y: current.card.y }, mod, () => {
+          this.executeOnExploreAbilities(rest, onComplete);
+        });
+        break;
+      }
       default:
         this.executeOnExploreAbilities(rest, onComplete);
         break;
@@ -1691,6 +1753,373 @@ export class GameScene extends Phaser.Scene {
           }
         },
       });
+    });
+  }
+
+  /**
+   * Bug 4: Generic animation for when an ability removes a card from the dungeon deck.
+   * A temporary card slides out from the deck area, pauses so the player can see it,
+   * then fades away.
+   */
+  private playRemoveFromDeckAnimation(
+    cardId: string,
+    onComplete: () => void,
+  ): void {
+    const removed = this.deck.removeCardById(cardId);
+    if (!removed) {
+      onComplete();
+      return;
+    }
+
+    this.updateDeckVisual();
+    this.updateHUD();
+
+    const deckWorldX = 350;
+    const deckWorldY = 200;
+
+    // Create a temp card at the deck position
+    const tempCard = new Card(this, deckWorldX, deckWorldY, removed);
+    tempCard.setDepth(500);
+    tempCard.setScale(0.5);
+    tempCard.setAlpha(0);
+    tempCard.disableInteractive();
+
+    // Slide card out from deck to the right
+    const targetX = deckWorldX + 200;
+    const targetY = deckWorldY;
+
+    this.tweens.add({
+      targets: tempCard,
+      x: targetX,
+      y: targetY,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      alpha: 1,
+      duration: 400,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        // Hold for ~1 second so the player can see the removed card
+        this.time.delayedCall(1000, () => {
+          // Fade and shrink away
+          this.tweens.add({
+            targets: tempCard,
+            alpha: 0,
+            scaleX: 0,
+            scaleY: 0,
+            duration: 400,
+            ease: "Power2",
+            onComplete: () => {
+              tempCard.destroy();
+              onComplete();
+            },
+          });
+        });
+      },
+    });
+  }
+
+  /**
+   * Dim everything except the given cards — same as enterCombatMode dimming.
+   */
+  private dimNonParticipants(except: Phaser.GameObjects.Container[]): void {
+    const exceptSet = new Set(except);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard && !exceptSet.has(gridCard)) {
+          gridCard.setAlpha(0.3);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(0.3);
+            gridCard.guardedLoot.disableInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(0.3);
+        }
+      }
+    }
+    this.gridBgGraphics.forEach(img => img.setAlpha(0.3));
+    this.deckVisual.forEach(img => img.setAlpha(0.3));
+    this.deckText.setAlpha(0.3);
+    this.goldText.setAlpha(0.3);
+    this.exploreBtn.setAlpha(0.3);
+    this.levelIndicator.setAlpha(0.3);
+    this.levelFlavorText.setAlpha(0.3);
+  }
+
+  /**
+   * Restore everything after dimNonParticipants.
+   */
+  private undimAll(): void {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard) {
+          gridCard.setAlpha(1);
+          if (gridCard.guardedLoot) {
+            gridCard.guardedLoot.setAlpha(1);
+            gridCard.guardedLoot.setDepth(5);
+            gridCard.guardedLoot.setInteractive();
+          }
+          const chestLootInfo = this.chestLoot.get(gridCard);
+          if (chestLootInfo) chestLootInfo.cardBack.setAlpha(1);
+        }
+      }
+    }
+    this.gridBgGraphics.forEach(img => img.setAlpha(1));
+    this.deckVisual.forEach(img => img.setAlpha(1));
+    this.deckText.setAlpha(1);
+    this.goldText.setAlpha(1);
+    this.exploreBtn.setAlpha(1);
+    this.levelIndicator.setAlpha(1);
+    this.levelFlavorText.setAlpha(1);
+  }
+
+  /**
+   * Bug 7: Full combat-style attack animation — dim, scale down, lunge, shake, return, undim.
+   */
+  private playHitOnTargetAnimation(
+    source: Phaser.GameObjects.Container,
+    target: Phaser.GameObjects.Container,
+    onComplete: () => void,
+  ): void {
+    // Step 1: Dim everything except source and target
+    this.dimNonParticipants([source, target]);
+    source.setDepth(4500);
+    target.setDepth(4500);
+
+    // Step 2: Scale source down to 1.0 if enlarged (event cards are 1.8x)
+    const sourceOrigScaleX = source.scaleX;
+    const sourceOrigScaleY = source.scaleY;
+    const needsScaleDown = sourceOrigScaleX > 1.05 || sourceOrigScaleY > 1.05;
+
+    const doLunge = () => {
+      const sourceOrigX = source.x;
+      const sourceOrigY = source.y;
+      const attackX = sourceOrigX + (target.x - sourceOrigX) * 0.6;
+      const attackY = sourceOrigY + (target.y - sourceOrigY) * 0.6;
+
+      // Step 3: Lunge source toward target
+      this.tweens.add({
+        targets: source,
+        x: attackX,
+        y: attackY,
+        duration: 250,
+        ease: "Power2",
+        onComplete: () => {
+          // Step 4: Shake target on hit
+          const origTargetX = target.x;
+          this.tweens.add({
+            targets: target,
+            x: origTargetX + 10,
+            duration: 50,
+            yoyo: true,
+            repeat: 3,
+            onComplete: () => {
+              target.x = origTargetX;
+              // Step 5: Return source
+              this.tweens.add({
+                targets: source,
+                x: sourceOrigX,
+                y: sourceOrigY,
+                duration: 250,
+                ease: "Power2",
+                onComplete: () => {
+                  // Step 6: Restore scale if we changed it
+                  if (needsScaleDown) {
+                    this.tweens.add({
+                      targets: source,
+                      scaleX: sourceOrigScaleX,
+                      scaleY: sourceOrigScaleY,
+                      duration: 300,
+                      ease: "Power2",
+                      onComplete: () => {
+                        this.undimAll();
+                        source.setDepth(910);
+                        target.setDepth(10);
+                        onComplete();
+                      },
+                    });
+                  } else {
+                    this.undimAll();
+                    source.setDepth(10);
+                    target.setDepth(10);
+                    onComplete();
+                  }
+                },
+              });
+            },
+          });
+        },
+      });
+    };
+
+    if (needsScaleDown) {
+      this.tweens.add({
+        targets: source,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 300,
+        ease: "Power2",
+        onComplete: doLunge,
+      });
+    } else {
+      doLunge();
+    }
+  }
+
+  /**
+   * Bug 7: Full combat-style attack animation toward an inventory slot.
+   */
+  private playHitOnSlotAnimation(
+    source: Phaser.GameObjects.Container,
+    slotName: string,
+    onComplete: () => void,
+  ): void {
+    const slotPos = this.inventoryView.getSlotWorldPos(slotName);
+    if (!slotPos) {
+      onComplete();
+      return;
+    }
+
+    // Step 1: Dim everything except source
+    this.dimNonParticipants([source]);
+    source.setDepth(4500);
+
+    // Step 2: Scale source down to 1.0 if enlarged
+    const sourceOrigScaleX = source.scaleX;
+    const sourceOrigScaleY = source.scaleY;
+    const needsScaleDown = sourceOrigScaleX > 1.05 || sourceOrigScaleY > 1.05;
+
+    const doLunge = () => {
+      const sourceOrigX = source.x;
+      const sourceOrigY = source.y;
+      const attackX = sourceOrigX + (slotPos.x - sourceOrigX) * 0.6;
+      const attackY = sourceOrigY + (slotPos.y - sourceOrigY) * 0.6;
+
+      // Step 3: Lunge source toward slot
+      this.tweens.add({
+        targets: source,
+        x: attackX,
+        y: attackY,
+        duration: 250,
+        ease: "Power2",
+        onComplete: () => {
+          // Step 4: Return source
+          this.tweens.add({
+            targets: source,
+            x: sourceOrigX,
+            y: sourceOrigY,
+            duration: 250,
+            ease: "Power2",
+            onComplete: () => {
+              // Step 5: Restore scale if we changed it
+              if (needsScaleDown) {
+                this.tweens.add({
+                  targets: source,
+                  scaleX: sourceOrigScaleX,
+                  scaleY: sourceOrigScaleY,
+                  duration: 300,
+                  ease: "Power2",
+                  onComplete: () => {
+                    this.undimAll();
+                    source.setDepth(910);
+                    onComplete();
+                  },
+                });
+              } else {
+                this.undimAll();
+                source.setDepth(10);
+                onComplete();
+              }
+            },
+          });
+        },
+      });
+    };
+
+    if (needsScaleDown) {
+      this.tweens.add({
+        targets: source,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 300,
+        ease: "Power2",
+        onComplete: doLunge,
+      });
+    } else {
+      doLunge();
+    }
+  }
+
+  /**
+   * Bug 8: Animate a card flying from its grid position to the fate deck area,
+   * used when addFateModifier ability fires.
+   */
+  private playFlyToFateDeckAnimation(
+    sourcePos: { x: number; y: number },
+    modifier: number,
+    onComplete: () => void,
+  ): void {
+    // Add the modifier to the player's fate deck
+    this.player.fateDeck.push(modifier);
+    // Shuffle
+    for (let i = this.player.fateDeck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.player.fateDeck[i], this.player.fateDeck[j]] = [this.player.fateDeck[j], this.player.fateDeck[i]];
+    }
+
+    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+    const fateCardW = 100;
+    const fateCardH = 140;
+
+    // Create a fate card visual at the source position
+    const fateCard = this.add.container(sourcePos.x, sourcePos.y);
+    fateCard.setDepth(920);
+    fateCard.setScale(0.8);
+
+    const fateBg = this.add.graphics();
+    fateBg.fillStyle(0x1a1a2e, 1);
+    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+    fateBg.lineStyle(2, 0x4444aa, 0.8);
+    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
+    fateCard.add(fateBg);
+
+    const modLabel = modifier > 0 ? `+${modifier}` : `${modifier}`;
+    const modColor = modifier > 0 ? "#44dd88" : modifier < 0 ? "#ff5555" : "#888888";
+    const modText = this.add
+      .text(0, 0, modLabel, {
+        fontSize: "40px",
+        fontFamily: "monospace",
+        color: modColor,
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    fateCard.add(modText);
+
+    // Scale up briefly, then fly to fate deck
+    this.tweens.add({
+      targets: fateCard,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 300,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        this.time.delayedCall(400, () => {
+          this.tweens.add({
+            targets: fateCard,
+            x: fateDeckPos.x,
+            y: fateDeckPos.y,
+            scaleX: 0.3,
+            scaleY: 0.3,
+            duration: 600,
+            ease: "Power2",
+            onComplete: () => {
+              fateCard.destroy();
+              onComplete();
+            },
+          });
+        });
+      },
     });
   }
 
@@ -1967,21 +2396,16 @@ export class GameScene extends Phaser.Scene {
             // Dropped back on same slot — cancel
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
-          } else if (overSlot && this.inventory.canEquip(overSlot, item)) {
-            // Dropped on a compatible slot — move item
+          } else if (overSlot && this.inventory.canEquip(overSlot, item) && !this.inventory.getItem(overSlot)) {
+            // Dropped on a compatible empty slot — move item (no displacement allowed)
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             const displaced = this.inventory.unequip(def.name);
-            const previous = this.inventory.equip(overSlot, item);
-            if (previous) {
-              // Fire onDiscard for the displaced item
-              const discardAbilities = this.collectAbilities("onDiscard", previous);
-              this.fireAbilities(discardAbilities, () => {});
-              const slotPos = this.inventoryView.getSlotWorldPos(overSlot);
-              if (slotPos) {
-                this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
-              }
-            }
+            this.inventory.equip(overSlot, item);
+            // Fire onEquip for the moved item in its new slot (skip for backpack slots)
+            const equipAbilities = overSlot.startsWith("backpack") ? [] : this.collectAbilities("onEquip", item);
+            const slotOrigin = this.inventoryView.getSlotWorldPos(overSlot);
+            this.fireAbilities(equipAbilities, () => {}, slotOrigin ?? undefined);
           } else if (item.isKey) {
             // Key cards cannot be discarded — snap back
             ghost.destroy();
@@ -1990,7 +2414,8 @@ export class GameScene extends Phaser.Scene {
             // Dropped elsewhere — discard
             // Fire onDiscard for the item being discarded
             const discardAbilities = this.collectAbilities("onDiscard", item);
-            this.fireAbilities(discardAbilities, () => {});
+            const discardSlotPos = this.inventoryView.getSlotWorldPos(def.name);
+            this.fireAbilities(discardAbilities, () => {}, discardSlotPos ?? undefined);
             this.inventory.unequip(def.name);
             ghost.destroy();
             this.inventoryView.playDissolveAt(this, world.x, world.y, item);
@@ -2005,6 +2430,17 @@ export class GameScene extends Phaser.Scene {
   private resolveCard(card: Card): void {
     const cell = this.grid.findCard(card);
     if (!cell) return;
+
+    // Potions are drag-only, not clickable
+    if (card.cardData.type === CardType.Potion) return;
+
+    // Cards with only onDiscard abilities shouldn't resolve on click
+    if (card.cardData.abilities?.length) {
+      const hasOnlyDiscardAbilities = card.cardData.abilities.every(
+        a => getAbility(a.abilityId).trigger === "onDiscard"
+      );
+      if (hasOnlyDiscardAbilities) return;
+    }
 
     if (card.cardData.type === CardType.Monster) {
       this.enterCombatMode(card);
@@ -2083,21 +2519,42 @@ export class GameScene extends Phaser.Scene {
         });
         break;
       }
-      case "damagePlayer":
-        this.applyDamageWithArmour(current.params.amount as number, () => {
-          this.executeOnResolveAbilities(card, rest, onComplete);
-        });
+      case "damagePlayer": {
+        const amount = current.params.amount as number;
+        const next = () => this.executeOnResolveAbilities(card, rest, onComplete);
+        if (current.params.ignoresArmor) {
+          this.player.takeDamage(amount);
+          this.tweens.add({
+            targets: this.playerView,
+            alpha: 0.3,
+            duration: 80,
+            yoyo: true,
+            repeat: 2,
+            onComplete: () => next(),
+          });
+        } else {
+          this.applyDamageWithArmour(amount, next);
+        }
         break;
+      }
       case "removeDarkEvent": {
         // Remove first card with tag "dark" from deck
         this.deck.removeFirstByTag("dark");
         this.executeOnResolveAbilities(card, rest, onComplete);
         break;
       }
+      case "removeFromDeck": {
+        const cardId = current.params.cardId as string;
+        this.playRemoveFromDeckAnimation(cardId, () => {
+          this.executeOnResolveAbilities(card, rest, onComplete);
+        });
+        break;
+      }
       case "addFateModifier": {
         const modifier = current.params.modifier as number;
-        this.player.fateDeck.push(modifier);
-        this.executeOnResolveAbilities(card, rest, onComplete);
+        this.playFlyToFateDeckAnimation({ x: card.x, y: card.y }, modifier, () => {
+          this.executeOnResolveAbilities(card, rest, onComplete);
+        });
         break;
       }
       case "buffMonsterType": {
@@ -2141,6 +2598,20 @@ export class GameScene extends Phaser.Scene {
         const cardId = current.params.cardId as string;
         const count = current.params.count as number;
         this.playSummonToDeckAnimation(trapCard, cardId, count, () => {
+          this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
+        });
+        break;
+      }
+      case "removeFromDeck": {
+        const cardId = current.params.cardId as string;
+        this.playRemoveFromDeckAnimation(cardId, () => {
+          this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
+        });
+        break;
+      }
+      case "addFateModifier": {
+        const modifier = current.params.modifier as number;
+        this.playFlyToFateDeckAnimation({ x: trapCard.x, y: trapCard.y }, modifier, () => {
           this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
         });
         break;

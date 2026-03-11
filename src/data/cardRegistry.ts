@@ -69,7 +69,7 @@ export const cardRegistry: Record<string, CardData> = {
 
   // --- Treasure - Backpack ---
   quiver: { id: "quiver", type: CardType.Treasure, name: "Quiver", value: 0, description: "Triggers Bow ability (if bow is available)", slot: "backpack", image: "quiver", abilities: [{ abilityId: "quiver_trigger", params: {} }] },
-  phylactery: { id: "phylactery", type: CardType.Treasure, name: "Phylactery", value: 0, description: "Adds +2 Power to necromancer when discarded", image: "phylactery", abilities: [{ abilityId: "buff_monster_type", params: { monsterId: "crypt_lord", amount: 2 } }] },
+  phylactery: { id: "phylactery", type: CardType.Treasure, name: "Phylactery", value: 0, description: "Adds +2 Power to necromancer when discarded", slot: "backpack", image: "phylactery", abilities: [{ abilityId: "buff_monster_type", params: { monsterId: "crypt_lord", amount: 2 } }] },
 
   // --- Consumables ---
   poison_vial: { id: "poison_vial", type: CardType.Treasure, name: "Poison", value: 0, description: "Applies to Weapon. Adds +2 Power for the next Battle", slot: "backpack", image: "poison", abilities: [{ abilityId: "temp_buff_weapon", params: { amount: 2 } }] },
@@ -93,7 +93,7 @@ export const cardRegistry: Record<string, CardData> = {
   merchant: { id: "merchant", type: CardType.Event, name: "Merchant", value: 0, description: "Trade goods" },
   attack_from_shadows: { id: "attack_from_shadows", type: CardType.Event, name: "Attack from Shadows", value: 1, description: "Deals 1 Damage to the player", image: "attack_from_shadows", tag: "dark", abilities: [{ abilityId: "attack_from_shadows", params: { amount: 1 } }] },
   dark_ritual: { id: "dark_ritual", type: CardType.Event, name: "Dark Ritual", value: 0, description: "When Resolved insert Horrendous Tentacle to the dungeon deck", image: "dark_ritual", tag: "dark", abilities: [{ abilityId: "dark_ritual_summon", params: { cardId: "tentacle", count: 1 } }] },
-  deadly_poisoning: { id: "deadly_poisoning", type: CardType.Event, name: "Deadly Poisoning", value: 1, description: "Poison courses through your veins", image: "poison", tag: "dark", abilities: [{ abilityId: "deadly_poison_damage", params: { amount: 1 } }] },
+  deadly_poisoning: { id: "deadly_poisoning", type: CardType.Event, name: "Deadly Poisoning", value: 1, description: "Poison courses through your veins", image: "poison", tag: "dark", abilities: [{ abilityId: "deadly_poison_damage", params: { amount: 1, ignoresArmor: 1 } }] },
   weapon_degradation: { id: "weapon_degradation", type: CardType.Event, name: "Weapon Degradation", value: 0, description: "Reduces power of currently equipped weapon by 1", image: "weapon_degradation", tag: "dark", abilities: [{ abilityId: "weapon_degrade", params: { amount: 1 } }] },
   bow_shot: { id: "bow_shot", type: CardType.Event, name: "Bow Shot", value: 0, description: "Reduces power of a random enemy by 2", image: "bow_shot", abilities: [{ abilityId: "reduce_random_enemy", params: { amount: 2 } }] },
   strong_bow_shot: { id: "strong_bow_shot", type: CardType.Event, name: "Strong Bow Shot", value: 0, description: "Reduces a random enemy's power by 3", image: "bow_shot", abilities: [{ abilityId: "reduce_random_enemy", params: { amount: 3 } }] },
