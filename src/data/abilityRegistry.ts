@@ -24,7 +24,9 @@ export type AbilityEffect =
   | "modifyAgility"
   | "modifyPower"
   | "modifyMonsterPower"
-  | "reduceWeaponPower";
+  | "reduceWeaponPower"
+  | "removeFromDeck"
+  | "addFateModifier";
 
 export interface AbilityDef {
   id: string;
@@ -194,6 +196,18 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "onReveal",
     effect: "reduceWeaponPower",
     description: "Reduces weapon power by 1",
+  },
+  purify_deck: {
+    id: "purify_deck",
+    trigger: "onResolve",
+    effect: "removeFromDeck",
+    description: "Removes a dark card from the deck",
+  },
+  bless_fate: {
+    id: "bless_fate",
+    trigger: "onResolve",
+    effect: "addFateModifier",
+    description: "Adds a +2 fate card to your fate deck",
   },
 };
 

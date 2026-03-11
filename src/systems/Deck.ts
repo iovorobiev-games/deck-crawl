@@ -60,4 +60,11 @@ export class Deck {
   hasCard(id: string): boolean {
     return this.cards.some(c => c.id === id);
   }
+
+  /** Remove the first card matching the given id. Returns the removed CardData or null. */
+  removeCardById(id: string): CardData | null {
+    const idx = this.cards.findIndex(c => c.id === id);
+    if (idx === -1) return null;
+    return this.cards.splice(idx, 1)[0];
+  }
 }

@@ -56,6 +56,8 @@ export const cardRegistry: Record<string, CardData> = {
   dark_ritual: { id: "dark_ritual", type: CardType.Event, name: "Dark Ritual", value: 0, description: "Summons a tentacle", image: "dark_ritual", abilities: [{ abilityId: "dark_ritual_summon", params: { cardId: "tentacle", count: 1 } }] },
   deadly_poisoning: { id: "deadly_poisoning", type: CardType.Event, name: "Deadly Poisoning", value: 1, description: "Poison courses through your veins", image: "poison", abilities: [{ abilityId: "deadly_poison_damage", params: { amount: 1 } }] },
   weapon_degradation: { id: "weapon_degradation", type: CardType.Event, name: "Weapon Degradation", value: 0, description: "Your weapon dulls", image: "weapon_degradation", abilities: [{ abilityId: "weapon_degrade", params: { amount: 1 } }] },
+  scroll_of_blessing: { id: "scroll_of_blessing", type: CardType.Scroll, name: "Scroll of Blessing", value: 0, description: "Adds +2 to your fate deck", image: "scroll_of_fireball", abilities: [{ abilityId: "bless_fate", params: { modifier: 2 } }] },
+  scroll_of_purification: { id: "scroll_of_purification", type: CardType.Scroll, name: "Scroll of Purification", value: 0, description: "Removes a dark card from the deck", image: "scroll_of_fireball", abilities: [{ abilityId: "purify_deck", params: { cardId: "deadly_poisoning" } }] },
   altar_of_luck: { id: "altar_of_luck", type: CardType.Treasure, name: "Altar Of Luck", value: 0, description: "Pay 1 gold: +2 fate", image: "altar_of_luck", exchangePrice: { resource: "gold", amount: 1 }, exchangeReward: { type: "fate", modifier: 2 } },
 
   // --- Chests ---
