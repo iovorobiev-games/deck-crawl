@@ -786,28 +786,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private freeGuardedLoot(lootCard: Card, cellPos: { col: number; row: number }): void {
-    // Clear guard links
     this.guardedByMonster.delete(lootCard);
-
-    // Remove all existing listeners from guarded interaction
     lootCard.removeAllListeners();
-
-    const targetPos = this.grid.worldPos(cellPos.col, cellPos.row);
     lootCard.setAlpha(1);
-
-    this.tweens.add({
-      targets: lootCard,
-      x: targetPos.x,
-      y: targetPos.y,
-      duration: 400,
-      ease: "Back.easeOut",
-      onComplete: () => {
-        lootCard.setDepth(0);
-        lootCard.restoreFullHitArea();
-        this.grid.placeCard(cellPos.col, cellPos.row, lootCard);
-        this.setupCardInteraction(lootCard);
-      },
-    });
+    lootCard.setDepth(0);
+    lootCard.restoreFullHitArea();
+    this.grid.placeCard(cellPos.col, cellPos.row, lootCard);
+    this.setupCardInteraction(lootCard);
   }
 
   private isEquippable(card: Card): boolean {
@@ -2398,11 +2383,24 @@ export class GameScene extends Phaser.Scene {
         });
         break;
       }
-      case "damagePlayer":
-        this.applyDamageWithArmour(current.params.amount as number, () => {
-          this.executeOnResolveAbilities(card, rest, onComplete);
-        });
+      case "damagePlayer": {
+        const amount = current.params.amount as number;
+        const next = () => this.executeOnResolveAbilities(card, rest, onComplete);
+        if (current.params.ignoresArmor) {
+          this.player.takeDamage(amount);
+          this.tweens.add({
+            targets: this.playerView,
+            alpha: 0.3,
+            duration: 80,
+            yoyo: true,
+            repeat: 2,
+            onComplete: () => next(),
+          });
+        } else {
+          this.applyDamageWithArmour(amount, next);
+        }
         break;
+      }
       case "removeDarkEvent": {
         // Remove first card with tag "dark" from deck
         this.deck.removeFirstByTag("dark");
