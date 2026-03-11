@@ -69,7 +69,7 @@ export const cardRegistry: Record<string, CardData> = {
 
   // --- Treasure - Backpack ---
   quiver: { id: "quiver", type: CardType.Treasure, name: "Quiver", value: 0, description: "Triggers Bow ability (if bow is available)", slot: "backpack", image: "quiver", abilities: [{ abilityId: "quiver_trigger", params: {} }] },
-  phylactery: { id: "phylactery", type: CardType.Treasure, name: "Phylactery", value: 0, description: "Adds +2 Power to necromancer when discarded", image: "phylactery", abilities: [{ abilityId: "buff_monster_type", params: { monsterId: "crypt_lord", amount: 2 } }] },
+  phylactery: { id: "phylactery", type: CardType.Treasure, name: "Phylactery", value: 0, description: "Adds +2 Power to necromancer when discarded", slot: "backpack", image: "phylactery", abilities: [{ abilityId: "buff_monster_type", params: { monsterId: "crypt_lord", amount: 2 } }] },
 
   // --- Consumables ---
   poison_vial: { id: "poison_vial", type: CardType.Treasure, name: "Poison", value: 0, description: "Applies to Weapon. Adds +2 Power for the next Battle", slot: "backpack", image: "poison", abilities: [{ abilityId: "temp_buff_weapon", params: { amount: 2 } }] },

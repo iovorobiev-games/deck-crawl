@@ -239,7 +239,7 @@ const abilityRegistry: Record<string, AbilityDef> = {
   },
   remove_dark_event: {
     id: "remove_dark_event",
-    trigger: "onResolve",
+    trigger: "onDiscard",
     effect: "removeDarkEvent",
     description: "Removes a dark event from the deck",
   },
@@ -251,7 +251,7 @@ const abilityRegistry: Record<string, AbilityDef> = {
   },
   buff_monster_type: {
     id: "buff_monster_type",
-    trigger: "onResolve",
+    trigger: "onDiscard",
     effect: "buffMonsterType",
     description: "Strengthens a specific monster type",
   },

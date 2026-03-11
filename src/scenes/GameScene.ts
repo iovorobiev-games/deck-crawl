@@ -1144,18 +1144,9 @@ export class GameScene extends Phaser.Scene {
 
       const slotName = this.inventoryView.getSlotAtPoint(world.x, world.y);
 
-      if (slotName && this.inventory.canEquip(slotName, card.cardData)) {
-        // Equip item
-        const previous = this.inventory.equip(slotName, card.cardData);
-        if (previous) {
-          // Fire onDiscard for the displaced item
-          const discardAbilities = this.collectAbilities("onDiscard", previous);
-          this.fireAbilities(discardAbilities, () => {});
-          const slotPos = this.inventoryView.getSlotWorldPos(slotName);
-          if (slotPos) {
-            this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
-          }
-        }
+      if (slotName && this.inventory.canEquip(slotName, card.cardData) && !this.inventory.getItem(slotName)) {
+        // Equip item (only into empty slots — no displacement allowed)
+        this.inventory.equip(slotName, card.cardData);
         // Fire onEquip for the newly equipped card
         const equipAbilities = this.collectAbilities("onEquip", card.cardData);
         const cardPos = { x: card.x, y: card.y };
@@ -1967,21 +1958,12 @@ export class GameScene extends Phaser.Scene {
             // Dropped back on same slot — cancel
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
-          } else if (overSlot && this.inventory.canEquip(overSlot, item)) {
-            // Dropped on a compatible slot — move item
+          } else if (overSlot && this.inventory.canEquip(overSlot, item) && !this.inventory.getItem(overSlot)) {
+            // Dropped on a compatible empty slot — move item (no displacement allowed)
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             const displaced = this.inventory.unequip(def.name);
-            const previous = this.inventory.equip(overSlot, item);
-            if (previous) {
-              // Fire onDiscard for the displaced item
-              const discardAbilities = this.collectAbilities("onDiscard", previous);
-              this.fireAbilities(discardAbilities, () => {});
-              const slotPos = this.inventoryView.getSlotWorldPos(overSlot);
-              if (slotPos) {
-                this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
-              }
-            }
+            this.inventory.equip(overSlot, item);
           } else if (item.isKey) {
             // Key cards cannot be discarded — snap back
             ghost.destroy();
@@ -2005,6 +1987,17 @@ export class GameScene extends Phaser.Scene {
   private resolveCard(card: Card): void {
     const cell = this.grid.findCard(card);
     if (!cell) return;
+
+    // Potions are drag-only, not clickable
+    if (card.cardData.type === CardType.Potion) return;
+
+    // Cards with only onDiscard abilities shouldn't resolve on click
+    if (card.cardData.abilities?.length) {
+      const hasOnlyDiscardAbilities = card.cardData.abilities.every(
+        a => getAbility(a.abilityId).trigger === "onDiscard"
+      );
+      if (hasOnlyDiscardAbilities) return;
+    }
 
     if (card.cardData.type === CardType.Monster) {
       this.enterCombatMode(card);
