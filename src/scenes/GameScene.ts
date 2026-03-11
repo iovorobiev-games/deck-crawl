@@ -275,6 +275,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (item?.abilities) {
         for (const ab of item.abilities) {
@@ -306,6 +307,7 @@ export class GameScene extends Phaser.Scene {
     }
     // Scan inventory slots
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (item?.abilities) {
         for (const ab of item.abilities) {
@@ -986,8 +988,8 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.playDissolveAt(this, slotPos.x, slotPos.y, previous);
           }
         }
-        // Fire onEquip for the newly equipped card
-        const equipAbilities = this.collectAbilities("onEquip", card.cardData);
+        // Fire onEquip for the newly equipped card (skip for backpack slots)
+        const equipAbilities = slotName.startsWith("backpack") ? [] : this.collectAbilities("onEquip", card.cardData);
         const cardPos = { x: card.x, y: card.y };
         card.disableInteractive();
         card.resolve(() => {});
@@ -1080,6 +1082,7 @@ export class GameScene extends Phaser.Scene {
   private collectEquippedAbilities(trigger: AbilityTrigger): CardAbility[] {
     const results: CardAbility[] = [];
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (!item?.abilities) continue;
       for (const ab of item.abilities) {
@@ -1475,8 +1478,8 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             const displaced = this.inventory.unequip(def.name);
             const previous = this.inventory.equip(overSlot, item);
-            // Fire onEquip for the moved item in its new slot
-            const equipAbilities = this.collectAbilities("onEquip", item);
+            // Fire onEquip for the moved item in its new slot (skip for backpack slots)
+            const equipAbilities = overSlot.startsWith("backpack") ? [] : this.collectAbilities("onEquip", item);
             const slotOrigin = this.inventoryView.getSlotWorldPos(def.name);
             this.fireAbilities(equipAbilities, () => {}, slotOrigin ?? undefined);
             if (previous) {
