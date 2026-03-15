@@ -240,7 +240,7 @@ const abilityRegistry: Record<string, AbilityDef> = {
   },
   remove_dark_event: {
     id: "remove_dark_event",
-    trigger: "onDiscard",
+    trigger: "dragOnPlayerPortrait",
     effect: "removeDarkEvent",
     description: "Removes a dark event from the deck",
   },

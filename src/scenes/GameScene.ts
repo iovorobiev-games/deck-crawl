@@ -1234,6 +1234,14 @@ export class GameScene extends Phaser.Scene {
       case "healPlayer":
         this.player.heal(ability.params.amount as number);
         break;
+      case "removeDarkEvent":
+        card.disableInteractive();
+        card.resolve(() => {
+          this.playRemoveCurseAnimation(() => {
+            this.finishDrag();
+          });
+        });
+        return; // async — handled above
     }
 
     card.disableInteractive();
@@ -1819,6 +1827,63 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Remove the first curse-tagged card from the deck and animate it appearing
+   * near the deck then dissolving.
+   */
+  private playRemoveCurseAnimation(onComplete: () => void): void {
+    const removed = this.deck.removeFirstByTag("curse");
+    if (!removed) {
+      onComplete();
+      return;
+    }
+
+    this.updateDeckVisual();
+    this.updateHUD();
+
+    const deckWorldX = 350;
+    const deckWorldY = 200;
+
+    // Create a temp card at the deck position
+    const tempCard = new Card(this, deckWorldX, deckWorldY, removed);
+    tempCard.setDepth(500);
+    tempCard.setScale(0.5);
+    tempCard.setAlpha(0);
+    tempCard.disableInteractive();
+
+    // Slide card out from deck to the right
+    const targetX = deckWorldX + 200;
+
+    this.tweens.add({
+      targets: tempCard,
+      x: targetX,
+      y: deckWorldY,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      alpha: 1,
+      duration: 400,
+      ease: "Back.easeOut",
+      onComplete: () => {
+        // Hold briefly so the player can see the removed curse
+        this.time.delayedCall(1000, () => {
+          // Fade and shrink away
+          this.tweens.add({
+            targets: tempCard,
+            alpha: 0,
+            scaleX: 0,
+            scaleY: 0,
+            duration: 400,
+            ease: "Power2",
+            onComplete: () => {
+              tempCard.destroy();
+              onComplete();
+            },
+          });
+        });
+      },
+    });
+  }
+
+  /**
    * Dim everything except the given cards — same as enterCombatMode dimming.
    */
   private dimNonParticipants(except: Phaser.GameObjects.Container[]): void {
@@ -2294,14 +2359,20 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.clearAllHighlights();
             this.inventory.unequip(def.name);
             ghost.destroy();
-            // Fire healing
+            // Fire portrait abilities
+            let hasAsyncAbility = false;
             for (const ab of invPortraitAbilities) {
               const aDef = getAbility(ab.abilityId);
               if (aDef.effect === "healPlayer") {
                 this.player.heal(ab.params.amount as number);
+              } else if (aDef.effect === "removeDarkEvent") {
+                hasAsyncAbility = true;
+                this.playRemoveCurseAnimation(() => {});
               }
             }
-            this.fireAbilities(invPortraitAbilities, () => {});
+            if (!hasAsyncAbility) {
+              this.fireAbilities(invPortraitAbilities, () => {});
+            }
             return;
           }
           this.playerView.hideDropHighlight();
@@ -2538,8 +2609,8 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "removeDarkEvent": {
-        // Remove first card with tag "dark" from deck
-        this.deck.removeFirstByTag("dark");
+        // Remove first card with tag "curse" from deck
+        this.deck.removeFirstByTag("curse");
         this.executeOnResolveAbilities(card, rest, onComplete);
         break;
       }
