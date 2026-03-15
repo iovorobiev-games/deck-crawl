@@ -80,7 +80,7 @@ export class GameScene extends Phaser.Scene {
       this.backgroundImage.y = GAME_H / 2 + offsetY;
     });
 
-    this.player = new Player(10);
+    this.player = new Player(6);
     this.grid = new Grid(GAME_W, GAME_H);
 
     this.dungeonLevels = dungeonConfig.levels;
@@ -229,7 +229,7 @@ export class GameScene extends Phaser.Scene {
 
   private initLevel(levelIndex: number): void {
     const level = this.dungeonLevels[levelIndex];
-    this.deck = Deck.fromDungeonLevel(level);
+    this.deck = Deck.fromDungeonLevel(level, levelIndex);
     this.currentLevelKey = getCard(level.key);
   }
 
@@ -260,7 +260,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updatePlayerStats(): void {
-    const newMaxHp = 10 + this.inventory.maxHpBonus;
+    const newMaxHp = 6 + this.inventory.maxHpBonus;
     if (newMaxHp !== this.player.maxHp) {
       const diff = newMaxHp - this.player.maxHp;
       this.player.maxHp = newMaxHp;
@@ -4218,7 +4218,7 @@ export class GameScene extends Phaser.Scene {
         // Animate card-back sprites from door to deck, then remove door
         this.animateCardsToDeck(doorCard.x, doorCard.y, () => {
           // Build next level's cards and merge into current deck
-          const tempDeck = Deck.fromDungeonLevel(nextLevel);
+          const tempDeck = Deck.fromDungeonLevel(nextLevel, this.currentLevelIndex);
           const newCards = tempDeck.draw(tempDeck.remaining);
           this.deck.mergeCards(newCards);
           this.deck.mergeLoot(tempDeck.drainLoot());
