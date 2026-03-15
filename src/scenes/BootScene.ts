@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { SoundManager } from "../systems/SoundManager";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -6,6 +7,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // Sounds
+    SoundManager.preload(this);
     // Background
     this.load.image("background", "sprites/Background.PNG");
 

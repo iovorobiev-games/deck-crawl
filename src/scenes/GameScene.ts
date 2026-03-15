@@ -16,6 +16,7 @@ import { WinScreen } from "../entities/WinScreen";
 import { CRTPostFX } from "../pipelines/CRTPostFX";
 import { VignettePostFX } from "../pipelines/VignettePostFX";
 import { getVfx, VfxTarget } from "../effects/vfxRegistry";
+import { SoundManager, SOUND_KEYS, SOUND_GROUPS } from "../systems/SoundManager";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -68,12 +69,15 @@ export class GameScene extends Phaser.Scene {
   private hoverPreviewCard: Card | null = null;
   private vignetteFX!: VignettePostFX;
   private lastUsedScrollId: string | null = null;
+  private sfx!: SoundManager;
 
   constructor() {
     super({ key: "GameScene" });
   }
 
   create(): void {
+    this.sfx = new SoundManager(this);
+
     this.backgroundImage = this.add.image(GAME_W / 2, GAME_H / 2, "background")
       .setScale(1.05);
 
@@ -617,6 +621,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private placeGridCard(plan: { cardData: CardData; slot: { col: number; row: number }; existingLoot?: Card; generatedLoot?: CardData }): void {
+    this.sfx.playRandom(SOUND_GROUPS.cardDraw);
     const pos = this.grid.worldPos(plan.slot.col, plan.slot.row);
     const deckX = 350;
     const deckY = 200;
@@ -681,6 +686,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private presentEventCard(cardData: CardData, onComplete: () => void): void {
+    this.sfx.playRandom(SOUND_GROUPS.cardDraw);
     this.isResolving = true;
 
     // Dark overlay — starts fully transparent
@@ -832,6 +838,8 @@ export class GameScene extends Phaser.Scene {
             }
           }
           if (monsters.length > 0) {
+            // Bow shot hits enemy
+            this.sfx.play(SOUND_KEYS.bowImpactHit);
             const target = monsters[Math.floor(Math.random() * monsters.length)];
             this.playHitOnTargetAnimation(card, target, () => {
               const newValue = Math.max(0, target.cardData.value - bowDamage);
@@ -851,6 +859,8 @@ export class GameScene extends Phaser.Scene {
               }
             });
           } else {
+            // Bow shot misses — no targets
+            this.sfx.play(SOUND_KEYS.bowBlocked);
             // No monsters on grid — recycle bow shot if passive equipped
             if (canRecycle) {
               this.deck.mergeCards([getCard(card.cardData.id)]);
@@ -881,6 +891,8 @@ export class GameScene extends Phaser.Scene {
       duration: 250,
       ease: "Power2",
       onComplete: () => {
+        // Enemy hits player — sword impact sound
+        this.sfx.play(SOUND_KEYS.swordImpactHit);
         this.applyDamageWithArmour(amount, () => {
           // Return source to original position
           this.tweens.add({
@@ -1309,6 +1321,10 @@ export class GameScene extends Phaser.Scene {
       const slotName = this.inventoryView.getSlotAtPoint(world.x, world.y);
 
       if (slotName && this.inventory.canEquip(slotName, card.cardData) && !this.inventory.getItem(slotName)) {
+        // Key collected — play jingling sound
+        if (card.cardData.isKey) {
+          this.sfx.play(SOUND_KEYS.keysJingling);
+        }
         // Equip item (only into empty slots — no displacement allowed)
         this.inventory.equip(slotName, card.cardData);
         // Fire onEquip for the newly equipped card (skip for backpack slots)
@@ -1397,6 +1413,7 @@ export class GameScene extends Phaser.Scene {
         this.player.heal(ability.params.amount as number);
         break;
       case "removeDarkEvent":
+        this.sfx.play(SOUND_KEYS.vibraphoneMystery);
         card.disableInteractive();
         card.resolve(() => {
           this.playRemoveCurseAnimation(() => {
@@ -1469,6 +1486,10 @@ export class GameScene extends Phaser.Scene {
       case "shuffleIntoDeck": {
         const cardId = current.params.cardId as string;
         const count = current.params.count as number;
+        // Bow adds arrows to deck
+        if (cardId === "bow_shot" || cardId === "strong_bow_shot") {
+          this.sfx.playRandom(SOUND_GROUPS.bowAttack);
+        }
         const origin = sourcePos ?? { x: GAME_W / 2, y: GAME_H / 2 };
         this.playSummonToDeckAnimation(origin, cardId, count, () => {
           this.fireAbilities(rest, onComplete, sourcePos);
@@ -1499,6 +1520,7 @@ export class GameScene extends Phaser.Scene {
         return; // async
       }
       case "addFateModifier": {
+        this.sfx.play(SOUND_KEYS.vibraphoneMystery);
         const modifier = current.params.modifier as number;
         const origin = sourcePos ?? { x: GAME_W / 2, y: GAME_H / 2 };
         this.playFlyToFateDeckAnimation(origin, modifier, () => {
@@ -1541,6 +1563,8 @@ export class GameScene extends Phaser.Scene {
     const applyEffect = () => {
       switch (def.effect) {
         case "reduceTargetMonsterPower": {
+          // Fire bolt sound
+          this.sfx.play(SOUND_KEYS.fireBolt);
           let amount = current.params.amount as number;
           if (this.lastUsedScrollId) {
             amount += this.getScrollDamageBonus();
@@ -1560,6 +1584,8 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "reduceAdjacentMonsterPower": {
+          // Fireball sound
+          this.sfx.play(SOUND_KEYS.fireball);
           let amount = current.params.amount as number;
           if (this.lastUsedScrollId) {
             amount += this.getScrollDamageBonus();
@@ -2788,6 +2814,7 @@ export class GameScene extends Phaser.Scene {
 
     // Gold piles: Treasure cards without a slot grant gold on resolve
     if (card.cardData.type === CardType.Treasure && !card.cardData.slot) {
+      this.sfx.play(SOUND_KEYS.coinsGather);
       this.player.addGold(card.cardData.value);
     }
 
@@ -3186,6 +3213,8 @@ export class GameScene extends Phaser.Scene {
                   duration: 250,
                   ease: "Power2",
                   onComplete: () => {
+                    // Player hits monster — sword attack sound
+                    this.sfx.playRandom(SOUND_GROUPS.swordAttack);
                     // Hit effect: shake monster
                     const newMonsterValue = Math.max(0, monsterCard.cardData.value - modifiedPower);
                     monsterCard.updateValue(newMonsterValue);
@@ -3706,8 +3735,10 @@ export class GameScene extends Phaser.Scene {
                 const success = modifiedAgility >= lockDifficulty;
 
                 if (success) {
+                  this.sfx.play(SOUND_KEYS.chestOpen);
                   this.chestCleanup(chestCard, modifier);
                 } else {
+                  this.sfx.playRandom(SOUND_GROUPS.squelching);
                   const trapDamage = chestCard.cardData.trapDamage ?? 0;
                   if (trapDamage > 0) {
                     this.applyDamageWithArmour(trapDamage, () => {
@@ -4034,6 +4065,7 @@ export class GameScene extends Phaser.Scene {
                 if (success) {
                   this.trapCleanup(trapCard, modifier);
                 } else {
+                  this.sfx.playRandom(SOUND_GROUPS.squelching);
                   const trapDamage = trapCard.cardData.trapDamage ?? 0;
                   const afterDamage = () => {
                     // Fire onTrapTriggered abilities
@@ -4513,6 +4545,9 @@ export class GameScene extends Phaser.Scene {
     doorCard.markDoorOpened();
 
     this.time.delayedCall(600, () => {
+      // Level transition — 4 sequential footstep sounds
+      this.sfx.playRandomSequential(SOUND_GROUPS.stoneWalk, 4, 300);
+
       // Clear all grid cards except the door
       this.clearGrid(() => {
         if (this.currentLevelIndex >= this.dungeonLevels.length - 1) {
