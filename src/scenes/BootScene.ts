@@ -34,6 +34,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image("icon_card_power", "sprites/card_power.PNG");
     this.load.image("icon_shield", "sprites/shield.PNG");
     this.load.image("icon_gold", "sprites/gold.PNG");
+    this.load.image("icon_lock", "sprites/lock.PNG");
 
     // Card background sprites
     this.load.image("bg_monster", "sprites/Monster.PNG");
