@@ -14,6 +14,7 @@ import { getCard } from "../data/cardRegistry";
 import { getAbility, AbilityTrigger, CardAbility } from "../data/abilityRegistry";
 import { WinScreen } from "../entities/WinScreen";
 import { CRTPostFX } from "../pipelines/CRTPostFX";
+import { VignettePostFX } from "../pipelines/VignettePostFX";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -64,6 +65,7 @@ export class GameScene extends Phaser.Scene {
   private tempWeaponBonus = 0;
   private dragTargetMonster: Card | null = null;
   private hoverPreviewCard: Card | null = null;
+  private vignetteFX!: VignettePostFX;
 
   constructor() {
     super({ key: "GameScene" });
@@ -86,6 +88,7 @@ export class GameScene extends Phaser.Scene {
     this.dungeonLevels = dungeonConfig.levels;
     this.currentLevelIndex = 0;
     this.initLevel(0);
+    this.tintBackground();
 
     this.inventory = new Inventory();
 
@@ -110,7 +113,13 @@ export class GameScene extends Phaser.Scene {
 
     const renderer = this.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
     renderer.pipelines.addPostPipeline("CRTPostFX", CRTPostFX);
+    renderer.pipelines.addPostPipeline("VignettePostFX", VignettePostFX);
     this.cameras.main.setPostPipeline(CRTPostFX);
+    this.cameras.main.setPostPipeline(VignettePostFX);
+    this.vignetteFX = this.cameras.main.getPostPipeline(
+      VignettePostFX
+    ) as VignettePostFX;
+    this.vignetteFX.setLevel(this.currentLevelIndex);
   }
 
   private createHUD(): void {
@@ -231,6 +240,16 @@ export class GameScene extends Phaser.Scene {
     const level = this.dungeonLevels[levelIndex];
     this.deck = Deck.fromDungeonLevel(level, levelIndex);
     this.currentLevelKey = getCard(level.key);
+  }
+
+  /** Darken the background image based on current dungeon level. */
+  private tintBackground(): void {
+    // Per-level brightness: 1.0 = full bright, lower = darker
+    const LEVEL_TINT = [1.0, 0.78, 0.55];
+    const brightness = LEVEL_TINT[Math.min(this.currentLevelIndex, LEVEL_TINT.length - 1)];
+    const channel = Math.round(brightness * 255);
+    const tint = (channel << 16) | (channel << 8) | channel;
+    this.backgroundImage.setTint(tint);
   }
 
   private createLevelIndicator(): void {
@@ -4284,6 +4303,8 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.currentLevelIndex++;
+        this.vignetteFX.setLevel(this.currentLevelIndex);
+        this.tintBackground();
         const nextLevel = this.dungeonLevels[this.currentLevelIndex];
 
         // Animate card-back sprites from door to deck, then remove door
