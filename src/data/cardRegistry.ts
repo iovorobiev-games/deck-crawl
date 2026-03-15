@@ -59,12 +59,18 @@ export const cardRegistry: Record<string, CardData> = {
   leather_armour: { id: "leather_armour", type: CardType.Treasure, name: "Leather Armour", value: 1, description: "Cursed: 1 damage on discard", slot: "armour", image: "rusty_cuirass", abilities: [{ abilityId: "discard_damage", params: { amount: 1 } }] },
   chain_mail: { id: "chain_mail", type: CardType.Treasure, name: "Chain Mail", value: 3, description: "", slot: "armour", image: "metal_cuirass" },
   cloak_of_swiftness: { id: "cloak_of_swiftness", type: CardType.Treasure, name: "Cloak of Swiftness", value: 0, description: "+1 agility", slot: "armour", image: "cloak_of_swiftness", agilityBonus: 1 },
+  wizards_robe: { id: "wizards_robe", type: CardType.Treasure, name: "Wizard's Robe", value: 0, description: "+2 damage from scrolls", slot: "armour", image: "mages_robe", abilities: [{ abilityId: "scroll_damage_boost", params: { amount: 2 } }] },
+  marksman_cloak: { id: "marksman_cloak", type: CardType.Treasure, name: "Marksman's Cloak", value: 0, description: "Adds Agility to Bow Shot damage", slot: "armour", image: "cloak_of_swiftness", abilities: [{ abilityId: "bow_agility_damage", params: {} }] },
+  ranger_cape: { id: "ranger_cape", type: CardType.Treasure, name: "Ranger's Cape", value: 0, description: "Bow shots return to the Dungeon Deck if they miss", slot: "armour", image: "cape", abilities: [{ abilityId: "bow_shot_recycle", params: {} }] },
   rusty_armour: { id: "rusty_armour", type: CardType.Treasure, name: "Rusty Armour", value: 0, description: "Adds 1 Max HP", slot: "armour", image: "rusty_cuirass", maxHpBonus: 1 },
   guardsman_armour: { id: "guardsman_armour", type: CardType.Treasure, name: "Guardsman Armour", value: 0, description: "Adds +2 Max HP", slot: "armour", image: "metal_cuirass", maxHpBonus: 2 },
 
   // --- Treasure - Head ---
   iron_helm: { id: "iron_helm", type: CardType.Treasure, name: "Iron Helm", value: 1, description: "Heals 1 HP on kill", slot: "head", abilities: [{ abilityId: "vampiric", params: { amount: 1 } }] },
   crown: { id: "crown", type: CardType.Treasure, name: "Crown", value: 2, description: "Cursed: 1 damage on counterattack", slot: "head", abilities: [{ abilityId: "thorns", params: { amount: 1 } }] },
+  wizard_hat: { id: "wizard_hat", type: CardType.Treasure, name: "Wizard's Hat", value: 0, description: "All scrolls return to the Dungeon Deck after use", slot: "head", image: "wizard_hat", abilities: [{ abilityId: "scroll_recycle", params: {} }] },
+  warrior_helm: { id: "warrior_helm", type: CardType.Treasure, name: "Warrior Helm", value: 0, description: "Melee weapons have +1 power", slot: "head", image: "warrior_helm", abilities: [{ abilityId: "melee_weapon_boost", params: { amount: 1 } }] },
+  marksman_hat: { id: "marksman_hat", type: CardType.Treasure, name: "Marksman's Hat", value: 0, description: "+2 to Bow Shot damage", slot: "head", image: "marksman_hat", abilities: [{ abilityId: "bow_damage_boost", params: { amount: 2 } }] },
 
   // --- Treasure - Backpack ---
   quiver: { id: "quiver", type: CardType.Treasure, name: "Quiver", value: 0, description: "Triggers Bow ability (if bow is available)", slot: "backpack", image: "quiver", abilities: [{ abilityId: "quiver_trigger", params: {} }] },
@@ -75,10 +81,10 @@ export const cardRegistry: Record<string, CardData> = {
   lockpick: { id: "lockpick", type: CardType.Treasure, name: "Lockpick", value: 0, description: "Opens a chest", slot: "backpack", image: "lockpicks", abilities: [{ abilityId: "auto_open_chest", params: {} }] },
 
   // --- Scrolls ---
-  fireball_scroll: { id: "fireball_scroll", type: CardType.Treasure, name: "Scroll of Fireball", value: 0, description: "Reduces Power of Adjacent enemies by 2", slot: "backpack", image: "scroll_of_fireball", abilities: [{ abilityId: "reduce_adjacent_monsters", params: { amount: 2, vfx: "fireball" } }] },
-  scroll_of_fire_bolt: { id: "scroll_of_fire_bolt", type: CardType.Treasure, name: "Scroll of Fire Bolt", value: 0, description: "Reduces Enemy Power By 2", slot: "backpack", image: "scroll_of_firebolt", abilities: [{ abilityId: "reduce_target_monster", params: { amount: 2, vfx: "fireball" } }] },
-  scroll_of_cleansing: { id: "scroll_of_cleansing", type: CardType.Treasure, name: "Scroll of Cleansing", value: 0, description: "On Discard: Removes top Curse from the deck", slot: "backpack", image: "scroll_of_cleansing", abilities: [{ abilityId: "remove_dark_event", params: {} }] },
-  scroll_of_blessing: { id: "scroll_of_blessing", type: CardType.Treasure, name: "Scroll of Blessing", value: 0, description: "On Discard: Adds +2 card to your fate deck", slot: "backpack", image: "scroll_of_blessing", abilities: [{ abilityId: "add_fate_modifier", params: { modifier: 2 } }] },
+  fireball_scroll: { id: "fireball_scroll", type: CardType.Treasure, name: "Scroll of Fireball", value: 0, description: "Reduces Power of Adjacent enemies by 2", slot: "backpack", image: "scroll_of_fireball", tag: "scroll", abilities: [{ abilityId: "reduce_adjacent_monsters", params: { amount: 2, vfx: "fireball" } }] },
+  scroll_of_fire_bolt: { id: "scroll_of_fire_bolt", type: CardType.Treasure, name: "Scroll of Fire Bolt", value: 0, description: "Reduces Enemy Power By 2", slot: "backpack", image: "scroll_of_firebolt", tag: "scroll", abilities: [{ abilityId: "reduce_target_monster", params: { amount: 2, vfx: "fireball" } }] },
+  scroll_of_cleansing: { id: "scroll_of_cleansing", type: CardType.Treasure, name: "Scroll of Cleansing", value: 0, description: "On Discard: Removes top Curse from the deck", slot: "backpack", image: "scroll_of_cleansing", tag: "scroll", abilities: [{ abilityId: "remove_dark_event", params: {} }] },
+  scroll_of_blessing: { id: "scroll_of_blessing", type: CardType.Treasure, name: "Scroll of Blessing", value: 0, description: "On Discard: Adds +2 card to your fate deck", slot: "backpack", image: "scroll_of_blessing", tag: "scroll", abilities: [{ abilityId: "add_fate_modifier", params: { modifier: 2 } }] },
 
   // --- Other tools ---
   disarm_kit: { id: "disarm_kit", type: CardType.Potion, name: "Disarming Kit", value: 0, description: "Disarms traps", slot: "backpack", image: "disarming_kit", abilities: [{ abilityId: "disarm_tool", params: { amount: 1 } }] },

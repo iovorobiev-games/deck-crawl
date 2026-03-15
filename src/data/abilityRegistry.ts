@@ -37,7 +37,13 @@ export type AbilityEffect =
   | "buffMonsterType"
   | "returnSelfConditional"
   | "bonusCounterDamage"
-  | "triggerBowAbility";
+  | "triggerBowAbility"
+  | "boostMeleeWeaponPower"
+  | "boostScrollDamage"
+  | "recycleScrolls"
+  | "boostBowDamage"
+  | "addAgilityToBowDamage"
+  | "recycleBowShots";
 
 export interface AbilityDef {
   id: string;
@@ -285,6 +291,42 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "onResolve",
     effect: "addFateModifier",
     description: "Adds a +2 fate card to your fate deck",
+  },
+  melee_weapon_boost: {
+    id: "melee_weapon_boost",
+    trigger: "passive",
+    effect: "boostMeleeWeaponPower",
+    description: "Melee weapons have +1 power",
+  },
+  scroll_damage_boost: {
+    id: "scroll_damage_boost",
+    trigger: "passive",
+    effect: "boostScrollDamage",
+    description: "+2 damage from scrolls",
+  },
+  scroll_recycle: {
+    id: "scroll_recycle",
+    trigger: "passive",
+    effect: "recycleScrolls",
+    description: "All scrolls return to the Dungeon Deck after use",
+  },
+  bow_damage_boost: {
+    id: "bow_damage_boost",
+    trigger: "passive",
+    effect: "boostBowDamage",
+    description: "+2 to Bow Shot damage",
+  },
+  bow_agility_damage: {
+    id: "bow_agility_damage",
+    trigger: "passive",
+    effect: "addAgilityToBowDamage",
+    description: "Adds Agility to Bow Shot damage",
+  },
+  bow_shot_recycle: {
+    id: "bow_shot_recycle",
+    trigger: "passive",
+    effect: "recycleBowShots",
+    description: "Bow shots return to the Dungeon Deck if target survives",
   },
 };
 

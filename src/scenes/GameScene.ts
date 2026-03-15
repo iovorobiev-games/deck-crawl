@@ -67,6 +67,7 @@ export class GameScene extends Phaser.Scene {
   private dragTargetMonster: Card | null = null;
   private hoverPreviewCard: Card | null = null;
   private vignetteFX!: VignettePostFX;
+  private lastUsedScrollId: string | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -326,6 +327,32 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+    // Check for melee weapon boost from equipped items (e.g., Warrior Helm)
+    let meleeBoostAmount = 0;
+    for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
+      const item = this.inventory.getItem(slotDef.name);
+      if (item?.abilities) {
+        for (const ab of item.abilities) {
+          const def = getAbility(ab.abilityId);
+          if (def.trigger === "passive" && def.effect === "boostMeleeWeaponPower") {
+            meleeBoostAmount += Number(ab.params.amount ?? 0);
+          }
+        }
+      }
+    }
+    if (meleeBoostAmount > 0) {
+      // Count melee weapons in weapon slots
+      for (const slotDef of SLOT_DEFS) {
+        if (!slotDef.accepted.includes("weapon" as any)) continue;
+        const weapon = this.inventory.getItem(slotDef.name);
+        if (!weapon || weapon.isKey || weapon.tag === "bow") continue;
+        // Check if it's a pure shield (has absorbDamage ability and value is 0)
+        const hasArmour = weapon.abilities?.some(a => getAbility(a.abilityId).effect === "absorbDamage") ?? false;
+        if (hasArmour && weapon.value === 0) continue;
+        total += meleeBoostAmount;
+      }
+    }
     return total;
   }
 
@@ -359,6 +386,33 @@ export class GameScene extends Phaser.Scene {
       }
     }
     return total;
+  }
+
+  private getEquippedPassiveAmount(effect: string): number {
+    let total = 0;
+    for (const slotDef of SLOT_DEFS) {
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        const def = getAbility(ab.abilityId);
+        if (def.trigger === "passive" && def.effect === effect) {
+          total += (ab.params.amount as number) || 0;
+        }
+      }
+    }
+    return total;
+  }
+
+  private hasEquippedPassive(effect: string): boolean {
+    for (const slotDef of SLOT_DEFS) {
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        const def = getAbility(ab.abilityId);
+        if (def.trigger === "passive" && def.effect === effect) return true;
+      }
+    }
+    return false;
   }
 
   private getMonsterPowerBuff(): number {
@@ -703,7 +757,13 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "reduceRandomEnemyPower": {
-          const amount = ability.params.amount as number;
+          let bowDamage = ability.params.amount as number;
+          // Apply bow passive bonuses from equipped items
+          bowDamage += this.getEquippedPassiveAmount("boostBowDamage");
+          if (this.hasEquippedPassive("addAgilityToBowDamage")) {
+            bowDamage += this.player.agility + this.getPassiveAgilityModifier() + this.inventory.agilityBonus;
+          }
+          const canRecycle = this.hasEquippedPassive("recycleBowShots");
           // Find all monsters on the grid
           const monsters: Card[] = [];
           for (let r = 0; r < ROWS; r++) {
@@ -717,7 +777,7 @@ export class GameScene extends Phaser.Scene {
           if (monsters.length > 0) {
             const target = monsters[Math.floor(Math.random() * monsters.length)];
             this.playHitOnTargetAnimation(card, target, () => {
-              const newValue = Math.max(0, target.cardData.value - amount);
+              const newValue = Math.max(0, target.cardData.value - bowDamage);
               target.updateValue(newValue);
               if (newValue <= 0) {
                 const deadCell = this.grid.findCard(target);
@@ -725,10 +785,20 @@ export class GameScene extends Phaser.Scene {
                 this.freeGuardedLootIfAny(target);
                 target.resolve(() => processNext(idx + 1));
               } else {
+                // Target survived — recycle bow shot if passive equipped
+                if (canRecycle) {
+                  this.deck.mergeCards([getCard(card.cardData.id)]);
+                  this.updateDeckVisual();
+                }
                 processNext(idx + 1);
               }
             });
           } else {
+            // No monsters on grid — recycle bow shot if passive equipped
+            if (canRecycle) {
+              this.deck.mergeCards([getCard(card.cardData.id)]);
+              this.updateDeckVisual();
+            }
             processNext(idx + 1);
           }
           break;
@@ -1093,8 +1163,15 @@ export class GameScene extends Phaser.Scene {
         if (monsterTarget) {
           this.inventoryView.clearAllHighlights();
           this.dragTargetMonster = monsterTarget;
+          this.lastUsedScrollId = card.cardData.tag === "scroll" ? card.cardData.id : null;
           this.fireDragOnMonsterAbilities(dragOnMonsterAbilities, monsterTarget, () => {
             this.dragTargetMonster = null;
+            // Recycle scroll if Wizard's Hat equipped
+            if (this.lastUsedScrollId && this.hasScrollRecycle()) {
+              this.deck.mergeCards([getCard(this.lastUsedScrollId)]);
+              this.updateDeckVisual();
+            }
+            this.lastUsedScrollId = null;
           });
           card.disableInteractive();
           card.resolve(() => { this.finishDrag(); });
@@ -1244,10 +1321,18 @@ export class GameScene extends Phaser.Scene {
 
   private executeAbility(card: Card): void {
     const ability = card.cardData.abilities?.find((a) => {
-      const def = getAbility(a.abilityId);
-      return def.trigger === "dragOnPlayerPortrait";
+      const aDef = getAbility(a.abilityId);
+      return aDef.trigger === "dragOnPlayerPortrait";
     });
     if (!ability) return;
+
+    const scrollId = card.cardData.tag === "scroll" ? card.cardData.id : null;
+    const recycleAfterUse = () => {
+      if (scrollId && this.hasScrollRecycle()) {
+        this.deck.mergeCards([getCard(scrollId)]);
+        this.updateDeckVisual();
+      }
+    };
 
     const def = getAbility(ability.abilityId);
     switch (def.effect) {
@@ -1258,6 +1343,7 @@ export class GameScene extends Phaser.Scene {
         card.disableInteractive();
         card.resolve(() => {
           this.playRemoveCurseAnimation(() => {
+            recycleAfterUse();
             this.finishDrag();
           });
         });
@@ -1266,6 +1352,7 @@ export class GameScene extends Phaser.Scene {
 
     card.disableInteractive();
     card.resolve(() => {
+      recycleAfterUse();
       this.finishDrag();
     });
   }
@@ -1397,7 +1484,10 @@ export class GameScene extends Phaser.Scene {
     const applyEffect = () => {
       switch (def.effect) {
         case "reduceTargetMonsterPower": {
-          const amount = current.params.amount as number;
+          let amount = current.params.amount as number;
+          if (this.lastUsedScrollId) {
+            amount += this.getScrollDamageBonus();
+          }
           const newValue = Math.max(0, target.cardData.value - amount);
           target.updateValue(newValue);
           if (newValue <= 0) {
@@ -1413,7 +1503,10 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "reduceAdjacentMonsterPower": {
-          const amount = current.params.amount as number;
+          let amount = current.params.amount as number;
+          if (this.lastUsedScrollId) {
+            amount += this.getScrollDamageBonus();
+          }
           // Reduce target
           const newValue = Math.max(0, target.cardData.value - amount);
           target.updateValue(newValue);
@@ -1459,6 +1552,33 @@ export class GameScene extends Phaser.Scene {
     } else {
       applyEffect();
     }
+  }
+
+  private getScrollDamageBonus(): number {
+    let total = 0;
+    for (const slotDef of SLOT_DEFS) {
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        const aDef = getAbility(ab.abilityId);
+        if (aDef.trigger === "passive" && aDef.effect === "boostScrollDamage") {
+          total += (ab.params.amount as number) || 0;
+        }
+      }
+    }
+    return total;
+  }
+
+  private hasScrollRecycle(): boolean {
+    for (const slotDef of SLOT_DEFS) {
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        const aDef = getAbility(ab.abilityId);
+        if (aDef.trigger === "passive" && aDef.effect === "recycleScrolls") return true;
+      }
+    }
+    return false;
   }
 
   private resolveDeadMonsters(monsters: Card[], onComplete: () => void): void {
@@ -2400,6 +2520,7 @@ export class GameScene extends Phaser.Scene {
           if (invPortraitAbilities.length > 0 && this.playerView.isPointOver(world.x, world.y)) {
             this.playerView.hideDropHighlight();
             this.inventoryView.clearAllHighlights();
+            const scrollId = item.tag === "scroll" ? item.id : null;
             this.inventory.unequip(def.name);
             ghost.destroy();
             // Fire portrait abilities
@@ -2415,6 +2536,11 @@ export class GameScene extends Phaser.Scene {
             }
             if (!hasAsyncAbility) {
               this.fireAbilities(invPortraitAbilities, () => {});
+            }
+            // Recycle scroll if Wizard's Hat equipped
+            if (scrollId && this.hasScrollRecycle()) {
+              this.deck.mergeCards([getCard(scrollId)]);
+              this.updateDeckVisual();
             }
             return;
           }
@@ -2446,8 +2572,15 @@ export class GameScene extends Phaser.Scene {
               this.inventory.unequip(def.name);
               ghost.destroy();
               this.dragTargetMonster = monsterTarget;
+              this.lastUsedScrollId = item.tag === "scroll" ? item.id : null;
               this.fireDragOnMonsterAbilities(invMonsterAbilities, monsterTarget, () => {
                 this.dragTargetMonster = null;
+                // Recycle scroll if Wizard's Hat equipped
+                if (this.lastUsedScrollId && this.hasScrollRecycle()) {
+                  this.deck.mergeCards([getCard(this.lastUsedScrollId)]);
+                  this.updateDeckVisual();
+                }
+                this.lastUsedScrollId = null;
               });
               return;
             }
@@ -2530,6 +2663,11 @@ export class GameScene extends Phaser.Scene {
             const discardAbilities = this.collectAbilities("onDiscard", item);
             const discardSlotPos = this.inventoryView.getSlotWorldPos(def.name);
             this.fireAbilities(discardAbilities, () => {}, discardSlotPos ?? undefined);
+            // Recycle scroll if Wizard's Hat equipped
+            if (item.tag === "scroll" && discardAbilities.length > 0 && this.hasScrollRecycle()) {
+              this.deck.mergeCards([getCard(item.id)]);
+              this.updateDeckVisual();
+            }
             this.inventory.unequip(def.name);
             ghost.destroy();
             this.inventoryView.playDissolveAt(this, world.x, world.y, item);
