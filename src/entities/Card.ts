@@ -28,6 +28,8 @@ export class Card extends Phaser.GameObjects.Container {
   private powerValueText: Phaser.GameObjects.Text | null = null;
   private shieldIcon: Phaser.GameObjects.Image | null = null;
   private shieldValueText: Phaser.GameObjects.Text | null = null;
+  private lockIcon: Phaser.GameObjects.Image | null = null;
+  private lockValueText: Phaser.GameObjects.Text | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, data: CardData) {
     super(scene, x, y);
@@ -123,6 +125,21 @@ export class Card extends Phaser.GameObjects.Container {
       }).setOrigin(0.5);
       this.add(this.shieldValueText);
     }
+
+    // Lock icon — bottom-right corner of card (for cards with lockDifficulty)
+    if (d.lockDifficulty != null) {
+      const iconX = CARD_W / 2 - 9;
+      const iconY = CARD_H / 2 - 16;
+      this.lockIcon = this.scene.add.image(iconX, iconY, "icon_lock");
+      this.add(this.lockIcon);
+      this.lockValueText = this.scene.add.text(iconX, iconY + 4, `${d.lockDifficulty}`, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: "#240a0e",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.add(this.lockValueText);
+    }
   }
 
   private buildDescriptionText(): string {
@@ -131,16 +148,10 @@ export class Card extends Phaser.GameObjects.Container {
     switch (d.type) {
       case CardType.Monster:
         return "";
-      case CardType.Chest: {
-        let text = `Lock: ${d.lockDifficulty ?? 0}`;
-        if (d.trapDamage) text += `\nTrap: -${d.trapDamage} HP`;
-        return text;
-      }
-      case CardType.Trap: {
-        let text = `Difficulty: ${d.lockDifficulty ?? 0}`;
-        if (d.trapDamage) text += `\nDamage: ${d.trapDamage}`;
-        return text;
-      }
+      case CardType.Chest:
+        return d.trapDamage ? `Trap: -${d.trapDamage} HP` : "";
+      case CardType.Trap:
+        return d.trapDamage ? `Damage: ${d.trapDamage}` : "";
       case CardType.Door:
         return "Locked";
       default:

@@ -31,10 +31,10 @@ export const cardRegistry: Record<string, CardData> = {
   spike_trap: { id: "spike_trap", type: CardType.Trap, name: "Spike Trap", value: 2, description: "Deals 2 damage", lockDifficulty: 2, trapDamage: 2, image: "bear_trap" },
   spike_trap_heavy: { id: "spike_trap_heavy", type: CardType.Trap, name: "Spike Trap", value: 4, description: "Deals 4 damage", lockDifficulty: 3, trapDamage: 4, image: "pressure_plate" },
   poison_gas: { id: "poison_gas", type: CardType.Trap, name: "Poison Gas", value: 3, description: "Deals 3 damage", lockDifficulty: 3, trapDamage: 3, image: "poison_dart_trap" },
-  poison_dart_trap: { id: "poison_dart_trap", type: CardType.Trap, name: "Poison Dart Trap", value: 0, description: "Blocks Explore. Difficulty 3.\nAdds Poisoning card into the Dungeon Deck", lockDifficulty: 3, trapDamage: 0, image: "poison_dart_trap", abilities: [{ abilityId: "poison_trap_insert", params: { cardId: "deadly_poisoning", count: 2 } }] },
-  pressure_plate: { id: "pressure_plate", type: CardType.Trap, name: "Pressure Plate", value: 0, description: "Blocks Explore. 2 Difficulty, 1 Damage", lockDifficulty: 2, trapDamage: 1, image: "pressure_plate" },
-  bear_trap: { id: "bear_trap", type: CardType.Trap, name: "Bear Trap", value: 0, description: "Blocks Explore. 2 Difficulty, 2 Damage", lockDifficulty: 2, trapDamage: 2, image: "bear_trap" },
-  hidden_pit: { id: "hidden_pit", type: CardType.Trap, name: "Hidden Pit", value: 0, description: "Blocks Explore. 3 Difficulty, 1 Damage", lockDifficulty: 3, trapDamage: 1, image: "hidden_pit" },
+  poison_dart_trap: { id: "poison_dart_trap", type: CardType.Trap, name: "Poison Dart Trap", value: 0, description: "Blocks Explore.\nAdds Poisoning card into the Dungeon Deck", lockDifficulty: 3, trapDamage: 0, image: "poison_dart_trap", abilities: [{ abilityId: "poison_trap_insert", params: { cardId: "deadly_poisoning", count: 2 } }] },
+  pressure_plate: { id: "pressure_plate", type: CardType.Trap, name: "Pressure Plate", value: 0, description: "Blocks Explore.\nDamage: 1", lockDifficulty: 2, trapDamage: 1, image: "pressure_plate" },
+  bear_trap: { id: "bear_trap", type: CardType.Trap, name: "Bear Trap", value: 0, description: "Blocks Explore.\nDamage: 2", lockDifficulty: 2, trapDamage: 2, image: "bear_trap" },
+  hidden_pit: { id: "hidden_pit", type: CardType.Trap, name: "Hidden Pit", value: 0, description: "Blocks Explore.\nDamage: 1", lockDifficulty: 3, trapDamage: 1, image: "hidden_pit" },
 
   // --- Gold ---
   gold_pile_small: { id: "gold_pile_small", type: CardType.Treasure, name: "Pile of Gold", value: 2, description: "2 Gold Coins", image: "pile_of_gold" },
@@ -97,13 +97,13 @@ export const cardRegistry: Record<string, CardData> = {
   altar_of_luck: { id: "altar_of_luck", type: CardType.Treasure, name: "Altar Of Luck", value: 0, description: "Adds +2 card into your fate deck for 1 Gold donation", image: "altar_of_luck", exchangePrice: { resource: "gold", amount: 1 }, exchangeReward: { type: "fate", modifier: 2 } },
 
   // --- Chests ---
-  wooden_chest: { id: "wooden_chest", type: CardType.Chest, name: "Wooden Chest", value: 0, description: "2 Difficulty, 2 Trap damage", lockDifficulty: 2, trapDamage: 2, image: "wooden_chest" },
-  iron_chest: { id: "iron_chest", type: CardType.Chest, name: "Iron Chest", value: 0, description: "A sturdy iron chest", lockDifficulty: 4, trapDamage: 3, image: "hardened_chest" },
-  iron_chest_heavy: { id: "iron_chest_heavy", type: CardType.Chest, name: "Iron Chest", value: 0, description: "A sturdy iron chest", lockDifficulty: 5, trapDamage: 4, image: "posh_chest" },
-  ominous_chest: { id: "ominous_chest", type: CardType.Chest, name: "Ominous Chest", value: 0, description: "2 Difficulty, 4 Trap Damage", lockDifficulty: 2, trapDamage: 4, image: "ominuous_chest" },
-  rusty_chest: { id: "rusty_chest", type: CardType.Chest, name: "Rusty Chest", value: 0, description: "1 Difficulty, 3 Trap Damage", lockDifficulty: 1, trapDamage: 3, image: "strong_chest" },
-  trapped_chest: { id: "trapped_chest", type: CardType.Chest, name: "Trapped Chest", value: 0, description: "2 Difficulty, 3 Trap Damage", lockDifficulty: 2, trapDamage: 3, image: "posh_chest" },
-  hardened_chest: { id: "hardened_chest", type: CardType.Chest, name: "Hardened Chest", value: 0, description: "3 Difficulty, 1 Trap Damage", lockDifficulty: 3, trapDamage: 1, image: "hardened_chest" },
+  wooden_chest: { id: "wooden_chest", type: CardType.Chest, name: "Wooden Chest", value: 0, description: "Trap: -2 HP", lockDifficulty: 2, trapDamage: 2, image: "wooden_chest" },
+  iron_chest: { id: "iron_chest", type: CardType.Chest, name: "Iron Chest", value: 0, description: "Trap: -3 HP", lockDifficulty: 4, trapDamage: 3, image: "hardened_chest" },
+  iron_chest_heavy: { id: "iron_chest_heavy", type: CardType.Chest, name: "Iron Chest", value: 0, description: "Trap: -4 HP", lockDifficulty: 5, trapDamage: 4, image: "posh_chest" },
+  ominous_chest: { id: "ominous_chest", type: CardType.Chest, name: "Ominous Chest", value: 0, description: "Trap: -4 HP", lockDifficulty: 2, trapDamage: 4, image: "ominuous_chest" },
+  rusty_chest: { id: "rusty_chest", type: CardType.Chest, name: "Rusty Chest", value: 0, description: "Trap: -3 HP", lockDifficulty: 1, trapDamage: 3, image: "strong_chest" },
+  trapped_chest: { id: "trapped_chest", type: CardType.Chest, name: "Trapped Chest", value: 0, description: "Trap: -3 HP", lockDifficulty: 2, trapDamage: 3, image: "posh_chest" },
+  hardened_chest: { id: "hardened_chest", type: CardType.Chest, name: "Hardened Chest", value: 0, description: "Trap: -1 HP", lockDifficulty: 3, trapDamage: 1, image: "hardened_chest" },
 
   // --- Keys ---
   rusty_key: { id: "rusty_key", type: CardType.Treasure, name: "Rusty Key", value: 1, description: "Opens The Dungeon Door", slot: "weapon", isKey: true, deckLevel: 1, image: "rusty_key" },
