@@ -180,8 +180,8 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.powerText.setText(`${value}`);
   }
 
-  restorePower(player: Player, equipPowerBonus = 0): void {
-    this.updateStats(player, equipPowerBonus);
+  restorePower(player: Player, equipPowerBonus = 0, agilityModifier = 0, powerModifier = 0): void {
+    this.updateStats(player, equipPowerBonus, agilityModifier, powerModifier);
   }
 
   showTempAgility(value: number): void {

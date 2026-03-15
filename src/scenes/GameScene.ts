@@ -67,6 +67,7 @@ export class GameScene extends Phaser.Scene {
   private dragTargetMonster: Card | null = null;
   private hoverPreviewCard: Card | null = null;
   private vignetteFX!: VignettePostFX;
+  private lastUsedScrollId: string | null = null;
 
   constructor() {
     super({ key: "GameScene" });
@@ -297,6 +298,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier() + this.tempWeaponBonus);
     this.updateMonsterBuffIndicators();
+    this.refreshWeaponSlotBonuses();
+    this.refreshBowShotDisplays();
   }
 
   private getPassivePowerModifier(): number {
@@ -324,6 +327,31 @@ export class GameScene extends Phaser.Scene {
             total += Number(ab.params.amount ?? 0);
           }
         }
+      }
+    }
+    // Check for melee weapon boost from equipped items (e.g., Warrior Helm)
+    let meleeBoostAmount = 0;
+    for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
+      const item = this.inventory.getItem(slotDef.name);
+      if (item?.abilities) {
+        for (const ab of item.abilities) {
+          const def = getAbility(ab.abilityId);
+          if (def.trigger === "passive" && def.effect === "boostMeleeWeaponPower") {
+            meleeBoostAmount += Number(ab.params.amount ?? 0);
+          }
+        }
+      }
+    }
+    if (meleeBoostAmount > 0) {
+      // Count melee weapons in weapon slots only (not backpack)
+      for (const slotName of ["weapon1", "weapon2"]) {
+        const weapon = this.inventory.getItem(slotName);
+        if (!weapon || weapon.isKey || weapon.tag === "bow") continue;
+        // Check if it's a pure shield (has absorbDamage ability and value is 0)
+        const hasArmour = weapon.abilities?.some(a => getAbility(a.abilityId).effect === "absorbDamage") ?? false;
+        if (hasArmour && weapon.value === 0) continue;
+        total += meleeBoostAmount;
       }
     }
     return total;
@@ -359,6 +387,86 @@ export class GameScene extends Phaser.Scene {
       }
     }
     return total;
+  }
+
+  private getEquippedPassiveAmount(effect: string): number {
+    let total = 0;
+    for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        const def = getAbility(ab.abilityId);
+        if (def.trigger === "passive" && def.effect === effect) {
+          total += (ab.params.amount as number) || 0;
+        }
+      }
+    }
+    return total;
+  }
+
+  private hasEquippedPassive(effect: string): boolean {
+    for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        const def = getAbility(ab.abilityId);
+        if (def.trigger === "passive" && def.effect === effect) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Refresh weapon inventory slots to show melee boost from Warrior Helm. */
+  private refreshWeaponSlotBonuses(): void {
+    const meleeBoost = this.getEquippedPassiveAmount("boostMeleeWeaponPower");
+    for (const slotName of ["weapon1", "weapon2"]) {
+      const weapon = this.inventory.getItem(slotName);
+      if (!weapon || weapon.isKey || weapon.tag === "bow") {
+        this.inventoryView.refreshSlot(slotName, 0);
+        continue;
+      }
+      const hasArmour = weapon.abilities?.some(a => getAbility(a.abilityId).effect === "absorbDamage") ?? false;
+      if (hasArmour && weapon.value === 0) {
+        this.inventoryView.refreshSlot(slotName, 0);
+        continue;
+      }
+      this.inventoryView.refreshSlot(slotName, meleeBoost);
+    }
+  }
+
+  /** Update power display on all bow shot cards on the grid to reflect equipped bonuses. */
+  private refreshBowShotDisplays(): void {
+    const bowBonus = this.getEquippedPassiveAmount("boostBowDamage");
+    let agilityBonus = 0;
+    if (this.hasEquippedPassive("addAgilityToBowDamage")) {
+      agilityBonus = this.player.agility + this.getPassiveAgilityModifier() + this.inventory.agilityBonus;
+    }
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (!card?.cardData.abilities) continue;
+        const bowAbility = card.cardData.abilities.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
+        if (bowAbility) {
+          const base = bowAbility.params.amount as number;
+          card.setPowerDisplay(base + bowBonus + agilityBonus);
+        }
+      }
+    }
+  }
+
+  /** Apply equipped bow bonuses to a single card's power display if it's a bow shot. */
+  private applyBowShotBonus(card: Card): void {
+    const bowAbility = card.cardData.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
+    if (!bowAbility) return;
+    const base = bowAbility.params.amount as number;
+    const bonus = this.getEquippedPassiveAmount("boostBowDamage");
+    let agilityBonus = 0;
+    if (this.hasEquippedPassive("addAgilityToBowDamage")) {
+      agilityBonus = this.player.agility + this.getPassiveAgilityModifier() + this.inventory.agilityBonus;
+    }
+    card.setPowerDisplay(base + bonus + agilityBonus);
   }
 
   private getMonsterPowerBuff(): number {
@@ -560,6 +668,7 @@ export class GameScene extends Phaser.Scene {
       this.setupDoorInteraction(doorCard);
     } else {
       const card = new Card(this, pos.x, pos.y, plan.cardData);
+      this.applyBowShotBonus(card);
       this.grid.placeCard(plan.slot.col, plan.slot.row, card);
       card.dealFrom(deckX, deckY, () => {
         this.executeOnRevealAbilities(card, plan.cardData);
@@ -580,6 +689,7 @@ export class GameScene extends Phaser.Scene {
 
     // Create card at the dungeon deck position
     const card = new Card(this, 350, 200, cardData);
+    this.applyBowShotBonus(card);
     card.setDepth(910);
 
     // Phase 1: Card travels from deck to center while background darkens
@@ -703,7 +813,14 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "reduceRandomEnemyPower": {
-          const amount = ability.params.amount as number;
+          let bowDamage = ability.params.amount as number;
+          // Apply bow passive bonuses from equipped items
+          bowDamage += this.getEquippedPassiveAmount("boostBowDamage");
+          if (this.hasEquippedPassive("addAgilityToBowDamage")) {
+            bowDamage += this.player.agility + this.getPassiveAgilityModifier() + this.inventory.agilityBonus;
+          }
+          card.setPowerDisplay(bowDamage);
+          const canRecycle = this.hasEquippedPassive("recycleBowShots");
           // Find all monsters on the grid
           const monsters: Card[] = [];
           for (let r = 0; r < ROWS; r++) {
@@ -717,7 +834,7 @@ export class GameScene extends Phaser.Scene {
           if (monsters.length > 0) {
             const target = monsters[Math.floor(Math.random() * monsters.length)];
             this.playHitOnTargetAnimation(card, target, () => {
-              const newValue = Math.max(0, target.cardData.value - amount);
+              const newValue = Math.max(0, target.cardData.value - bowDamage);
               target.updateValue(newValue);
               if (newValue <= 0) {
                 const deadCell = this.grid.findCard(target);
@@ -725,10 +842,20 @@ export class GameScene extends Phaser.Scene {
                 this.freeGuardedLootIfAny(target);
                 target.resolve(() => processNext(idx + 1));
               } else {
+                // Target survived — recycle bow shot if passive equipped
+                if (canRecycle) {
+                  this.deck.mergeCards([getCard(card.cardData.id)]);
+                  this.updateDeckVisual();
+                }
                 processNext(idx + 1);
               }
             });
           } else {
+            // No monsters on grid — recycle bow shot if passive equipped
+            if (canRecycle) {
+              this.deck.mergeCards([getCard(card.cardData.id)]);
+              this.updateDeckVisual();
+            }
             processNext(idx + 1);
           }
           break;
@@ -1093,8 +1220,15 @@ export class GameScene extends Phaser.Scene {
         if (monsterTarget) {
           this.inventoryView.clearAllHighlights();
           this.dragTargetMonster = monsterTarget;
+          this.lastUsedScrollId = card.cardData.tag === "scroll" ? card.cardData.id : null;
           this.fireDragOnMonsterAbilities(dragOnMonsterAbilities, monsterTarget, () => {
             this.dragTargetMonster = null;
+            // Recycle scroll if Wizard's Hat equipped
+            if (this.lastUsedScrollId && this.hasScrollRecycle()) {
+              this.deck.mergeCards([getCard(this.lastUsedScrollId)]);
+              this.updateDeckVisual();
+            }
+            this.lastUsedScrollId = null;
           });
           card.disableInteractive();
           card.resolve(() => { this.finishDrag(); });
@@ -1244,10 +1378,18 @@ export class GameScene extends Phaser.Scene {
 
   private executeAbility(card: Card): void {
     const ability = card.cardData.abilities?.find((a) => {
-      const def = getAbility(a.abilityId);
-      return def.trigger === "dragOnPlayerPortrait";
+      const aDef = getAbility(a.abilityId);
+      return aDef.trigger === "dragOnPlayerPortrait";
     });
     if (!ability) return;
+
+    const scrollId = card.cardData.tag === "scroll" ? card.cardData.id : null;
+    const recycleAfterUse = () => {
+      if (scrollId && this.hasScrollRecycle()) {
+        this.deck.mergeCards([getCard(scrollId)]);
+        this.updateDeckVisual();
+      }
+    };
 
     const def = getAbility(ability.abilityId);
     switch (def.effect) {
@@ -1258,6 +1400,7 @@ export class GameScene extends Phaser.Scene {
         card.disableInteractive();
         card.resolve(() => {
           this.playRemoveCurseAnimation(() => {
+            recycleAfterUse();
             this.finishDrag();
           });
         });
@@ -1266,6 +1409,7 @@ export class GameScene extends Phaser.Scene {
 
     card.disableInteractive();
     card.resolve(() => {
+      recycleAfterUse();
       this.finishDrag();
     });
   }
@@ -1397,7 +1541,10 @@ export class GameScene extends Phaser.Scene {
     const applyEffect = () => {
       switch (def.effect) {
         case "reduceTargetMonsterPower": {
-          const amount = current.params.amount as number;
+          let amount = current.params.amount as number;
+          if (this.lastUsedScrollId) {
+            amount += this.getScrollDamageBonus();
+          }
           const newValue = Math.max(0, target.cardData.value - amount);
           target.updateValue(newValue);
           if (newValue <= 0) {
@@ -1413,7 +1560,10 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "reduceAdjacentMonsterPower": {
-          const amount = current.params.amount as number;
+          let amount = current.params.amount as number;
+          if (this.lastUsedScrollId) {
+            amount += this.getScrollDamageBonus();
+          }
           // Reduce target
           const newValue = Math.max(0, target.cardData.value - amount);
           target.updateValue(newValue);
@@ -1459,6 +1609,35 @@ export class GameScene extends Phaser.Scene {
     } else {
       applyEffect();
     }
+  }
+
+  private getScrollDamageBonus(): number {
+    let total = 0;
+    for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        const aDef = getAbility(ab.abilityId);
+        if (aDef.trigger === "passive" && aDef.effect === "boostScrollDamage") {
+          total += (ab.params.amount as number) || 0;
+        }
+      }
+    }
+    return total;
+  }
+
+  private hasScrollRecycle(): boolean {
+    for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
+      const item = this.inventory.getItem(slotDef.name);
+      if (!item?.abilities) continue;
+      for (const ab of item.abilities) {
+        const aDef = getAbility(ab.abilityId);
+        if (aDef.trigger === "passive" && aDef.effect === "recycleScrolls") return true;
+      }
+    }
+    return false;
   }
 
   private resolveDeadMonsters(monsters: Card[], onComplete: () => void): void {
@@ -1724,6 +1903,7 @@ export class GameScene extends Phaser.Scene {
       const data = getCard(cardId);
       cardDatas.push(data);
       const card = new Card(this, sourcePos.x, sourcePos.y, data);
+      this.applyBowShotBonus(card);
       card.setScale(0.3);
       card.setDepth(6000);
       card.disableInteractive();
@@ -2400,6 +2580,7 @@ export class GameScene extends Phaser.Scene {
           if (invPortraitAbilities.length > 0 && this.playerView.isPointOver(world.x, world.y)) {
             this.playerView.hideDropHighlight();
             this.inventoryView.clearAllHighlights();
+            const scrollId = item.tag === "scroll" ? item.id : null;
             this.inventory.unequip(def.name);
             ghost.destroy();
             // Fire portrait abilities
@@ -2415,6 +2596,11 @@ export class GameScene extends Phaser.Scene {
             }
             if (!hasAsyncAbility) {
               this.fireAbilities(invPortraitAbilities, () => {});
+            }
+            // Recycle scroll if Wizard's Hat equipped
+            if (scrollId && this.hasScrollRecycle()) {
+              this.deck.mergeCards([getCard(scrollId)]);
+              this.updateDeckVisual();
             }
             return;
           }
@@ -2446,8 +2632,15 @@ export class GameScene extends Phaser.Scene {
               this.inventory.unequip(def.name);
               ghost.destroy();
               this.dragTargetMonster = monsterTarget;
+              this.lastUsedScrollId = item.tag === "scroll" ? item.id : null;
               this.fireDragOnMonsterAbilities(invMonsterAbilities, monsterTarget, () => {
                 this.dragTargetMonster = null;
+                // Recycle scroll if Wizard's Hat equipped
+                if (this.lastUsedScrollId && this.hasScrollRecycle()) {
+                  this.deck.mergeCards([getCard(this.lastUsedScrollId)]);
+                  this.updateDeckVisual();
+                }
+                this.lastUsedScrollId = null;
               });
               return;
             }
@@ -2530,6 +2723,11 @@ export class GameScene extends Phaser.Scene {
             const discardAbilities = this.collectAbilities("onDiscard", item);
             const discardSlotPos = this.inventoryView.getSlotWorldPos(def.name);
             this.fireAbilities(discardAbilities, () => {}, discardSlotPos ?? undefined);
+            // Recycle scroll if Wizard's Hat equipped
+            if (item.tag === "scroll" && discardAbilities.length > 0 && this.hasScrollRecycle()) {
+              this.deck.mergeCards([getCard(item.id)]);
+              this.updateDeckVisual();
+            }
             this.inventory.unequip(def.name);
             ghost.destroy();
             this.inventoryView.playDissolveAt(this, world.x, world.y, item);
@@ -3260,7 +3458,7 @@ export class GameScene extends Phaser.Scene {
 
       // Slide fate deck down and restore power display
       this.playerView.slideFateDeckDown(this);
-      this.playerView.restorePower(this.player, this.inventory.powerBonus);
+      this.playerView.restorePower(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier());
 
       // Free the guarded loot into the now-empty grid slot
       if (guardedLoot && cellPos) {

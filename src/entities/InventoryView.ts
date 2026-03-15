@@ -116,7 +116,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
     }
   }
 
-  private updateSlotContent(slotName: string, item: CardData | null): void {
+  private updateSlotContent(slotName: string, item: CardData | null, powerBonus = 0): void {
     const visual = this.slotVisuals.get(slotName);
     if (!visual) return;
 
@@ -128,14 +128,14 @@ export class InventoryView extends Phaser.GameObjects.Container {
 
     if (item) {
       visual.slotBgImage?.setVisible(false);
-      visual.miniCard = this.createMiniCard(item);
+      visual.miniCard = this.createMiniCard(item, powerBonus);
       visual.container.add(visual.miniCard);
     } else {
       visual.slotBgImage?.setVisible(true);
     }
   }
 
-  private createMiniCard(item: CardData): Phaser.GameObjects.Container {
+  private createMiniCard(item: CardData, powerBonus = 0): Phaser.GameObjects.Container {
     const mc = this.scene.add.container(0, 0);
     const scaleX = (SLOT_W - 10) / FULL_CARD_W;
     const scaleY = (SLOT_H - 10) / FULL_CARD_H;
@@ -188,12 +188,13 @@ export class InventoryView extends Phaser.GameObjects.Container {
     mc.add(descrText);
 
     // Power icon — bottom-left
-    const hasPower = item.type === CardType.Monster || (item.slot && item.slot !== "backpack" && item.value > 0 && !item.isKey);
+    const displayPower = item.value + powerBonus;
+    const hasPower = item.type === CardType.Monster || (item.slot && item.slot !== "backpack" && displayPower > 0 && !item.isKey);
     if (hasPower) {
       const iconX = -FULL_CARD_W / 2 + 15;
       const iconY = FULL_CARD_H / 2 - 12;
       mc.add(this.scene.add.image(iconX, iconY, "icon_card_power"));
-      mc.add(this.scene.add.text(iconX + 3.5, iconY - 3.5, `${item.value}`, {
+      mc.add(this.scene.add.text(iconX + 3.5, iconY - 3.5, `${displayPower}`, {
         fontSize: "20px",
         fontFamily: "monospace",
         color: "#240a0e",
@@ -219,9 +220,9 @@ export class InventoryView extends Phaser.GameObjects.Container {
     return mc;
   }
 
-  refreshSlot(slotName: string): void {
+  refreshSlot(slotName: string, powerBonus = 0): void {
     const item = this.inventory.getItem(slotName);
-    this.updateSlotContent(slotName, item);
+    this.updateSlotContent(slotName, item, powerBonus);
   }
 
   setSlotHighlight(

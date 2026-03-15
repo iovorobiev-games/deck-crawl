@@ -92,16 +92,18 @@ export class Card extends Phaser.GameObjects.Container {
     const d = this.cardData;
 
     // Power icon — bottom-left corner of card
-    // Show for monsters and equippable items that grant power (not backpack-only items like potions)
-    const hasPower = d.type === CardType.Monster || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey);
+    // Show for monsters, equippable items that grant power, and bow shot cards
+    const bowAbility = d.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
+    const hasPower = d.type === CardType.Monster || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey) || bowAbility;
     if (hasPower) {
       const iconX = -CARD_W / 2 + 15;
       const iconY = CARD_H / 2 - 12;
       this.powerIcon = this.scene.add.image(iconX, iconY, "icon_card_power");
       this.add(this.powerIcon);
+      const displayValue = bowAbility ? (bowAbility.params.amount as number) : d.value;
       // Text sits in a 32x32 rect: margins top 4, left 18, right 11, bottom 11
       // Center of that rect relative to icon center: (+3.5, -3.5)
-      this.powerValueText = this.scene.add.text(iconX + 3.5, iconY - 3.5, `${d.value}`, {
+      this.powerValueText = this.scene.add.text(iconX + 3.5, iconY - 3.5, `${displayValue}`, {
         fontSize: "20px",
         fontFamily: "monospace",
         color: "#240a0e",
@@ -213,6 +215,13 @@ export class Card extends Phaser.GameObjects.Container {
     this.descrText.setText(this.buildDescriptionText());
     if (this.powerValueText) {
       this.powerValueText.setText(`${newValue}`);
+    }
+  }
+
+  /** Update the displayed power value (e.g. to show equipped bonuses). */
+  setPowerDisplay(amount: number): void {
+    if (this.powerValueText) {
+      this.powerValueText.setText(`${amount}`);
     }
   }
 

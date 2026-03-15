@@ -98,6 +98,13 @@ export class BootScene extends Phaser.Scene {
     this.load.image("hidden_pit", "sprites/hidden_pit.PNG");
     this.load.image("ominuous_chest", "sprites/ominuous_chest.PNG");
     this.load.image("strong_chest", "sprites/strong_chest.PNG");
+
+    // Equipment sprites
+    this.load.image("wizard_hat", "sprites/wizard_hat.PNG");
+    this.load.image("mages_robe", "sprites/mages_robe.PNG");
+    this.load.image("warrior_helm", "sprites/warrior_helm.PNG");
+    this.load.image("marksman_hat", "sprites/marksman_hat.PNG");
+    this.load.image("cape", "sprites/cape.PNG");
   }
 
   create(): void {
