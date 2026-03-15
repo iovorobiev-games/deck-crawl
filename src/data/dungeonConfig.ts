@@ -32,7 +32,6 @@ export const dungeonConfig: DungeonConfig = {
         { id: "gold_pile_small", count: 1 },
         { id: "gold_pile_3", count: 1 },
         { id: "lesser_health_potion", count: 1 },
-        { id: "warrior_helm", count: 1 },
       ],
       loot: [
         { id: "minor_health_potion", count: 1 },

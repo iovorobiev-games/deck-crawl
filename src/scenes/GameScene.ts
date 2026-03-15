@@ -456,6 +456,19 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Apply equipped bow bonuses to a single card's power display if it's a bow shot. */
+  private applyBowShotBonus(card: Card): void {
+    const bowAbility = card.cardData.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
+    if (!bowAbility) return;
+    const base = bowAbility.params.amount as number;
+    const bonus = this.getEquippedPassiveAmount("boostBowDamage");
+    let agilityBonus = 0;
+    if (this.hasEquippedPassive("addAgilityToBowDamage")) {
+      agilityBonus = this.player.agility + this.getPassiveAgilityModifier() + this.inventory.agilityBonus;
+    }
+    card.setPowerDisplay(base + bonus + agilityBonus);
+  }
+
   private getMonsterPowerBuff(): number {
     let total = 0;
     for (let r = 0; r < ROWS; r++) {
@@ -655,6 +668,7 @@ export class GameScene extends Phaser.Scene {
       this.setupDoorInteraction(doorCard);
     } else {
       const card = new Card(this, pos.x, pos.y, plan.cardData);
+      this.applyBowShotBonus(card);
       this.grid.placeCard(plan.slot.col, plan.slot.row, card);
       card.dealFrom(deckX, deckY, () => {
         this.executeOnRevealAbilities(card, plan.cardData);
@@ -675,6 +689,7 @@ export class GameScene extends Phaser.Scene {
 
     // Create card at the dungeon deck position
     const card = new Card(this, 350, 200, cardData);
+    this.applyBowShotBonus(card);
     card.setDepth(910);
 
     // Phase 1: Card travels from deck to center while background darkens
@@ -804,6 +819,7 @@ export class GameScene extends Phaser.Scene {
           if (this.hasEquippedPassive("addAgilityToBowDamage")) {
             bowDamage += this.player.agility + this.getPassiveAgilityModifier() + this.inventory.agilityBonus;
           }
+          card.setPowerDisplay(bowDamage);
           const canRecycle = this.hasEquippedPassive("recycleBowShots");
           // Find all monsters on the grid
           const monsters: Card[] = [];
@@ -1887,6 +1903,7 @@ export class GameScene extends Phaser.Scene {
       const data = getCard(cardId);
       cardDatas.push(data);
       const card = new Card(this, sourcePos.x, sourcePos.y, data);
+      this.applyBowShotBonus(card);
       card.setScale(0.3);
       card.setDepth(6000);
       card.disableInteractive();
@@ -3441,7 +3458,7 @@ export class GameScene extends Phaser.Scene {
 
       // Slide fate deck down and restore power display
       this.playerView.slideFateDeckDown(this);
-      this.playerView.restorePower(this.player, this.inventory.powerBonus);
+      this.playerView.restorePower(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier());
 
       // Free the guarded loot into the now-empty grid slot
       if (guardedLoot && cellPos) {

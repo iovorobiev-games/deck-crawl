@@ -61,7 +61,7 @@ export const cardRegistry: Record<string, CardData> = {
   cloak_of_swiftness: { id: "cloak_of_swiftness", type: CardType.Treasure, name: "Cloak of Swiftness", value: 0, description: "+1 agility", slot: "armour", image: "cloak_of_swiftness", agilityBonus: 1 },
   wizards_robe: { id: "wizards_robe", type: CardType.Treasure, name: "Wizard's Robe", value: 0, description: "+2 damage from scrolls", slot: "armour", image: "mages_robe", abilities: [{ abilityId: "scroll_damage_boost", params: { amount: 2 } }] },
   marksman_cloak: { id: "marksman_cloak", type: CardType.Treasure, name: "Marksman's Cloak", value: 0, description: "Adds Agility to Bow Shot damage", slot: "armour", image: "cloak_of_swiftness", abilities: [{ abilityId: "bow_agility_damage", params: {} }] },
-  ranger_cape: { id: "ranger_cape", type: CardType.Treasure, name: "Ranger's Cape", value: 0, description: "Bow shots return to the Dungeon Deck if they miss", slot: "armour", image: "cape", abilities: [{ abilityId: "bow_shot_recycle", params: {} }] },
+  ranger_cape: { id: "ranger_cape", type: CardType.Treasure, name: "Ranger's Cape", value: 0, description: "Bow shots return to the Dungeon Deck if they miss", slot: "head", image: "cape", abilities: [{ abilityId: "bow_shot_recycle", params: {} }] },
   rusty_armour: { id: "rusty_armour", type: CardType.Treasure, name: "Rusty Armour", value: 0, description: "Adds 1 Max HP", slot: "armour", image: "rusty_cuirass", maxHpBonus: 1 },
   guardsman_armour: { id: "guardsman_armour", type: CardType.Treasure, name: "Guardsman Armour", value: 0, description: "Adds +2 Max HP", slot: "armour", image: "metal_cuirass", maxHpBonus: 2 },
 
