@@ -80,7 +80,7 @@ export class GameScene extends Phaser.Scene {
       this.backgroundImage.y = GAME_H / 2 + offsetY;
     });
 
-    this.player = new Player(10);
+    this.player = new Player(6);
     this.grid = new Grid(GAME_W, GAME_H);
 
     this.dungeonLevels = dungeonConfig.levels;
@@ -260,7 +260,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updatePlayerStats(): void {
-    const newMaxHp = 10 + this.inventory.maxHpBonus;
+    const newMaxHp = 6 + this.inventory.maxHpBonus;
     if (newMaxHp !== this.player.maxHp) {
       const diff = newMaxHp - this.player.maxHp;
       this.player.maxHp = newMaxHp;

@@ -3,21 +3,21 @@ import { CardType, CardData } from "../entities/CardData";
 export const cardRegistry: Record<string, CardData> = {
   // --- Monsters ---
   skeleton_warrior: { id: "skeleton_warrior", type: CardType.Monster, name: "Skeleton Warrior", value: 3, description: "A shambling skeleton", image: "Skeleton War" },
-  skeleton: { id: "skeleton", type: CardType.Monster, name: "Skeleton", value: 1, description: "", image: "Skeleton War" },
-  zombie: { id: "zombie", type: CardType.Monster, name: "Zombie", value: 2, description: "", image: "Zombie" },
-  bloated_zombie: { id: "bloated_zombie", type: CardType.Monster, name: "Bloated Zombie", value: 2, description: "+1 counter damage", image: "Zombie", abilities: [{ abilityId: "bonus_counter_damage", params: { amount: 1 } }] },
-  dark_knight: { id: "dark_knight", type: CardType.Monster, name: "Dark Knight", value: 4, description: "", image: "dark_knight" },
-  skeleton_archer: { id: "skeleton_archer", type: CardType.Monster, name: "Skeleton Archer", value: 1, description: "Inserts Attack From Shadows into the dungeon deck on explore", image: "Skeleton Archer", abilities: [{ abilityId: "summonToDeck", params: { cardId: "attack_from_shadows", count: 1 } }] },
+  skeleton: { id: "skeleton", type: CardType.Monster, name: "Skeleton", value: 1, description: "They are in abundance here...", image: "Skeleton War" },
+  zombie: { id: "zombie", type: CardType.Monster, name: "Zombie", value: 2, description: "Dumb but sturdy", image: "Zombie" },
+  bloated_zombie: { id: "bloated_zombie", type: CardType.Monster, name: "Bloated Zombie", value: 2, description: "+1 damage when hits back", image: "Zombie", abilities: [{ abilityId: "bonus_counter_damage", params: { amount: 1 } }] },
+  dark_knight: { id: "dark_knight", type: CardType.Monster, name: "Dark Knight", value: 4, description: "Elite warrior of the dungeon", image: "dark_knight" },
+  skeleton_archer: { id: "skeleton_archer", type: CardType.Monster, name: "Skeleton Archer", value: 1, description: "Inserts Attack From Shadows into the Dungeon Deck on Explore", image: "Skeleton Archer", abilities: [{ abilityId: "summonToDeck", params: { cardId: "attack_from_shadows", count: 1 } }] },
 
-  swarm_of_bats: { id: "swarm_of_bats", type: CardType.Monster, name: "Swarm Of Bats", value: 1, description: "-1 Agility", image: "swarm_of_bats", abilities: [{ abilityId: "agility_drain", params: { amount: -1 } }] },
+  swarm_of_bats: { id: "swarm_of_bats", type: CardType.Monster, name: "Swarm Of Bats", value: 1, description: "-1 Hero Agility", image: "swarm_of_bats", abilities: [{ abilityId: "agility_drain", params: { amount: -1 } }] },
 
   // --- Bosses ---
-  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 3, description: "", image: "cultist", abilities: [{ abilityId: "cultist_ritual", params: { cardId: "dark_ritual", count: 1 } }] },
-  vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 2, description: "Returns back to the Dungeon deck after death and gets type Dark Event.\n-1 Power while on the game field", image: "vengeful_revenant", abilities: [{ abilityId: "revenant_return", params: {} }, { abilityId: "power_drain", params: { amount: -1 } }] },
-  crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 3, description: "While Phylactery is not in discard, goes back to dungeon deck after death.\nWhile on the game field, adds skeleton to the dungeon deck on explore", image: "crypt_lord", abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }, { abilityId: "return_conditional", params: { requiredDiscardId: "phylactery" } }] },
+  cultist: { id: "cultist", type: CardType.Monster, name: "Cultist", value: 3, description: "Inserts Dark Ritual into the Dungeon Deck on Explore", image: "cultist", abilities: [{ abilityId: "cultist_ritual", params: { cardId: "dark_ritual", count: 1 } }] },
+  vengeful_revenant: { id: "vengeful_revenant", type: CardType.Monster, name: "Vengeful Revenant", value: 2, description: "Returns back to the Dungeon Deck after death as a Curse.\n-1 Hero Power", image: "vengeful_revenant", abilities: [{ abilityId: "revenant_return", params: {} }, { abilityId: "power_drain", params: { amount: -1 } }] },
+  crypt_lord: { id: "crypt_lord", type: CardType.Monster, name: "Crypt Lord", value: 3, description: "Goes back to dungeon deck after death unless Phylactery is discarded.\n Adds Skeleton to the Dungeon Deck on Explore", image: "crypt_lord", abilities: [{ abilityId: "summonToDeck", params: { cardId: "skeleton_warrior", count: 1 } }, { abilityId: "return_conditional", params: { requiredDiscardId: "phylactery" } }] },
 
   // --- Tentacle chain ---
-  tentacle: { id: "tentacle", type: CardType.Monster, name: "Tentacle", value: 2, description: "A writhing appendage", image: "horrendous_tentacle", abilities: [{ abilityId: "tentacle_summon", params: { cardId: "horrendous_tentacle", count: 1 } }] },
+  tentacle: { id: "tentacle", type: CardType.Monster, name: "Tentacle", value: 2, description: "Inserts Horrendous Tentacle On Reveal", image: "horrendous_tentacle", abilities: [{ abilityId: "tentacle_summon", params: { cardId: "horrendous_tentacle", count: 1 } }] },
   horrendous_tentacle: { id: "horrendous_tentacle", type: CardType.Monster, name: "Horrendous Tentacle", value: 4, description: "Once 3 of these appear from the Dungeon Deck, Put Horror From The Beyond into the Dungeon Deck", image: "horrendous_tentacle", abilities: [{ abilityId: "horrendous_summon", params: { cardId: "terrible_tentacle", count: 1 } }] },
   terrible_tentacle: { id: "terrible_tentacle", type: CardType.Monster, name: "Terrible Tentacle", value: 6, description: "An enormous tentacle", image: "horrendous_tentacle", abilities: [{ abilityId: "terrible_summon", params: { cardId: "terror_from_beyond", count: 1 } }] },
   terror_from_beyond: { id: "terror_from_beyond", type: CardType.Monster, name: "Terror From The Beyond", value: 15, description: "Deals 1 damage for every action which is not fighting Horror from The Beyond", image: "horror_from_beyond", abilities: [{ abilityId: "terror_reveal_damage", params: { amount: 5 } }, { abilityId: "terror_explore_damage", params: { amount: 2 } }, { abilityId: "terror_buff_monsters", params: { amount: 2 } }] },
@@ -31,7 +31,7 @@ export const cardRegistry: Record<string, CardData> = {
   spike_trap: { id: "spike_trap", type: CardType.Trap, name: "Spike Trap", value: 2, description: "Deals 2 damage", lockDifficulty: 2, trapDamage: 2, image: "bear_trap" },
   spike_trap_heavy: { id: "spike_trap_heavy", type: CardType.Trap, name: "Spike Trap", value: 4, description: "Deals 4 damage", lockDifficulty: 3, trapDamage: 4, image: "pressure_plate" },
   poison_gas: { id: "poison_gas", type: CardType.Trap, name: "Poison Gas", value: 3, description: "Deals 3 damage", lockDifficulty: 3, trapDamage: 3, image: "poison_dart_trap" },
-  poison_dart_trap: { id: "poison_dart_trap", type: CardType.Trap, name: "Poison Dart Trap", value: 0, description: "Difficulty 3.\nAdds Poisoning card into the Dungeon Deck", lockDifficulty: 3, trapDamage: 0, image: "poison_dart_trap", abilities: [{ abilityId: "poison_trap_insert", params: { cardId: "deadly_poisoning", count: 2 } }] },
+  poison_dart_trap: { id: "poison_dart_trap", type: CardType.Trap, name: "Poison Dart Trap", value: 0, description: "Blocks Explore. Difficulty 3.\nAdds Poisoning card into the Dungeon Deck", lockDifficulty: 3, trapDamage: 0, image: "poison_dart_trap", abilities: [{ abilityId: "poison_trap_insert", params: { cardId: "deadly_poisoning", count: 2 } }] },
   pressure_plate: { id: "pressure_plate", type: CardType.Trap, name: "Pressure Plate", value: 0, description: "Blocks Explore. 2 Difficulty, 1 Damage", lockDifficulty: 2, trapDamage: 1, image: "pressure_plate" },
   bear_trap: { id: "bear_trap", type: CardType.Trap, name: "Bear Trap", value: 0, description: "Blocks Explore. 2 Difficulty, 2 Damage", lockDifficulty: 2, trapDamage: 2, image: "bear_trap" },
   hidden_pit: { id: "hidden_pit", type: CardType.Trap, name: "Hidden Pit", value: 0, description: "Blocks Explore. 3 Difficulty, 1 Damage", lockDifficulty: 3, trapDamage: 1, image: "hidden_pit" },
@@ -44,7 +44,6 @@ export const cardRegistry: Record<string, CardData> = {
 
   // --- Treasure - Weapons ---
   guardsman_sword: { id: "guardsman_sword", type: CardType.Treasure, name: "Guardsman Sword", value: 1, description: "", slot: "weapon", image: "shortsword" },
-  short_sword: { id: "short_sword", type: CardType.Treasure, name: "Short Sword", value: 2, description: "Heals 1 HP on equip", slot: "weapon", image: "shortsword", abilities: [{ abilityId: "equip_heal", params: { amount: 1 } }] },
   knights_sword: { id: "knights_sword", type: CardType.Treasure, name: "Knights Sword", value: 2, description: "", slot: "weapon", image: "knights_sword" },
   battle_axe: { id: "battle_axe", type: CardType.Treasure, name: "Battle Axe", value: 4, description: "", slot: "weapon", image: "crude_axe" },
   shortbow: { id: "shortbow", type: CardType.Treasure, name: "Shortbow", value: 0, description: "Adds 3 Bow Shot cards into a dungeon deck", slot: "weapon", image: "shortbow", tag: "bow", abilities: [{ abilityId: "equip_degrade", params: { cardId: "bow_shot", count: 3 } }] },
@@ -76,13 +75,12 @@ export const cardRegistry: Record<string, CardData> = {
   lockpick: { id: "lockpick", type: CardType.Treasure, name: "Lockpick", value: 0, description: "Opens a chest", slot: "backpack", image: "lockpicks", abilities: [{ abilityId: "auto_open_chest", params: {} }] },
 
   // --- Scrolls ---
-  fireball_scroll: { id: "fireball_scroll", type: CardType.Treasure, name: "Scroll of Fireball", value: 0, description: "Reduces Power of all enemies by 2", slot: "backpack", image: "scroll_of_fireball", abilities: [{ abilityId: "reduce_adjacent_monsters", params: { amount: 2 } }] },
+  fireball_scroll: { id: "fireball_scroll", type: CardType.Treasure, name: "Scroll of Fireball", value: 0, description: "Reduces Power of Adjacent enemies by 2", slot: "backpack", image: "scroll_of_fireball", abilities: [{ abilityId: "reduce_adjacent_monsters", params: { amount: 2 } }] },
   scroll_of_fire_bolt: { id: "scroll_of_fire_bolt", type: CardType.Treasure, name: "Scroll of Fire Bolt", value: 0, description: "Reduces Enemy Power By 2", slot: "backpack", image: "scroll_of_firebolt", abilities: [{ abilityId: "reduce_target_monster", params: { amount: 2 } }] },
-  scroll_of_cleansing: { id: "scroll_of_cleansing", type: CardType.Treasure, name: "Scroll of Cleansing", value: 0, description: "Removes top Dark Event from the deck", slot: "backpack", image: "scroll_of_cleansing", abilities: [{ abilityId: "remove_dark_event", params: {} }] },
-  scroll_of_blessing: { id: "scroll_of_blessing", type: CardType.Treasure, name: "Scroll of Blessing", value: 0, description: "Adds +2 card to your fate deck", slot: "backpack", image: "scroll_of_blessing", abilities: [{ abilityId: "add_fate_modifier", params: { modifier: 2 } }] },
+  scroll_of_cleansing: { id: "scroll_of_cleansing", type: CardType.Treasure, name: "Scroll of Cleansing", value: 0, description: "On Discard: Removes top Curse from the deck", slot: "backpack", image: "scroll_of_cleansing", abilities: [{ abilityId: "remove_dark_event", params: {} }] },
+  scroll_of_blessing: { id: "scroll_of_blessing", type: CardType.Treasure, name: "Scroll of Blessing", value: 0, description: "On Discard: Adds +2 card to your fate deck", slot: "backpack", image: "scroll_of_blessing", abilities: [{ abilityId: "add_fate_modifier", params: { modifier: 2 } }] },
 
   // --- Other tools ---
-  whetstone: { id: "whetstone", type: CardType.Potion, name: "Whetstone", value: 0, description: "Drag onto weapon to sharpen", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "apply_to_weapon", params: { amount: 1 } }] },
   disarm_kit: { id: "disarm_kit", type: CardType.Potion, name: "Disarming Kit", value: 0, description: "Disarms traps", slot: "backpack", image: "disarming_kit", abilities: [{ abilityId: "disarm_tool", params: { amount: 1 } }] },
 
   // --- Degrading weapons ---
@@ -90,11 +88,10 @@ export const cardRegistry: Record<string, CardData> = {
   crude_axe: { id: "crude_axe", type: CardType.Treasure, name: "Crude Axe", value: 2, description: "Degrades", slot: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
 
   // --- Events ---
-  merchant: { id: "merchant", type: CardType.Event, name: "Merchant", value: 0, description: "Trade goods" },
-  attack_from_shadows: { id: "attack_from_shadows", type: CardType.Event, name: "Attack from Shadows", value: 1, description: "Deals 1 Damage to the player", image: "attack_from_shadows", tag: "dark", abilities: [{ abilityId: "attack_from_shadows", params: { amount: 1 } }] },
-  dark_ritual: { id: "dark_ritual", type: CardType.Event, name: "Dark Ritual", value: 0, description: "When Resolved insert Horrendous Tentacle to the dungeon deck", image: "dark_ritual", tag: "dark", abilities: [{ abilityId: "dark_ritual_summon", params: { cardId: "tentacle", count: 1 } }] },
-  deadly_poisoning: { id: "deadly_poisoning", type: CardType.Event, name: "Deadly Poisoning", value: 1, description: "Poison courses through your veins", image: "poison", tag: "dark", abilities: [{ abilityId: "deadly_poison_damage", params: { amount: 1, ignoresArmor: 1 } }] },
-  weapon_degradation: { id: "weapon_degradation", type: CardType.Event, name: "Weapon Degradation", value: 0, description: "Reduces power of currently equipped weapon by 1", image: "weapon_degradation", tag: "dark", abilities: [{ abilityId: "weapon_degrade", params: { amount: 1 } }] },
+  attack_from_shadows: { id: "attack_from_shadows", type: CardType.Event, name: "Attack from Shadows", value: 1, description: "Deals 1 Damage to the player", image: "attack_from_shadows", tag: "curse", abilities: [{ abilityId: "attack_from_shadows", params: { amount: 1 } }] },
+  dark_ritual: { id: "dark_ritual", type: CardType.Event, name: "Dark Ritual", value: 0, description: "When Resolved insert Horrendous Tentacle to the dungeon deck", image: "dark_ritual", tag: "curse", abilities: [{ abilityId: "dark_ritual_summon", params: { cardId: "tentacle", count: 1 } }] },
+  deadly_poisoning: { id: "deadly_poisoning", type: CardType.Event, name: "Deadly Poisoning", value: 1, description: "Poison courses through your veins", image: "poison", tag: "curse", abilities: [{ abilityId: "deadly_poison_damage", params: { amount: 1, ignoresArmor: 1 } }] },
+  weapon_degradation: { id: "weapon_degradation", type: CardType.Event, name: "Weapon Degradation", value: 0, description: "Reduces power of currently equipped weapon by 1", image: "weapon_degradation", tag: "curse", abilities: [{ abilityId: "weapon_degrade", params: { amount: 1 } }] },
   bow_shot: { id: "bow_shot", type: CardType.Event, name: "Bow Shot", value: 0, description: "Reduces power of a random enemy by 2", image: "bow_shot", abilities: [{ abilityId: "reduce_random_enemy", params: { amount: 2 } }] },
   strong_bow_shot: { id: "strong_bow_shot", type: CardType.Event, name: "Strong Bow Shot", value: 0, description: "Reduces a random enemy's power by 3", image: "bow_shot", abilities: [{ abilityId: "reduce_random_enemy", params: { amount: 3 } }] },
   altar_of_luck: { id: "altar_of_luck", type: CardType.Treasure, name: "Altar Of Luck", value: 0, description: "Adds +2 card into your fate deck for 1 Gold donation", image: "altar_of_luck", exchangePrice: { resource: "gold", amount: 1 }, exchangeReward: { type: "fate", modifier: 2 } },
