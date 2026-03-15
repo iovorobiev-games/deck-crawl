@@ -17,23 +17,23 @@ void main() {
 
     // Organic candle-like flicker from layered sine waves
     float flicker = 1.0
-        + 0.030 * sin(uTime * 2.7)
-        + 0.020 * sin(uTime * 5.3 + 1.0)
-        + 0.015 * sin(uTime * 11.1 + 2.5);
+        + 0.040 * sin(uTime * 2.7)
+        + 0.030 * sin(uTime * 5.3 + 1.0)
+        + 0.020 * sin(uTime * 11.1 + 2.5);
 
     // Vignette radii shrink as intensity grows (more screen covered)
-    float innerRadius = mix(0.55, 0.20, uIntensity) * flicker;
-    float outerRadius = mix(0.95, 0.70, uIntensity) * flicker;
+    float innerRadius = mix(0.45, 0.12, uIntensity) * flicker;
+    float outerRadius = mix(0.80, 0.55, uIntensity) * flicker;
 
     float vignette = smoothstep(innerRadius, outerRadius, dist);
 
     // Max darkness also scales with intensity
-    float darkness = vignette * mix(0.25, 0.80, uIntensity);
+    float darkness = vignette * mix(0.40, 0.92, uIntensity);
 
-    // Opacity flicker: subtle breathing on overall darkness
+    // Opacity flicker: breathing on overall darkness
     float opacityFlicker = 1.0
-        + 0.04 * sin(uTime * 3.1 + 0.7)
-        + 0.03 * sin(uTime * 8.9 + 1.3);
+        + 0.06 * sin(uTime * 3.1 + 0.7)
+        + 0.04 * sin(uTime * 8.9 + 1.3);
     darkness *= opacityFlicker;
 
     color.rgb *= 1.0 - darkness;
@@ -43,7 +43,7 @@ void main() {
 `;
 
 /** Per-level intensity presets (0 = no vignette, 1 = maximum). */
-const LEVEL_INTENSITY = [0.35, 0.55, 0.80];
+const LEVEL_INTENSITY = [0.15, 0.25, 0.35];
 
 export class VignettePostFX extends Phaser.Renderer.WebGL.Pipelines.PostFXPipeline {
   private _intensity = LEVEL_INTENSITY[0];
