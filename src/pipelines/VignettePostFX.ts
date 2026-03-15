@@ -22,8 +22,8 @@ void main() {
         + 0.015 * sin(uTime * 11.1 + 2.5);
 
     // Vignette radii shrink as intensity grows (more screen covered)
-    float innerRadius = mix(0.75, 0.25, uIntensity) * flicker;
-    float outerRadius = mix(1.10, 0.75, uIntensity) * flicker;
+    float innerRadius = mix(0.55, 0.20, uIntensity) * flicker;
+    float outerRadius = mix(0.95, 0.70, uIntensity) * flicker;
 
     float vignette = smoothstep(innerRadius, outerRadius, dist);
 
@@ -43,7 +43,7 @@ void main() {
 `;
 
 /** Per-level intensity presets (0 = no vignette, 1 = maximum). */
-const LEVEL_INTENSITY = [0.15, 0.45, 0.75];
+const LEVEL_INTENSITY = [0.35, 0.55, 0.80];
 
 export class VignettePostFX extends Phaser.Renderer.WebGL.Pipelines.PostFXPipeline {
   private _intensity = LEVEL_INTENSITY[0];
