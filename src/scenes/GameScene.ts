@@ -15,6 +15,7 @@ import { getAbility, AbilityTrigger, CardAbility } from "../data/abilityRegistry
 import { WinScreen } from "../entities/WinScreen";
 import { CRTPostFX } from "../pipelines/CRTPostFX";
 import { VignettePostFX } from "../pipelines/VignettePostFX";
+import { getVfx, VfxTarget } from "../effects/vfxRegistry";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -1388,52 +1389,75 @@ export class GameScene extends Phaser.Scene {
     }
     const [current, ...rest] = abilities;
     const def = getAbility(current.abilityId);
-    switch (def.effect) {
-      case "reduceTargetMonsterPower": {
-        const amount = current.params.amount as number;
-        const newValue = Math.max(0, target.cardData.value - amount);
-        target.updateValue(newValue);
-        if (newValue <= 0) {
-          const cell = this.grid.findCard(target);
-          if (cell) this.grid.removeCard(cell.col, cell.row);
-          target.resolve(() => {
-            this.freeGuardedLootIfAny(target);
+
+    // Collect VFX targets based on effect type, then play VFX before applying the effect
+    const vfxId = current.params.vfx as string | undefined;
+    const vfx = vfxId ? getVfx(vfxId) : undefined;
+
+    const applyEffect = () => {
+      switch (def.effect) {
+        case "reduceTargetMonsterPower": {
+          const amount = current.params.amount as number;
+          const newValue = Math.max(0, target.cardData.value - amount);
+          target.updateValue(newValue);
+          if (newValue <= 0) {
+            const cell = this.grid.findCard(target);
+            if (cell) this.grid.removeCard(cell.col, cell.row);
+            target.resolve(() => {
+              this.freeGuardedLootIfAny(target);
+              this.fireDragOnMonsterAbilities(rest, target, onComplete);
+            });
+          } else {
+            this.fireDragOnMonsterAbilities(rest, target, onComplete);
+          }
+          break;
+        }
+        case "reduceAdjacentMonsterPower": {
+          const amount = current.params.amount as number;
+          // Reduce target
+          const newValue = Math.max(0, target.cardData.value - amount);
+          target.updateValue(newValue);
+          // Reduce adjacent monsters
+          const adjacent = this.getAdjacentCards(target);
+          for (const adj of adjacent) {
+            if (adj.cardData.type === CardType.Monster) {
+              const adjNewValue = Math.max(0, adj.cardData.value - amount);
+              adj.updateValue(adjNewValue);
+            }
+          }
+          // Clean up dead monsters (target first, then adjacent)
+          const deadMonsters: Card[] = [];
+          if (newValue <= 0) deadMonsters.push(target);
+          for (const adj of adjacent) {
+            if (adj.cardData.type === CardType.Monster && adj.cardData.value <= 0) {
+              deadMonsters.push(adj);
+            }
+          }
+          this.resolveDeadMonsters(deadMonsters, () => {
             this.fireDragOnMonsterAbilities(rest, target, onComplete);
           });
-        } else {
-          this.fireDragOnMonsterAbilities(rest, target, onComplete);
+          break;
         }
-        break;
+        default:
+          this.fireDragOnMonsterAbilities(rest, target, onComplete);
+          break;
       }
-      case "reduceAdjacentMonsterPower": {
-        const amount = current.params.amount as number;
-        // Reduce target
-        const newValue = Math.max(0, target.cardData.value - amount);
-        target.updateValue(newValue);
-        // Reduce adjacent monsters
-        const adjacent = this.getAdjacentCards(target);
-        for (const adj of adjacent) {
+    };
+
+    if (vfx) {
+      // Build target list based on effect type
+      const vfxTargets: VfxTarget[] = [{ x: target.x, y: target.y, gameObject: target }];
+      if (def.effect === "reduceAdjacentMonsterPower") {
+        for (const adj of this.getAdjacentCards(target)) {
           if (adj.cardData.type === CardType.Monster) {
-            const adjNewValue = Math.max(0, adj.cardData.value - amount);
-            adj.updateValue(adjNewValue);
+            vfxTargets.push({ x: adj.x, y: adj.y, gameObject: adj });
           }
         }
-        // Clean up dead monsters (target first, then adjacent)
-        const deadMonsters: Card[] = [];
-        if (newValue <= 0) deadMonsters.push(target);
-        for (const adj of adjacent) {
-          if (adj.cardData.type === CardType.Monster && adj.cardData.value <= 0) {
-            deadMonsters.push(adj);
-          }
-        }
-        this.resolveDeadMonsters(deadMonsters, () => {
-          this.fireDragOnMonsterAbilities(rest, target, onComplete);
-        });
-        break;
       }
-      default:
-        this.fireDragOnMonsterAbilities(rest, target, onComplete);
-        break;
+      const source = { x: this.playerView.x, y: this.playerView.y };
+      vfx(this, source, vfxTargets, applyEffect);
+    } else {
+      applyEffect();
     }
   }
 
