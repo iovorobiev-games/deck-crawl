@@ -298,6 +298,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier() + this.tempWeaponBonus);
     this.updateMonsterBuffIndicators();
+    this.refreshWeaponSlotBonuses();
+    this.refreshBowShotDisplays();
   }
 
   private getPassivePowerModifier(): number {
@@ -342,10 +344,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (meleeBoostAmount > 0) {
-      // Count melee weapons in weapon slots
-      for (const slotDef of SLOT_DEFS) {
-        if (!slotDef.accepted.includes("weapon" as any)) continue;
-        const weapon = this.inventory.getItem(slotDef.name);
+      // Count melee weapons in weapon slots only (not backpack)
+      for (const slotName of ["weapon1", "weapon2"]) {
+        const weapon = this.inventory.getItem(slotName);
         if (!weapon || weapon.isKey || weapon.tag === "bow") continue;
         // Check if it's a pure shield (has absorbDamage ability and value is 0)
         const hasArmour = weapon.abilities?.some(a => getAbility(a.abilityId).effect === "absorbDamage") ?? false;
@@ -391,6 +392,7 @@ export class GameScene extends Phaser.Scene {
   private getEquippedPassiveAmount(effect: string): number {
     let total = 0;
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (!item?.abilities) continue;
       for (const ab of item.abilities) {
@@ -405,6 +407,7 @@ export class GameScene extends Phaser.Scene {
 
   private hasEquippedPassive(effect: string): boolean {
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (!item?.abilities) continue;
       for (const ab of item.abilities) {
@@ -413,6 +416,44 @@ export class GameScene extends Phaser.Scene {
       }
     }
     return false;
+  }
+
+  /** Refresh weapon inventory slots to show melee boost from Warrior Helm. */
+  private refreshWeaponSlotBonuses(): void {
+    const meleeBoost = this.getEquippedPassiveAmount("boostMeleeWeaponPower");
+    for (const slotName of ["weapon1", "weapon2"]) {
+      const weapon = this.inventory.getItem(slotName);
+      if (!weapon || weapon.isKey || weapon.tag === "bow") {
+        this.inventoryView.refreshSlot(slotName, 0);
+        continue;
+      }
+      const hasArmour = weapon.abilities?.some(a => getAbility(a.abilityId).effect === "absorbDamage") ?? false;
+      if (hasArmour && weapon.value === 0) {
+        this.inventoryView.refreshSlot(slotName, 0);
+        continue;
+      }
+      this.inventoryView.refreshSlot(slotName, meleeBoost);
+    }
+  }
+
+  /** Update power display on all bow shot cards on the grid to reflect equipped bonuses. */
+  private refreshBowShotDisplays(): void {
+    const bowBonus = this.getEquippedPassiveAmount("boostBowDamage");
+    let agilityBonus = 0;
+    if (this.hasEquippedPassive("addAgilityToBowDamage")) {
+      agilityBonus = this.player.agility + this.getPassiveAgilityModifier() + this.inventory.agilityBonus;
+    }
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (!card?.cardData.abilities) continue;
+        const bowAbility = card.cardData.abilities.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
+        if (bowAbility) {
+          const base = bowAbility.params.amount as number;
+          card.setPowerDisplay(base + bowBonus + agilityBonus);
+        }
+      }
+    }
   }
 
   private getMonsterPowerBuff(): number {
@@ -1557,6 +1598,7 @@ export class GameScene extends Phaser.Scene {
   private getScrollDamageBonus(): number {
     let total = 0;
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (!item?.abilities) continue;
       for (const ab of item.abilities) {
@@ -1571,6 +1613,7 @@ export class GameScene extends Phaser.Scene {
 
   private hasScrollRecycle(): boolean {
     for (const slotDef of SLOT_DEFS) {
+      if (slotDef.name.startsWith("backpack")) continue;
       const item = this.inventory.getItem(slotDef.name);
       if (!item?.abilities) continue;
       for (const ab of item.abilities) {
