@@ -1,0 +1,11 @@
+- Potions shouldn't be clickable or disappear on click
+- Abilities of equippable items should trigger only if it isn't in backpack
+- Cleansing scroll should not be clickable and disappear on click. It's ability should trigger when it is discarded from the inventory
+- When the ability removes the card from the deck, the card should slide from the deck, be shown for a short period of time and then disappear
+- It should not be possible to put anything on top of key in the inventory
+- Treasure card shouldn't change position when guard is removed
+- If event card deals damage to anyone on the field, it should show animation of hitting the target
+- Scroll of blessing should show animation of card being added to fate deck
+- Filactery shouldn't be disposed when clicked, it should be discarded from the inventory instead.
+- Poison should ignore armor
+

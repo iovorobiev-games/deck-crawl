@@ -20,7 +20,8 @@
       "Bash(gh pr:*)",
       "Bash(mv:*)",
       "Bash(python:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
