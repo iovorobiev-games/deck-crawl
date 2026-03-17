@@ -9,8 +9,8 @@ export interface SlotDef {
 }
 
 export const SLOT_DEFS: SlotDef[] = [
-  { name: "weapon1", label: "Weapon", accepted: ["weapon"], icon: "\u2694" },
-  { name: "weapon2", label: "Weapon", accepted: ["weapon"], icon: "\u2694" },
+  { name: "weapon1", label: "Weapon", accepted: ["weapon", "backpack"], icon: "\u2694" },
+  { name: "weapon2", label: "Weapon", accepted: ["weapon", "backpack"], icon: "\u2694" },
   { name: "head", label: "Head", accepted: ["head"], icon: "\u2666" },
   { name: "armour", label: "Armour", accepted: ["armour"], icon: "\u2666" },
   { name: "backpack1", label: "Pack", accepted: ["weapon", "armour", "head", "backpack"], icon: "\u25A1" },
@@ -57,6 +57,30 @@ export class Inventory extends Phaser.Events.EventEmitter {
 
   getItem(slotName: string): CardData | null {
     return this.slots.get(slotName) ?? null;
+  }
+
+  canSwap(slotA: string, slotB: string): boolean {
+    const itemA = this.slots.get(slotA);
+    const itemB = this.slots.get(slotB);
+    if (!itemA || !itemB) return false;
+    if (itemA.isKey || itemB.isKey) return false;
+    const defA = SLOT_DEFS.find((d) => d.name === slotA);
+    const defB = SLOT_DEFS.find((d) => d.name === slotB);
+    if (!defA || !defB) return false;
+    if (!itemA.slot || !itemB.slot) return false;
+    return defB.accepted.includes(itemA.slot) && defA.accepted.includes(itemB.slot);
+  }
+
+  swap(slotA: string, slotB: string): boolean {
+    if (!this.canSwap(slotA, slotB)) return false;
+    const itemA = this.slots.get(slotA)!;
+    const itemB = this.slots.get(slotB)!;
+    this.slots.set(slotA, itemB);
+    this.slots.set(slotB, itemA);
+    this.emit("slotChanged", slotA, itemB, itemA);
+    this.emit("slotChanged", slotB, itemA, itemB);
+    this.emit("statsChanged");
+    return true;
   }
 
   get powerBonus(): number {

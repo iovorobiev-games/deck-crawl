@@ -1069,12 +1069,10 @@ export class GameScene extends Phaser.Scene {
     card.setDepth(6000);
     card.setScale(0.85);
 
-    // Show slot highlights immediately
+    // Show slot highlights immediately (only for empty compatible slots)
     for (const def of SLOT_DEFS) {
-      this.inventoryView.setSlotHighlight(
-        def.name,
-        this.inventory.canEquip(def.name, card.cardData) ? "valid" : "invalid"
-      );
+      const canDrop = this.inventory.canEquip(def.name, card.cardData) && !this.inventory.getItem(def.name);
+      this.inventoryView.setSlotHighlight(def.name, canDrop ? "valid" : "invalid");
     }
 
     // Show red drop-target highlights on all monsters if card has dragOnMonster ability
@@ -1096,11 +1094,11 @@ export class GameScene extends Phaser.Scene {
       // Update slot highlights — bright when hovered, dim otherwise
       const hit = this.inventoryView.getSlotAtPoint(world.x, world.y);
       for (const def of SLOT_DEFS) {
-        const canEquip = this.inventory.canEquip(def.name, card.cardData);
+        const canDrop = this.inventory.canEquip(def.name, card.cardData) && !this.inventory.getItem(def.name);
         if (hit === def.name) {
-          this.inventoryView.setSlotHighlight(def.name, canEquip ? "valid" : "invalid");
+          this.inventoryView.setSlotHighlight(def.name, canDrop ? "valid" : "invalid");
         } else {
-          this.inventoryView.setSlotHighlight(def.name, canEquip ? "valid_dim" : "invalid_dim");
+          this.inventoryView.setSlotHighlight(def.name, canDrop ? "valid_dim" : "invalid_dim");
         }
       }
 
@@ -2463,8 +2461,9 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.setSlotContentAlpha(def.name, 0.3);
             // Show initial slot highlights
             for (const slotDef of SLOT_DEFS) {
-              const canEquip = this.inventory.canEquip(slotDef.name, item);
-              this.inventoryView.setSlotHighlight(slotDef.name, canEquip ? "valid_dim" : "invalid_dim");
+              const isEmpty = !this.inventory.getItem(slotDef.name);
+              const canDrop = (isEmpty && this.inventory.canEquip(slotDef.name, item)) || this.inventory.canSwap(def.name, slotDef.name);
+              this.inventoryView.setSlotHighlight(slotDef.name, canDrop ? "valid_dim" : "invalid_dim");
             }
             // Show red drop-target highlights on all monsters if item has dragOnMonster ability
             if (this.collectAbilities("dragOnMonster", item).length > 0) {
@@ -2485,11 +2484,12 @@ export class GameScene extends Phaser.Scene {
             // Update highlights — bright when hovered, dim otherwise
             const hit = this.inventoryView.getSlotAtPoint(world.x, world.y);
             for (const slotDef of SLOT_DEFS) {
-              const canEquip = this.inventory.canEquip(slotDef.name, item);
+              const isEmpty = !this.inventory.getItem(slotDef.name);
+              const canDrop = (isEmpty && this.inventory.canEquip(slotDef.name, item)) || this.inventory.canSwap(def.name, slotDef.name);
               if (hit === slotDef.name) {
-                this.inventoryView.setSlotHighlight(slotDef.name, canEquip ? "valid" : "invalid");
+                this.inventoryView.setSlotHighlight(slotDef.name, canDrop ? "valid" : "invalid");
               } else {
-                this.inventoryView.setSlotHighlight(slotDef.name, canEquip ? "valid_dim" : "invalid_dim");
+                this.inventoryView.setSlotHighlight(slotDef.name, canDrop ? "valid_dim" : "invalid_dim");
               }
             }
 
@@ -2730,7 +2730,7 @@ export class GameScene extends Phaser.Scene {
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
           } else if (overSlot && this.inventory.canEquip(overSlot, item) && !this.inventory.getItem(overSlot)) {
-            // Dropped on a compatible empty slot — move item (no displacement allowed)
+            // Dropped on a compatible empty slot — move item
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             const displaced = this.inventory.unequip(def.name);
@@ -2739,6 +2739,11 @@ export class GameScene extends Phaser.Scene {
             const equipAbilities = overSlot.startsWith("backpack") ? [] : this.collectAbilities("onEquip", item);
             const slotOrigin = this.inventoryView.getSlotWorldPos(overSlot);
             this.fireAbilities(equipAbilities, () => {}, slotOrigin ?? undefined);
+          } else if (overSlot && this.inventory.canSwap(def.name, overSlot)) {
+            // Dropped on an occupied compatible slot — swap items
+            ghost.destroy();
+            this.inventoryView.setSlotContentAlpha(def.name, 1);
+            this.inventory.swap(def.name, overSlot);
           } else if (item.isKey) {
             // Key cards cannot be discarded — snap back
             ghost.destroy();
