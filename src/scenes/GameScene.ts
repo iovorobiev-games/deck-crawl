@@ -1756,6 +1756,21 @@ export class GameScene extends Phaser.Scene {
     return null;
   }
 
+  /** Find any card at the given world coordinates on the grid. */
+  private findGridCardAtPoint(x: number, y: number): Card | null {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridCard = this.grid.getCardAt(c, r);
+        if (gridCard) {
+          if (Math.abs(x - gridCard.x) < CARD_W / 2 && Math.abs(y - gridCard.y) < CARD_H / 2) {
+            return gridCard;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   /** Get all cards adjacent (up/down/left/right) to the given card on the grid. */
   private getAdjacentCards(card: Card): Card[] {
     const cell = this.grid.findCard(card);
@@ -2744,13 +2759,12 @@ export class GameScene extends Phaser.Scene {
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             this.inventory.swap(def.name, overSlot);
-          } else if (item.isKey) {
-            // Key cards cannot be discarded — snap back
+          } else if (item.isKey || overSlot || this.findGridCardAtPoint(world.x, world.y) || this.playerView.isPointOver(world.x, world.y)) {
+            // Snap back: key cards, incompatible slot, grid card, or portrait
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
           } else {
-            // Dropped elsewhere — discard
-            // Fire onDiscard for the item being discarded
+            // Dropped on empty space — discard
             const discardAbilities = this.collectAbilities("onDiscard", item);
             const discardSlotPos = this.inventoryView.getSlotWorldPos(def.name);
             this.fireAbilities(discardAbilities, () => {}, discardSlotPos ?? undefined);
