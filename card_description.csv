@@ -1,0 +1,66 @@
+Card,Type,Description
+Skeleton,Enemy,1 Power
+Swarm of Bats,Enemy,1 Power  -1 Agility
+Zombie,Enemy,2 Power
+Bloated Zombie,Enemy,2 Power +1 damage
+Cultist,Enemy,3 Power. Adds Dark Ritual to Dungeon Deck on Explore
+Dark Knight,Enemy,4 Power
+Wooden Chest,Object,"2 Difficulty, 2 Trap damage"
+Ominous Chest ,Object,"2 Difficulty, 4 Trap Damage"
+Rusty Chest,Object,"1 Difficulty, 3 Trap Damage"
+Trapped Chest,Object,"2 Difficulty, 3 Trap Damage"
+Hardened Chest,Object,"3 Difficulty, 1 Trap Damage"
+Pressure Plate,Trap,"Blocks Explore. 2 Difficulty, 1 Damage"
+Bear Trap,Trap,"Blocks Explore. 2 Difficulty, 2 Damage"
+Hidden Pit,Trap,"Blocks Explore. 3 Difficulty, 1 Damage"
+Lesser Health Potion,Treasure,Restores 2HP
+Minor Health Potion,Treasure,Restores 3HP
+Pile of Gold,Treasure,2 Gold Coins
+Pile of Gold,Treasure,3 Gold Coins
+Pile of Gold,Treasure,4 Gold Coins
+Rusty Key,Quest Item,Opens The Dungeon Door
+Heavy Door,Quest Object,Open with the key
+Lockpick,Treasure,Opens a chest
+Disarming Kit,Treasure,Disarms traps
+Altar of Luck,Treasure,Adds +2 card into your fate deck for 1 Gold donation 
+Wooden Shield ,Treasure,Blocks 2 Damage
+Thieve's Gloves,Treasure,+1 Agility
+Rusty Sword,Treasure,"+1 Power.
+ Adds Weapon Degradation to Dungeon Deck when equipped"
+Shortbow,Treasure,Adds 3 Bow Shot cards into a dungeon deck
+Rusty armour,Treasure,Adds 1 Max HP
+Spiked Shield,Treasure,Blocks 3 Damage. Power +1
+Guardsman Sword,Treasure,Power +1
+Poison,Treasure,Applies to Weapon. Adds +2 Power for the next Battle
+Scroll of Fire Bolt,Treasure,Reduces Enemy Power By 2
+Ogre Axe,Treasure,"Power +2. 
+Adds Weapon Degadation to Dungeon Deck if equipped"
+Weapon Degradation,Event,Reduces power of currently equipped weapon by 1
+Bow Shot,Event,Reduces power of a random enemy by 2
+Attack from Shadows,Event,Deals 1 Damage to the player
+Vengeful Revenant,Enemy,"Power 2, 
+Returns back to the Dungeon deck after death and gets type Dark Event. 
+-1 Power while on the game field"
+Skeleton Archer,Enemy,"Power 1. 
+Inserts Attack From Shadows into the dungeon deck on explore"
+Dark Ritual,Event,When Resolved insert Horrendous Tentacle to the dungeon deck
+Horrendous Tentacle,Enemy,"Power 2. 
+Once 3 of these appear from the Dungeon Deck, Put Horror From The Beyond into the Dungeon Deck"
+Horror From The Beyond,Enemy,Power 10. Deals 1 damage for evey action which is not fighting Horror from The Beyond
+Poison Dart Trap,Object,"Difficulty 3. 
+Adds Poisoning card into the Dungeon Deck"
+Crypt Lord,Enemy,"Power 3,
+While Phylactory is not in discard, goes back to dungeon deck after death. 
+While on the game field, adds skeleton to the dungeon deck on explore"
+Pile of Gold,Treasure,6 Gold Coins
+Phylactery,Treasure,Adds +2 Power to necromancer when discarded
+Knights Sword,Treasure,Power +2
+Scroll of FireBall,Treasure,Reduces Power of all enemies by 2
+Guardsman Armour,Treasure,Adds +2 Max HP
+Guardsman Shield,Treasure,Absorb 3 Damage (Hands)
+Scroll of Cleansing,Treasure,Removes top Dark Event from the deck
+Scroll of Blessing,Treasure,Adds +2 card to your fate deck
+Quiver,Treasure,Triggers Bow ability (if bow is abailable
+Elven Bow,Treasure,"Adds 3 Strong Bow Shot cards into a dungeon deck. 
+Agility +1"
+Healing Potion,Treasure,Heals 4 HP

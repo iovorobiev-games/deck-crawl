@@ -1,0 +1,5 @@
+- ALL treasure cards should have same color, now it is different on different cards. The color should be same as default color on player power and agility stats
+- All cards title text should be in the rect of size 158x32. The rect should be placed with 6px margin from top, left and right of the card. The text should be centered in the rect
+- During fight animation (when player character hits enemy and enemy hits back) fight button should be below the portrait and card
+- Some cards shouldn't be in the dungeon deck, they should be only available as loot from monsters and chests (e.g. I see scrolls dealing from the deck now). Consult decks.csv on what should be in the dungeon deck and what should only be treasure.
+- Remove diamond character from agility stat when agility check happens and swords character from power stats when fight happens

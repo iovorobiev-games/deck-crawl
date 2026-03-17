@@ -1,0 +1,16 @@
+- Monster shouldn't have HP it should be power instead
+- Font size should be bigger both in title and description sections
+- Treasure title should be a darker color, as now it is difficult to read.
+- Fate cards should be shown above everything when it is pulled
+- Card should be dealed from the dungeon deck, not appear in the empty slot
+- Cards should have "Description" field. You can pull descriptions from card_description.csv . Description text should be shown in descriptin area of the card.
+- Weapon degradation should apply to weapon with the highest power, or to the left one if the powers are equal.
+- OnEquip ability should be triggered only once
+- It should be impossible to discard key card once it is in the inventory.
+- Quiver should have OnDiscard as a trigger, rather than OnEquip
+- Healing potion should be on top of everything when dragged (it is behind the player portrait now)
+- The card behind a chest should have the same card back as one used for dungeon deck
+- Cards in the inventory should look exactly like cards on the field (you don't need to create a different view for it) just scaled down to inventory slot size
+- When I use items with ability trigger Drag On Monster, I want monsters on the field to be highlighted in red
+- Items that are equippable in any slot other than backpack shouldn't be considered equipped when added to backpack
+- Buttons that appear when cards are clicked should be shown on top of everything. The only thing that can cover it is the drawn fate card.

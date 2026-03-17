@@ -1,0 +1,66 @@
+Card,Type,Bonus,Trigger Description,Effect Description
+Quiver,Treasure,,On equip (conditional: bow equipped),Trigger bow ability
+Rusty Sword,Treasure,1 Power,On equip,Insert Weapon Degradation card to deck
+Shortbow,Treasure,,On equip,Insert 3 Bow Shot cards to deck
+Ogre Axe,Treasure,2 Power,On equip,Insert Weapon Degradation card to deck
+Elven Bow,Treasure,1 Agility,On equip,Insert 3 Strong Bow Shot cards (power 3) to deck
+Phylactery,Treasure,,On discard,+2 Power to Necromancer
+Crypt Lord,Enemy,Power 3,On death (conditional),Return to deck if Phylactery not discarded
+Crypt Lord,Enemy,Power 3,On Explore,Add Skeleton Warrior to deck
+Vengeful Revenant,Enemy,,While on field (passive aura),-1 Power debuff to player
+Vengeful Revenant,Enemy,Power 2,On death,Return to deck
+Bloated Zombie,Enemy,Power 2,On counterattack,+1 bonus counterattack damage
+Disarming Kit,Treasure,,Drag onto trap card,Auto-disarm trap (bypass agility)
+Poison,Treasure,,Drag onto equipped weapon,+2 Power for next battle only
+Lockpick,Treasure,,Drag onto chest card,Auto-open chest (bypass agility)
+Scroll of Fireball,Treasure,,Drag on Monster,Reduce target and adjucent monsters power by 2
+Scroll of Fire Bolt,Treasure,,Drag On Monster,Reduce 1 enemy power by 2
+Scroll of Cleansing,Treasure,,On Discard,Remove top Dark Event from deck
+Scroll of Blessing,Treasure,,On Discard,Add +2 card to fate deck
+Swarm of Bats,Enemy,,While on field (passive aura),-1 Agility debuff to player
+Strong Bow Shot,Event,,On reveal,Reduce random enemy power by 3
+Bow Shot,Event,,On reveal,Reduce random enemy power by 2
+Attack from Shadows,Event,,On reveal,Deal 1 damage to player
+Skeleton Archer,Enemy,Power 1,On explore (while on field),Insert Attack From Shadows to deck
+,,,,
+Wooden Shield,Treasure,,On damage (while equipped),Absorb 2 damage
+Spiked Shield,Treasure,,On damage (while equipped),Absorb 3 damage
+Guardsman Shield,Treasure,,On damage (while equipped),Absorb 3 damage
+,,,,
+,,,,
+Guardsman Sword,Treasure,1 Power ,,
+,,,,
+Knights Sword,Treasure,2 Power ,,
+,,,,
+Cloak of Swiftness,Treasure,1 Agility ,,
+Rusty Armour,Treasure,+1 Max HP,,
+Guardsman Armour,Treasure,+2 Max HP,,
+Lesser Health Potion,Treasure,,Drag on player portrait,Heal 2 HP
+Minor Health Potion,Treasure,,Drag on player portrait,Heal 3 HP
+Healing Potion,Treasure,,Drag on player portrait,Heal 4 HP
+,,,,
+,,,,
+Pressure Plate,Trap,,Click to resolve (disarm),Trap disarm (2 Diff / 1 Dmg)
+Bear Trap,Trap,,Click to resolve (disarm),Trap disarm (2 Diff / 2 Dmg)
+Hidden Pit,Trap,,Click to resolve (disarm),Trap disarm (3 Diff / 1 Dmg)
+Skeleton,Enemy,,Click to resolve (combat),Standard combat (Power 1)
+Swarm of Bats,Enemy,,Click to resolve (combat),Standard combat (Power 1)
+Zombie,Enemy,,Click to resolve (combat),Standard combat (Power 2)
+,,,,
+Cultist,Enemy,,Click to resolve (combat),Standard combat (Power 3)
+Dark Knight,Enemy,,Click to resolve (combat),Standard combat (Power 4)
+Vengeful Revenant,Enemy,,Click to resolve (combat),Standard combat (Power 2)
+,,,,
+,,,,
+,,,,
+,,,,
+Wooden Chest,Object,,Click to resolve (chest crack),Agility check (2 Diff / 2 Trap)
+Ominous Chest,Object,,Click to resolve (chest crack),Agility check (2 Diff / 4 Trap)
+Rusty Chest,Object,,Click to resolve (chest crack),Agility check (1 Diff / 3 Trap)
+Trapped Chest,Object,,Click to resolve (chest crack),Agility check (2 Diff / 3 Trap)
+Hardened Chest,Object,,Click to resolve (chest crack),Agility check (3 Diff / 1 Trap)
+,,,,
+Pile of Gold (2),Treasure,,Click to resolve,Add 2 gold to player
+Pile of Gold (3),Treasure,,Click to resolve,Add 3 gold to player
+Pile of Gold (4),Treasure,,Click to resolve,Add 4 gold to player
+Pile of Gold (6),Treasure,,Click to resolve,Add 6 gold to player
