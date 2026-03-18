@@ -190,12 +190,6 @@ const abilityRegistry: Record<string, AbilityDef> = {
     effect: "damagePlayer",
     description: "Deals 1 damage",
   },
-  revenant_return: {
-    id: "revenant_return",
-    trigger: "onMonsterDeath",
-    effect: "shuffleSelfIntoDeck",
-    description: "Returns to the deck on death",
-  },
   power_drain: {
     id: "power_drain",
     trigger: "passive",
