@@ -296,7 +296,7 @@ const abilityRegistry: Record<string, AbilityDef> = {
     id: "melee_weapon_boost",
     trigger: "passive",
     effect: "boostMeleeWeaponPower",
-    description: "Melee weapons have +1 power",
+    description: "Doubles melee weapon power",
   },
   scroll_damage_boost: {
     id: "scroll_damage_boost",

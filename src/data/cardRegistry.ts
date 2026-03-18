@@ -62,14 +62,14 @@ export const cardRegistry: Record<string, CardData> = {
   wizards_robe: { id: "wizards_robe", type: CardType.Treasure, name: "Wizard's Robe", value: 0, description: "+2 damage from scrolls", slot: "armour", image: "mages_robe", abilities: [{ abilityId: "scroll_damage_boost", params: { amount: 2 } }] },
   marksman_cloak: { id: "marksman_cloak", type: CardType.Treasure, name: "Marksman's Cloak", value: 0, description: "Adds Agility to Bow Shot damage", slot: "armour", image: "cloak_of_swiftness", abilities: [{ abilityId: "bow_agility_damage", params: {} }] },
   ranger_cape: { id: "ranger_cape", type: CardType.Treasure, name: "Ranger's Cape", value: 0, description: "Bow shots return to the Dungeon Deck if they miss", slot: "head", image: "cape", abilities: [{ abilityId: "bow_shot_recycle", params: {} }] },
-  rusty_armour: { id: "rusty_armour", type: CardType.Treasure, name: "Rusty Armour", value: 0, description: "Adds 1 Max HP", slot: "armour", image: "rusty_cuirass", maxHpBonus: 1 },
-  guardsman_armour: { id: "guardsman_armour", type: CardType.Treasure, name: "Guardsman Armour", value: 0, description: "Adds +2 Max HP", slot: "armour", image: "metal_cuirass", maxHpBonus: 2 },
+  rusty_armour: { id: "rusty_armour", type: CardType.Treasure, name: "Rusty Armour", value: 0, description: "Adds +2 Max HP", slot: "armour", image: "rusty_cuirass", maxHpBonus: 2 },
+  guardsman_armour: { id: "guardsman_armour", type: CardType.Treasure, name: "Guardsman Armour", value: 0, description: "Adds +4 Max HP", slot: "armour", image: "metal_cuirass", maxHpBonus: 4 },
 
   // --- Treasure - Head ---
   iron_helm: { id: "iron_helm", type: CardType.Treasure, name: "Iron Helm", value: 1, description: "Heals 1 HP on kill", slot: "head", abilities: [{ abilityId: "vampiric", params: { amount: 1 } }] },
   crown: { id: "crown", type: CardType.Treasure, name: "Crown", value: 2, description: "Cursed: 1 damage on counterattack", slot: "head", abilities: [{ abilityId: "thorns", params: { amount: 1 } }] },
   wizard_hat: { id: "wizard_hat", type: CardType.Treasure, name: "Wizard's Hat", value: 0, description: "All scrolls return to the Dungeon Deck after use", slot: "head", image: "wizard_hat", abilities: [{ abilityId: "scroll_recycle", params: {} }] },
-  warrior_helm: { id: "warrior_helm", type: CardType.Treasure, name: "Warrior Helm", value: 0, description: "Melee weapons have +1 power", slot: "head", image: "warrior_helm", abilities: [{ abilityId: "melee_weapon_boost", params: { amount: 1 } }] },
+  warrior_helm: { id: "warrior_helm", type: CardType.Treasure, name: "Warrior Helm", value: 0, description: "Doubles melee weapon power", slot: "head", image: "warrior_helm", abilities: [{ abilityId: "melee_weapon_boost", params: {} }] },
   marksman_hat: { id: "marksman_hat", type: CardType.Treasure, name: "Marksman's Hat", value: 0, description: "+2 to Bow Shot damage", slot: "head", image: "marksman_hat", abilities: [{ abilityId: "bow_damage_boost", params: { amount: 2 } }] },
 
   // --- Treasure - Backpack ---

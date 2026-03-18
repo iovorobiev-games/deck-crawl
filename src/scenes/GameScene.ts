@@ -333,29 +333,15 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    // Check for melee weapon boost from equipped items (e.g., Warrior Helm)
-    let meleeBoostAmount = 0;
-    for (const slotDef of SLOT_DEFS) {
-      if (slotDef.name.startsWith("backpack")) continue;
-      const item = this.inventory.getItem(slotDef.name);
-      if (item?.abilities) {
-        for (const ab of item.abilities) {
-          const def = getAbility(ab.abilityId);
-          if (def.trigger === "passive" && def.effect === "boostMeleeWeaponPower") {
-            meleeBoostAmount += Number(ab.params.amount ?? 0);
-          }
-        }
-      }
-    }
-    if (meleeBoostAmount > 0) {
-      // Count melee weapons in weapon slots only (not backpack)
+    // Check for melee weapon boost from equipped items (e.g., Warrior Helm doubles weapon power)
+    if (this.hasEquippedPassive("boostMeleeWeaponPower")) {
       for (const slotName of ["weapon1", "weapon2"]) {
         const weapon = this.inventory.getItem(slotName);
         if (!weapon || weapon.isKey || weapon.tag === "bow") continue;
         // Check if it's a pure shield (has absorbDamage ability and value is 0)
         const hasArmour = weapon.abilities?.some(a => getAbility(a.abilityId).effect === "absorbDamage") ?? false;
         if (hasArmour && weapon.value === 0) continue;
-        total += meleeBoostAmount;
+        total += weapon.value;
       }
     }
     return total;
@@ -424,7 +410,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Refresh weapon inventory slots to show melee boost from Warrior Helm. */
   private refreshWeaponSlotBonuses(): void {
-    const meleeBoost = this.getEquippedPassiveAmount("boostMeleeWeaponPower");
+    const hasMeleeBoost = this.hasEquippedPassive("boostMeleeWeaponPower");
     for (const slotName of ["weapon1", "weapon2"]) {
       const weapon = this.inventory.getItem(slotName);
       if (!weapon || weapon.isKey || weapon.tag === "bow") {
@@ -436,7 +422,7 @@ export class GameScene extends Phaser.Scene {
         this.inventoryView.refreshSlot(slotName, 0);
         continue;
       }
-      this.inventoryView.refreshSlot(slotName, meleeBoost);
+      this.inventoryView.refreshSlot(slotName, hasMeleeBoost ? weapon.value : 0);
     }
   }
 
