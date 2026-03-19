@@ -1,37 +1,40 @@
 import { CardData, CardType } from "../entities/CardData";
-import { DeckEntry } from "../data/deckConfig";
+import { DeckEntry, DUNGEON_DECK_SIZE, LOOT_POOL_SIZE } from "../data/deckConfig";
 import { DungeonLevel } from "../data/dungeonConfig";
 import { getCard } from "../data/cardRegistry";
+
+function weightedSample(entries: DeckEntry[], size: number): CardData[] {
+  const totalWeight = entries.reduce((sum, e) => sum + e.weight, 0);
+  const cards: CardData[] = [];
+  for (let i = 0; i < size; i++) {
+    let roll = Math.random() * totalWeight;
+    for (const entry of entries) {
+      roll -= entry.weight;
+      if (roll <= 0) {
+        cards.push(getCard(entry.id));
+        break;
+      }
+    }
+  }
+  return cards;
+}
 
 export class Deck {
   private cards: CardData[] = [];
   private lootPool: CardData[] = [];
 
   constructor(config: DeckEntry[]) {
-    this.expandEntries(config);
+    if (config.length > 0) {
+      this.cards = weightedSample(config, DUNGEON_DECK_SIZE);
+    }
     this.shuffle();
-  }
-
-  private expandEntries(config: DeckEntry[]): void {
-    for (const entry of config) {
-      for (let i = 0; i < entry.count; i++) {
-        this.cards.push(getCard(entry.id));
-      }
-    }
-  }
-
-  private expandLootEntries(config: DeckEntry[]): void {
-    for (const entry of config) {
-      for (let i = 0; i < entry.count; i++) {
-        this.lootPool.push(getCard(entry.id));
-      }
-    }
   }
 
   static fromDungeonLevel(level: DungeonLevel, levelIndex: number): Deck {
     const deck = new Deck([]);
-    deck.expandEntries(level.cards);
-    deck.expandLootEntries(level.loot);
+    deck.cards = weightedSample(level.cards, DUNGEON_DECK_SIZE);
+    deck.lootPool = weightedSample(level.loot, LOOT_POOL_SIZE);
+
     const bossCard = getCard(level.boss);
     bossCard.isBoss = true;
     deck.cards.push(bossCard);
