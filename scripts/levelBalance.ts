@@ -23,14 +23,14 @@ for (let i = 0; i < dungeonConfig.levels.length; i++) {
   for (const entry of level.cards) {
     const card = cardRegistry[entry.id];
     if (!card) continue;
-    const gold = (card.goldValue || 0) * entry.count;
+    const gold = (card.goldValue || 0) * entry.weight;
     if (ENEMY_TYPES.has(card.type)) {
       dungeonEnemyGold += gold;
-      if (card.type === CardType.Monster) enemyCount += entry.count;
-      dungeonBreakdown.push(`  ${entry.id} x${entry.count}: ${gold.toFixed(2)} (${card.type})`);
+      if (card.type === CardType.Monster) enemyCount += entry.weight;
+      dungeonBreakdown.push(`  ${entry.id} x${entry.weight}: ${gold.toFixed(2)} (${card.type})`);
     } else {
       dungeonBenefitGold += gold;
-      dungeonBreakdown.push(`  ${entry.id} x${entry.count}: +${gold.toFixed(2)} (benefit)`);
+      dungeonBreakdown.push(`  ${entry.id} x${entry.weight}: +${gold.toFixed(2)} (benefit)`);
     }
   }
 
@@ -53,9 +53,9 @@ for (let i = 0; i < dungeonConfig.levels.length; i++) {
   for (const entry of level.loot) {
     const card = cardRegistry[entry.id];
     if (!card) continue;
-    const gold = (card.goldValue || 0) * entry.count;
+    const gold = (card.goldValue || 0) * entry.weight;
     lootGold += gold;
-    lootBreakdown.push(`  ${entry.id} x${entry.count}: ${gold.toFixed(2)}`);
+    lootBreakdown.push(`  ${entry.id} x${entry.weight}: ${gold.toFixed(2)}`);
   }
 
   const totalDungeon = dungeonEnemyGold - dungeonBenefitGold;
