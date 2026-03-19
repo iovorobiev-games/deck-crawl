@@ -2742,9 +2742,18 @@ export class GameScene extends Phaser.Scene {
             this.fireAbilities(equipAbilities, () => {}, slotOrigin ?? undefined);
           } else if (overSlot && this.inventory.canSwap(def.name, overSlot)) {
             // Dropped on an occupied compatible slot — swap items
+            const otherItem = this.inventory.getItem(overSlot)!;
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             this.inventory.swap(def.name, overSlot);
+            // Fire onEquip for items landing in non-backpack (hand) slots
+            const draggedEquipAbilities = overSlot.startsWith("backpack") ? [] : this.collectAbilities("onEquip", item);
+            const otherEquipAbilities = def.name.startsWith("backpack") ? [] : this.collectAbilities("onEquip", otherItem);
+            const allEquipAbilities = [...draggedEquipAbilities, ...otherEquipAbilities];
+            if (allEquipAbilities.length > 0) {
+              const slotOrigin = this.inventoryView.getSlotWorldPos(overSlot);
+              this.fireAbilities(allEquipAbilities, () => {}, slotOrigin ?? undefined);
+            }
           } else if (item.isKey || overSlot || this.findGridCardAtPoint(world.x, world.y) || this.playerView.isPointOver(world.x, world.y)) {
             // Snap back: key cards, incompatible slot, grid card, or portrait
             ghost.destroy();
