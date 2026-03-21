@@ -1,7 +1,7 @@
 import { CardData, CardType } from "../entities/CardData";
-import { DeckEntry, DUNGEON_DECK_SIZE, LOOT_POOL_SIZE } from "../data/deckConfig";
-import { DungeonLevel } from "../data/dungeonConfig";
-import { getCard } from "../data/cardRegistry";
+import { DeckEntry, DUNGEON_DECK_SIZE } from "../data/deckConfig";
+import { DungeonLevel, LootConfig } from "../data/dungeonConfig";
+import { cardRegistry, getCard } from "../data/cardRegistry";
 
 function weightedSample(entries: DeckEntry[], size: number): CardData[] {
   const totalWeight = entries.reduce((sum, e) => sum + e.weight, 0);
@@ -33,7 +33,19 @@ export class Deck {
   static fromDungeonLevel(level: DungeonLevel, levelIndex: number): Deck {
     const deck = new Deck([]);
     deck.cards = weightedSample(level.cards, DUNGEON_DECK_SIZE);
-    deck.lootPool = weightedSample(level.loot, LOOT_POOL_SIZE);
+
+    // Count loot consumers (non-boss monsters + chests)
+    // Use weighted proportion of DUNGEON_DECK_SIZE to estimate actual card counts
+    const totalWeight = level.cards.reduce((sum, e) => sum + e.weight, 0);
+    let consumers = 0;
+    for (const entry of level.cards) {
+      const card = cardRegistry[entry.id];
+      if (card && (card.type === CardType.Monster || card.type === CardType.Chest)) {
+        consumers += Math.round((entry.weight / totalWeight) * DUNGEON_DECK_SIZE);
+      }
+    }
+    const poolSize = consumers + level.loot.bufferSize;
+    deck.generateLootPool(level.loot, poolSize);
 
     const bossCard = getCard(level.boss);
     bossCard.isBoss = true;
@@ -51,8 +63,47 @@ export class Deck {
     }
 
     deck.shuffle();
-    deck.shuffleLoot();
     return deck;
+  }
+
+  private generateLootPool(config: LootConfig, poolSize: number): void {
+    this.lootPool = [];
+
+    // Add guaranteed cards (1 copy each)
+    if (config.guaranteed) {
+      for (const id of config.guaranteed) {
+        this.lootPool.push(getCard(id));
+      }
+    }
+
+    // Build candidates with count tracking
+    const candidates = config.pool.map(entry => ({
+      ...entry,
+      currentCount: 0,
+    }));
+
+    // Fill remaining slots with weighted random draws
+    const remaining = poolSize - this.lootPool.length;
+    for (let i = 0; i < remaining; i++) {
+      const available = candidates.filter(c => c.currentCount < c.maxCount);
+      if (available.length === 0) break;
+
+      const totalWeight = available.reduce((sum, c) => sum + c.weight, 0);
+      let roll = Math.random() * totalWeight;
+      let selected = available[available.length - 1]; // fallback
+      for (const candidate of available) {
+        roll -= candidate.weight;
+        if (roll <= 0) {
+          selected = candidate;
+          break;
+        }
+      }
+
+      this.lootPool.push(getCard(selected.id));
+      selected.currentCount++;
+    }
+
+    this.shuffleLoot();
   }
 
   mergeCards(newCards: CardData[]): void {
@@ -115,6 +166,12 @@ export class Deck {
   drawLoot(): CardData | null {
     if (this.lootPool.length === 0) return null;
     return this.lootPool.splice(0, 1)[0];
+  }
+
+  drawLootForChest(): CardData | null {
+    const idx = this.lootPool.findIndex(c => !c.onlyGuarded);
+    if (idx === -1) return null;
+    return this.lootPool.splice(idx, 1)[0];
   }
 
   drainLoot(): CardData[] {

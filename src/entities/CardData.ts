@@ -34,6 +34,7 @@ export interface CardData {
   exchangeReward?: { type: "treasure"; cardId: string } | { type: "fate"; modifier: number };
   equipTriggered?: boolean;
   goldValue?: number;
+  onlyGuarded?: boolean;
 }
 
 export const CardColorMap: Record<CardType, number> = {
