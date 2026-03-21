@@ -639,7 +639,7 @@ export class GameScene extends Phaser.Scene {
       }
       this.setupCardInteraction(monsterCard);
     } else if (plan.cardData.type === CardType.Chest) {
-      const lootData = this.deck.drawLoot();
+      const lootData = this.deck.drawLootForChest();
 
       const chestCard = new Card(this, pos.x, pos.y, plan.cardData);
       chestCard.setDepth(10);

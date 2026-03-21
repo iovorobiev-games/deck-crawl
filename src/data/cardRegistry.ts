@@ -56,7 +56,6 @@ export const cardRegistry: Record<string, CardData> = {
   guardsman_shield: { id: "guardsman_shield", goldValue: 6, type: CardType.Treasure, name: "Guardsman Shield", value: 0, description: "Absorb 3 Damage (Hands)", slot: "weapon", image: "knights_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
 
   // --- Treasure - Armour ---
-  chain_mail: { id: "chain_mail", goldValue: 24, type: CardType.Treasure, name: "Chain Mail", value: 3, description: "", slot: "armour", image: "metal_cuirass" },
   cloak_of_swiftness: { id: "cloak_of_swiftness", goldValue: 6, type: CardType.Treasure, name: "Cloak of Swiftness", value: 0, description: "+1 agility", slot: "armour", image: "cloak_of_swiftness", agilityBonus: 1 },
   wizards_robe: { id: "wizards_robe", goldValue: 8, type: CardType.Treasure, name: "Wizard's Robe", value: 0, description: "+2 damage from scrolls", slot: "armour", image: "mages_robe", abilities: [{ abilityId: "scroll_damage_boost", params: { amount: 2 } }] },
   marksman_cloak: { id: "marksman_cloak", goldValue: 6, type: CardType.Treasure, name: "Marksman's Cloak", value: 0, description: "Adds Agility to Bow Shot damage", slot: "armour", image: "cloak_of_swiftness", abilities: [{ abilityId: "bow_agility_damage", params: {} }] },
@@ -65,7 +64,6 @@ export const cardRegistry: Record<string, CardData> = {
   guardsman_armour: { id: "guardsman_armour", goldValue: 8, type: CardType.Treasure, name: "Guardsman Armour", value: 0, description: "Adds +4 Max HP", slot: "armour", image: "metal_cuirass", maxHpBonus: 4 },
 
   // --- Treasure - Head ---
-  iron_helm: { id: "iron_helm", goldValue: 10, type: CardType.Treasure, name: "Iron Helm", value: 1, description: "Heals 1 HP on kill", slot: "head", abilities: [{ abilityId: "vampiric", params: { amount: 1 } }] },
   wizard_hat: { id: "wizard_hat", goldValue: 8.88, type: CardType.Treasure, name: "Wizard's Hat", value: 0, description: "All scrolls return to the Dungeon Deck after use", slot: "head", image: "wizard_hat", abilities: [{ abilityId: "scroll_recycle", params: {} }] },
   warrior_helm: { id: "warrior_helm", goldValue: 24, type: CardType.Treasure, name: "Warrior Helm", value: 0, description: "Doubles melee weapon power", slot: "head", image: "warrior_helm", abilities: [{ abilityId: "melee_weapon_boost", params: {} }] },
   marksman_hat: { id: "marksman_hat", goldValue: 8, type: CardType.Treasure, name: "Marksman's Hat", value: 0, description: "+2 to Bow Shot damage", slot: "head", image: "marksman_hat", abilities: [{ abilityId: "bow_damage_boost", params: { amount: 2 } }] },
@@ -76,7 +74,7 @@ export const cardRegistry: Record<string, CardData> = {
 
   // --- Consumables ---
   poison_vial: { id: "poison_vial", goldValue: 4, type: CardType.Treasure, name: "Poison", value: 0, description: "Applies to Weapon. Adds +2 Power for the next Battle", slot: "backpack", image: "poison", abilities: [{ abilityId: "temp_buff_weapon", params: { amount: 2 } }] },
-  lockpick: { id: "lockpick", goldValue: 4.24, type: CardType.Treasure, name: "Lockpick", value: 0, description: "Opens a chest", slot: "backpack", image: "lockpicks", abilities: [{ abilityId: "auto_open_chest", params: {} }] },
+  lockpick: { id: "lockpick", goldValue: 4.24, type: CardType.Treasure, name: "Lockpick", value: 0, description: "Opens a chest", slot: "backpack", image: "lockpicks", onlyGuarded: true, abilities: [{ abilityId: "auto_open_chest", params: {} }] },
 
   // --- Scrolls ---
   fireball_scroll: { id: "fireball_scroll", goldValue: 8, type: CardType.Treasure, name: "Scroll of Fireball", value: 0, description: "Reduces Power of Adjacent enemies by 2", slot: "backpack", image: "scroll_of_fireball", tag: "scroll", abilities: [{ abilityId: "reduce_adjacent_monsters", params: { amount: 2, vfx: "fireball" } }] },
@@ -85,7 +83,7 @@ export const cardRegistry: Record<string, CardData> = {
   scroll_of_blessing: { id: "scroll_of_blessing", goldValue: 2.29, type: CardType.Treasure, name: "Scroll of Blessing", value: 0, description: "On Discard: Adds +2 card to your fate deck", slot: "backpack", image: "scroll_of_blessing", tag: "scroll", abilities: [{ abilityId: "add_fate_modifier", params: { modifier: 2 } }] },
 
   // --- Other tools ---
-  disarm_kit: { id: "disarm_kit", goldValue: 2.98, type: CardType.Potion, name: "Disarming Kit", value: 0, description: "Disarms traps", slot: "backpack", image: "disarming_kit", abilities: [{ abilityId: "disarm_tool", params: { amount: 1 } }] },
+  disarm_kit: { id: "disarm_kit", goldValue: 2.98, type: CardType.Potion, name: "Disarming Kit", value: 0, description: "Disarms traps", slot: "backpack", image: "disarming_kit", onlyGuarded: true, abilities: [{ abilityId: "disarm_tool", params: { amount: 1 } }] },
 
   // --- Degrading weapons ---
   rusty_sword: { id: "rusty_sword", goldValue: 6, type: CardType.Treasure, name: "Rusty Sword", value: 1, description: "Adds Weapon Degradation to Dungeon Deck when equipped", slot: "weapon", image: "rusty_sword", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
@@ -98,7 +96,7 @@ export const cardRegistry: Record<string, CardData> = {
   weapon_degradation: { id: "weapon_degradation", goldValue: 8, type: CardType.Event, name: "Weapon Degradation", value: 0, description: "Reduces power of currently equipped weapon by 1", image: "weapon_degradation", tag: "curse", abilities: [{ abilityId: "weapon_degrade", params: { amount: 1 } }] },
   bow_shot: { id: "bow_shot", goldValue: 4, type: CardType.Event, name: "Bow Shot", value: 0, description: "Reduces power of a random enemy by 2", image: "bow_shot", abilities: [{ abilityId: "reduce_random_enemy", params: { amount: 2 } }] },
   strong_bow_shot: { id: "strong_bow_shot", goldValue: 6, type: CardType.Event, name: "Strong Bow Shot", value: 0, description: "Reduces a random enemy's power by 3", image: "bow_shot", abilities: [{ abilityId: "reduce_random_enemy", params: { amount: 3 } }] },
-  altar_of_luck: { id: "altar_of_luck", goldValue: 1.29, type: CardType.Treasure, name: "Altar Of Luck", value: 0, description: "Adds +2 card into your fate deck for 1 Gold donation", image: "altar_of_luck", exchangePrice: { resource: "gold", amount: 1 }, exchangeReward: { type: "fate", modifier: 2 } },
+  altar_of_luck: { id: "altar_of_luck", goldValue: 1.29, type: CardType.Treasure, name: "Altar Of Luck", value: 0, description: "Adds +2 card into your fate deck for 1 Gold donation", image: "altar_of_luck", onlyGuarded: true, exchangePrice: { resource: "gold", amount: 1 }, exchangeReward: { type: "fate", modifier: 2 } },
 
   // --- Chests ---
   wooden_chest: { id: "wooden_chest", goldValue: 2.67, type: CardType.Chest, name: "Wooden Chest", value: 0, description: "Trap: -2 HP", lockDifficulty: 2, trapDamage: 2, image: "wooden_chest" },
