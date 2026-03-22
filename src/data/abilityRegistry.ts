@@ -4,6 +4,7 @@ export type AbilityTrigger =
   | "dragOnWeapon"
   | "dragOnMonster"
   | "dragOnChest"
+  | "dragOnTag"
   | "onReveal"
   | "onExplore"
   | "onDamage"
@@ -270,7 +271,7 @@ const abilityRegistry: Record<string, AbilityDef> = {
   },
   quiver_trigger: {
     id: "quiver_trigger",
-    trigger: "onDiscard",
+    trigger: "dragOnTag",
     effect: "triggerBowAbility",
     description: "Triggers equipped bow's ability",
   },

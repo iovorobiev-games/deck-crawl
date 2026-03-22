@@ -1170,6 +1170,26 @@ export class GameScene extends Phaser.Scene {
           }
         }
       }
+
+      // Highlight equipped slots with matching tag if dragging a card with dragOnTag ability
+      const dragOnTagAbilities = this.collectAbilities("dragOnTag", card.cardData);
+      if (dragOnTagAbilities.length > 0) {
+        for (const ab of dragOnTagAbilities) {
+          const requiredTag = ab.params.tag as string;
+          const tagSlot = this.findTagSlotAtPoint(world.x, world.y, requiredTag);
+          for (const slotDef of SLOT_DEFS) {
+            if (!slotDef.name.startsWith("backpack")) {
+              const slotItem = this.inventory.getItem(slotDef.name);
+              if (slotItem?.tag === requiredTag) {
+                this.inventoryView.setSlotHighlight(
+                  slotDef.name,
+                  slotDef.name === tagSlot ? "valid" : "valid_dim"
+                );
+              }
+            }
+          }
+        }
+      }
     };
 
     const onUp = (pointer: Phaser.Input.Pointer) => {
@@ -1250,6 +1270,23 @@ export class GameScene extends Phaser.Scene {
           card.disableInteractive();
           card.resolve(() => { this.finishDrag(); });
           return;
+        }
+      }
+
+      // Check if card with dragOnTag dropped on an equipped item with matching tag
+      const dragOnTagAbilitiesDrop = this.collectAbilities("dragOnTag", card.cardData);
+      if (dragOnTagAbilitiesDrop.length > 0) {
+        for (const ab of dragOnTagAbilitiesDrop) {
+          const requiredTag = ab.params.tag as string;
+          const tagSlot = this.findTagSlotAtPoint(world.x, world.y, requiredTag);
+          if (tagSlot) {
+            this.inventoryView.clearAllHighlights();
+            const slotOrigin = this.inventoryView.getSlotWorldPos(tagSlot);
+            this.fireAbilities([ab], () => {}, slotOrigin ?? undefined);
+            card.disableInteractive();
+            card.resolve(() => { this.finishDrag(); });
+            return;
+          }
         }
       }
 
@@ -1686,6 +1723,7 @@ export class GameScene extends Phaser.Scene {
     "dragOnWeapon",
     "dragOnMonster",
     "dragOnChest",
+    "dragOnTag",
   ];
 
   /** Check if a card has any drag-type ability. */
@@ -1781,6 +1819,15 @@ export class GameScene extends Phaser.Scene {
     const slotDef = SLOT_DEFS.find((s) => s.name === slotName);
     if (!slotDef || !slotDef.accepted.includes("weapon")) return null;
     if (!this.inventory.getItem(slotName)) return null;
+    return slotName;
+  }
+
+  /** Find an equipped (non-backpack) inventory slot whose item has the given tag. */
+  private findTagSlotAtPoint(x: number, y: number, tag: string): string | null {
+    const slotName = this.inventoryView.getSlotAtPoint(x, y);
+    if (!slotName || slotName.startsWith("backpack")) return null;
+    const item = this.inventory.getItem(slotName);
+    if (!item || item.tag !== tag) return null;
     return slotName;
   }
 
@@ -2572,6 +2619,26 @@ export class GameScene extends Phaser.Scene {
                 }
               }
             }
+
+            // Highlight equipped slots with matching tag if item has dragOnTag ability
+            const invDragOnTagAbilities = this.collectAbilities("dragOnTag", item);
+            if (invDragOnTagAbilities.length > 0) {
+              for (const ab of invDragOnTagAbilities) {
+                const requiredTag = ab.params.tag as string;
+                const tagSlot = this.findTagSlotAtPoint(world.x, world.y, requiredTag);
+                for (const slotDef of SLOT_DEFS) {
+                  if (!slotDef.name.startsWith("backpack") && slotDef.name !== def.name) {
+                    const slotItem = this.inventory.getItem(slotDef.name);
+                    if (slotItem?.tag === requiredTag) {
+                      this.inventoryView.setSlotHighlight(
+                        slotDef.name,
+                        slotDef.name === tagSlot ? "valid" : "valid_dim"
+                      );
+                    }
+                  }
+                }
+              }
+            }
           }
         };
         const onUp = (p: Phaser.Input.Pointer) => {
@@ -2690,6 +2757,23 @@ export class GameScene extends Phaser.Scene {
               this.updatePlayerStats();
               this.fireAbilities(invWeaponAbilities, () => {});
               return;
+            }
+          }
+
+          // Check if item with dragOnTag dropped on an equipped item with matching tag
+          const invTagAbilities = this.collectAbilities("dragOnTag", item);
+          if (invTagAbilities.length > 0) {
+            for (const ab of invTagAbilities) {
+              const requiredTag = ab.params.tag as string;
+              const tagSlot = this.findTagSlotAtPoint(world.x, world.y, requiredTag);
+              if (tagSlot) {
+                this.inventoryView.clearAllHighlights();
+                this.inventory.unequip(def.name);
+                ghost.destroy();
+                const slotOrigin = this.inventoryView.getSlotWorldPos(tagSlot);
+                this.fireAbilities([ab], () => {}, slotOrigin ?? undefined);
+                return;
+              }
             }
           }
 

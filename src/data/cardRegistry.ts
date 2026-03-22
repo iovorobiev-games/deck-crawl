@@ -69,7 +69,7 @@ export const cardRegistry: Record<string, CardData> = {
   marksman_hat: { id: "marksman_hat", goldValue: 8, type: CardType.Treasure, name: "Marksman's Hat", value: 0, description: "+2 to Bow Shot damage", slot: "head", image: "marksman_hat", abilities: [{ abilityId: "bow_damage_boost", params: { amount: 2 } }] },
 
   // --- Treasure - Backpack ---
-  quiver: { id: "quiver", goldValue: 3.75, type: CardType.Treasure, name: "Quiver", value: 0, description: "Triggers Bow ability (if bow is available)", slot: "backpack", image: "quiver", abilities: [{ abilityId: "quiver_trigger", params: {} }] },
+  quiver: { id: "quiver", goldValue: 3.75, type: CardType.Treasure, name: "Quiver", value: 0, description: "Drag onto an equipped Bow to add arrows", slot: "backpack", image: "quiver", abilities: [{ abilityId: "quiver_trigger", params: { tag: "bow" } }] },
   phylactery: { id: "phylactery", goldValue: -4, type: CardType.Treasure, name: "Phylactery", value: 0, description: "Adds +2 Power to necromancer when discarded", slot: "backpack", image: "phylactery", abilities: [{ abilityId: "buff_monster_type", params: { monsterId: "crypt_lord", amount: 2 } }] },
 
   // --- Consumables ---
