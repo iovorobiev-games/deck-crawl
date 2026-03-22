@@ -2825,8 +2825,40 @@ export class GameScene extends Phaser.Scene {
             const slotOrigin = this.inventoryView.getSlotWorldPos(overSlot);
             this.fireAbilities(equipAbilities, () => {}, slotOrigin ?? undefined);
           } else if (overSlot && this.inventory.canSwap(def.name, overSlot)) {
-            // Dropped on an occupied compatible slot — swap items
+            // Before swapping, check if either item has a dragOnTag ability matching the other's tag
             const otherItem = this.inventory.getItem(overSlot)!;
+            // Check if dragged item targets the other item's tag
+            if (otherItem.tag) {
+              const draggedTagAbilities = this.collectAbilities("dragOnTag", item);
+              const matchingAb = draggedTagAbilities.find(ab => ab.params.tag === otherItem.tag);
+              if (matchingAb) {
+                ghost.destroy();
+                this.inventoryView.setSlotContentAlpha(def.name, 1);
+                this.inventory.unequip(def.name);
+                // Move target item to the freed source slot if compatible
+                if (this.inventory.canEquip(def.name, otherItem)) {
+                  this.inventory.unequip(overSlot);
+                  this.inventory.equip(def.name, otherItem);
+                }
+                const slotOrigin = this.inventoryView.getSlotWorldPos(def.name);
+                this.fireAbilities([matchingAb], () => {}, slotOrigin ?? undefined);
+                return;
+              }
+            }
+            // Check if other item targets the dragged item's tag
+            if (item.tag) {
+              const otherTagAbilities = this.collectAbilities("dragOnTag", otherItem);
+              const matchingAb = otherTagAbilities.find(ab => ab.params.tag === item.tag);
+              if (matchingAb) {
+                ghost.destroy();
+                this.inventoryView.setSlotContentAlpha(def.name, 1);
+                this.inventory.unequip(overSlot);
+                const slotOrigin = this.inventoryView.getSlotWorldPos(def.name);
+                this.fireAbilities([matchingAb], () => {}, slotOrigin ?? undefined);
+                return;
+              }
+            }
+            // Dropped on an occupied compatible slot — swap items
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
             this.inventory.swap(def.name, overSlot);
