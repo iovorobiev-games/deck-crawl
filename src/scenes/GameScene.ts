@@ -1105,11 +1105,7 @@ export class GameScene extends Phaser.Scene {
       // Highlight portrait if dragging a card with dragOnPlayerPortrait ability
       if (this.collectAbilities("dragOnPlayerPortrait", card.cardData).length > 0) {
         if (this.playerView.isPointOver(world.x, world.y)) {
-          const ability = card.cardData.abilities!.find((a) => {
-            const def = getAbility(a.abilityId);
-            return def.trigger === "dragOnPlayerPortrait";
-          })!;
-          this.playerView.showDropHighlight(ability.params.amount as number);
+          this.playerView.showDropHighlight(card.cardData.description);
         } else {
           this.playerView.hideDropHighlight();
         }
@@ -2558,11 +2554,7 @@ export class GameScene extends Phaser.Scene {
             // Highlight portrait if item has dragOnPlayerPortrait ability
             if (this.collectAbilities("dragOnPlayerPortrait", item).length > 0) {
               if (this.playerView.isPointOver(world.x, world.y)) {
-                const ability = item.abilities!.find((a) => {
-                  const aDef = getAbility(a.abilityId);
-                  return aDef.trigger === "dragOnPlayerPortrait";
-                })!;
-                this.playerView.showDropHighlight(ability.params.amount as number);
+                this.playerView.showDropHighlight(item.description);
               } else {
                 this.playerView.hideDropHighlight();
               }

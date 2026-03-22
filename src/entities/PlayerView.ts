@@ -192,7 +192,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.agilityText.setText(`${player.agility}`);
   }
 
-  showDropHighlight(amount: number): void {
+  showDropHighlight(description: string): void {
     if (this.highlightTween) return; // already showing
 
     this.portraitSprite.setTint(0x44ff66);
@@ -206,7 +206,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     });
 
     this.healPreviewText = this.scene.add
-      .text(0, -PLAYER_H / 2 - 20, `+${amount} HP`, {
+      .text(0, -PLAYER_H / 2 - 20, description, {
         fontSize: "28px",
         fontFamily: "monospace",
         color: "#44ff66",
