@@ -1061,17 +1061,8 @@ export class GameScene extends Phaser.Scene {
       this.inventoryView.setSlotHighlight(def.name, canDrop ? "valid" : "invalid");
     }
 
-    // Show red drop-target highlights on all monsters if card has dragOnMonster ability
-    if (this.collectAbilities("dragOnMonster", card.cardData).length > 0) {
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const gc = this.grid.getCardAt(c, r);
-          if (gc && gc.cardData.type === CardType.Monster) {
-            gc.setDropTargetHighlight(true);
-          }
-        }
-      }
-    }
+    // Note: ability-target highlights (monsters, traps, etc.) are NOT shown
+    // for grid drags — items must be equipped first to use abilities.
 
     const onMove = (pointer: Phaser.Input.Pointer) => {
       const world = this.toWorldCoords(pointer);
@@ -1102,90 +1093,8 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // Highlight portrait if dragging a card with dragOnPlayerPortrait ability
-      if (this.collectAbilities("dragOnPlayerPortrait", card.cardData).length > 0) {
-        if (this.playerView.isPointOver(world.x, world.y)) {
-          this.playerView.showDropHighlight(card.cardData.description);
-        } else {
-          this.playerView.hideDropHighlight();
-        }
-      }
-
-      // Highlight trap cards if dragging a card with dragOnTrap ability
-      const hasDragOnTrap = this.collectAbilities("dragOnTrap", card.cardData).length > 0;
-      if (hasDragOnTrap) {
-        const trapTarget = this.findTrapAtPoint(world.x, world.y);
-        for (let r = 0; r < ROWS; r++) {
-          for (let c = 0; c < COLS; c++) {
-            const gc = this.grid.getCardAt(c, r);
-            if (gc && gc.cardData.type === CardType.Trap) {
-              gc.setHighlight(gc === trapTarget);
-            }
-          }
-        }
-      }
-
-      // Highlight monster cards if dragging a card with dragOnMonster ability
-      const hasDragOnMonster = this.collectAbilities("dragOnMonster", card.cardData).length > 0;
-      if (hasDragOnMonster) {
-        const monsterTarget = this.findMonsterAtPoint(world.x, world.y);
-        for (let r = 0; r < ROWS; r++) {
-          for (let c = 0; c < COLS; c++) {
-            const gc = this.grid.getCardAt(c, r);
-            if (gc && gc.cardData.type === CardType.Monster) {
-              gc.setHighlight(gc === monsterTarget);
-            }
-          }
-        }
-      }
-
-      // Highlight chest cards if dragging a card with dragOnChest ability
-      const hasDragOnChest = this.collectAbilities("dragOnChest", card.cardData).length > 0;
-      if (hasDragOnChest) {
-        const chestTarget = this.findChestAtPoint(world.x, world.y);
-        for (let r = 0; r < ROWS; r++) {
-          for (let c = 0; c < COLS; c++) {
-            const gc = this.grid.getCardAt(c, r);
-            if (gc && gc.cardData.type === CardType.Chest) {
-              gc.setHighlight(gc === chestTarget);
-            }
-          }
-        }
-      }
-
-      // Highlight weapon slots if dragging a card with dragOnWeapon ability
-      const hasDragOnWeapon = this.collectAbilities("dragOnWeapon", card.cardData).length > 0;
-      if (hasDragOnWeapon) {
-        const weaponSlot = this.findWeaponSlotAtPoint(world.x, world.y);
-        for (const slotDef of SLOT_DEFS) {
-          if (slotDef.accepted.includes("weapon") && this.inventory.getItem(slotDef.name)) {
-            this.inventoryView.setSlotHighlight(
-              slotDef.name,
-              slotDef.name === weaponSlot ? "valid" : "valid_dim"
-            );
-          }
-        }
-      }
-
-      // Highlight equipped slots with matching tag if dragging a card with dragOnTag ability
-      const dragOnTagAbilities = this.collectAbilities("dragOnTag", card.cardData);
-      if (dragOnTagAbilities.length > 0) {
-        for (const ab of dragOnTagAbilities) {
-          const requiredTag = ab.params.tag as string;
-          const tagSlot = this.findTagSlotAtPoint(world.x, world.y, requiredTag);
-          for (const slotDef of SLOT_DEFS) {
-            if (!slotDef.name.startsWith("backpack")) {
-              const slotItem = this.inventory.getItem(slotDef.name);
-              if (slotItem?.tag === requiredTag) {
-                this.inventoryView.setSlotHighlight(
-                  slotDef.name,
-                  slotDef.name === tagSlot ? "valid" : "valid_dim"
-                );
-              }
-            }
-          }
-        }
-      }
+      // Ability-target highlights (portrait, traps, monsters, chests, weapons, tags)
+      // are NOT shown for grid drags — items must be equipped to use abilities.
     };
 
     const onUp = (pointer: Phaser.Input.Pointer) => {
@@ -1197,124 +1106,33 @@ export class GameScene extends Phaser.Scene {
       // Clear all grid card highlights
       this.clearGridHighlights();
 
-      // Check if card with dragOnPlayerPortrait ability dropped on portrait
-      if (this.collectAbilities("dragOnPlayerPortrait", card.cardData).length > 0 &&
-          this.playerView.isPointOver(world.x, world.y)) {
-        this.playerView.hideDropHighlight();
-        this.inventoryView.clearAllHighlights();
-        this.executeAbility(card);
-        return;
+      // Items cannot use abilities from the grid — must be equipped first.
+      // If dropped on a valid ability target, show feedback and snap back.
+      if (this.hasAnyDragAbility(card)) {
+        const hitAbilityTarget =
+          (this.collectAbilities("dragOnPlayerPortrait", card.cardData).length > 0 &&
+            this.playerView.isPointOver(world.x, world.y)) ||
+          (this.collectAbilities("dragOnTrap", card.cardData).length > 0 &&
+            !!this.findTrapAtPoint(world.x, world.y)) ||
+          (this.collectAbilities("dragOnMonster", card.cardData).length > 0 &&
+            !!this.findMonsterAtPoint(world.x, world.y)) ||
+          (this.collectAbilities("dragOnWeapon", card.cardData).length > 0 &&
+            !!this.findWeaponSlotAtPoint(world.x, world.y)) ||
+          (this.collectAbilities("dragOnChest", card.cardData).length > 0 &&
+            !!this.findChestAtPoint(world.x, world.y)) ||
+          this.collectAbilities("dragOnTag", card.cardData).some((ab) =>
+            !!this.findTagSlotAtPoint(world.x, world.y, ab.params.tag as string));
+
+        if (hitAbilityTarget) {
+          this.playerView.hideDropHighlight();
+          this.inventoryView.clearAllHighlights();
+          this.showEquipFirstFeedback(card.x, card.y);
+          this.snapBackToGrid(card);
+          return;
+        }
       }
 
       this.playerView.hideDropHighlight();
-
-      // Check if card with dragOnTrap dropped on a trap
-      const dragOnTrapAbilities = this.collectAbilities("dragOnTrap", card.cardData);
-      if (dragOnTrapAbilities.length > 0) {
-        const trapTarget = this.findTrapAtPoint(world.x, world.y);
-        if (trapTarget) {
-          this.inventoryView.clearAllHighlights();
-          this.fireAbilities(dragOnTrapAbilities, () => {});
-          const trapCell = this.grid.findCard(trapTarget);
-          if (trapCell) this.grid.removeCard(trapCell.col, trapCell.row);
-          this.updateExploreButtonState();
-          trapTarget.resolve(() => {});
-          card.disableInteractive();
-          card.resolve(() => { this.finishDrag(); });
-          return;
-        }
-      }
-
-      // Check if card with dragOnMonster dropped on a monster
-      const dragOnMonsterAbilities = this.collectAbilities("dragOnMonster", card.cardData);
-      if (dragOnMonsterAbilities.length > 0) {
-        const monsterTarget = this.findMonsterAtPoint(world.x, world.y);
-        if (monsterTarget) {
-          this.inventoryView.clearAllHighlights();
-          this.dragTargetMonster = monsterTarget;
-          this.lastUsedScrollId = card.cardData.tag === "scroll" ? card.cardData.id : null;
-          this.fireDragOnMonsterAbilities(dragOnMonsterAbilities, monsterTarget, () => {
-            this.dragTargetMonster = null;
-            // Recycle scroll if Wizard's Hat equipped
-            if (this.lastUsedScrollId && this.hasScrollRecycle()) {
-              this.deck.mergeCards([getCard(this.lastUsedScrollId)]);
-              this.updateDeckVisual();
-            }
-            this.lastUsedScrollId = null;
-          });
-          card.disableInteractive();
-          card.resolve(() => { this.finishDrag(); });
-          return;
-        }
-      }
-
-      // Check if card with dragOnWeapon dropped on an equipped weapon
-      const dragOnWeaponAbilities = this.collectAbilities("dragOnWeapon", card.cardData);
-      if (dragOnWeaponAbilities.length > 0) {
-        const weaponSlot = this.findWeaponSlotAtPoint(world.x, world.y);
-        if (weaponSlot) {
-          this.inventoryView.clearAllHighlights();
-          // Process temp buff abilities
-          for (const ab of dragOnWeaponAbilities) {
-            const def = getAbility(ab.abilityId);
-            if (def.effect === "tempBuffWeapon") {
-              this.tempWeaponBonus += ab.params.amount as number;
-            }
-          }
-          this.updatePlayerStats();
-          this.fireAbilities(dragOnWeaponAbilities, () => {});
-          card.disableInteractive();
-          card.resolve(() => { this.finishDrag(); });
-          return;
-        }
-      }
-
-      // Check if card with dragOnTag dropped on an equipped item with matching tag
-      const dragOnTagAbilitiesDrop = this.collectAbilities("dragOnTag", card.cardData);
-      if (dragOnTagAbilitiesDrop.length > 0) {
-        for (const ab of dragOnTagAbilitiesDrop) {
-          const requiredTag = ab.params.tag as string;
-          const tagSlot = this.findTagSlotAtPoint(world.x, world.y, requiredTag);
-          if (tagSlot) {
-            this.inventoryView.clearAllHighlights();
-            const slotOrigin = this.inventoryView.getSlotWorldPos(tagSlot);
-            this.fireAbilities([ab], () => {}, slotOrigin ?? undefined);
-            card.disableInteractive();
-            card.resolve(() => { this.finishDrag(); });
-            return;
-          }
-        }
-      }
-
-      // Check if card with dragOnChest dropped on a chest
-      const dragOnChestAbilities = this.collectAbilities("dragOnChest", card.cardData);
-      if (dragOnChestAbilities.length > 0) {
-        const chestTarget = this.findChestAtPoint(world.x, world.y);
-        if (chestTarget) {
-          this.inventoryView.clearAllHighlights();
-          // Auto-open the chest: reveal loot without agility check
-          const chestCell = this.grid.findCard(chestTarget);
-          const lootInfo = this.chestLoot.get(chestTarget);
-          if (chestCell && lootInfo) {
-            this.grid.removeCard(chestCell.col, chestCell.row);
-            chestTarget.resolve(() => {});
-            // Reveal the loot card
-            lootInfo.cardBack.destroy();
-            const lootCard = new Card(this, lootInfo.cardBack.x, lootInfo.cardBack.y + TREASURE_OFFSET_Y, lootInfo.lootData);
-            this.grid.placeCard(chestCell.col, chestCell.row, lootCard);
-            lootCard.reveal();
-            this.setupCardInteraction(lootCard);
-            this.chestLoot.delete(chestTarget);
-          } else if (chestCell) {
-            // Chest without loot info — just resolve it
-            this.grid.removeCard(chestCell.col, chestCell.row);
-            chestTarget.resolve(() => {});
-          }
-          card.disableInteractive();
-          card.resolve(() => { this.finishDrag(); });
-          return;
-        }
-      }
 
       // Check if key dropped on door
       if (card.cardData.isKey) {
@@ -1398,6 +1216,26 @@ export class GameScene extends Phaser.Scene {
         card.setDepth(0);
         this.finishDrag();
       },
+    });
+  }
+
+  private showEquipFirstFeedback(x: number, y: number): void {
+    const txt = this.add.text(x, y - 40, "Equip first!", {
+      fontFamily: "serif",
+      fontSize: "28px",
+      color: "#ffcc00",
+      stroke: "#000000",
+      strokeThickness: 4,
+    });
+    txt.setOrigin(0.5);
+    txt.setDepth(7000);
+    this.tweens.add({
+      targets: txt,
+      y: y - 100,
+      alpha: 0,
+      duration: 1200,
+      ease: "Power2",
+      onComplete: () => txt.destroy(),
     });
   }
 
