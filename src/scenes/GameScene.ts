@@ -64,7 +64,6 @@ export class GameScene extends Phaser.Scene {
   private levelFlavorText!: Phaser.GameObjects.Text;
   private backgroundImage!: Phaser.GameObjects.Image;
   private discardedCardIds: Set<string> = new Set();
-  private tempWeaponBonus = 0;
   private dragTargetMonster: Card | null = null;
   private hoverPreviewCard: Card | null = null;
   private vignetteFX!: VignettePostFX;
@@ -300,7 +299,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier() + this.tempWeaponBonus);
+    this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier());
     this.updateMonsterBuffIndicators();
     this.refreshWeaponSlotBonuses();
     this.refreshBowShotDisplays();
@@ -424,6 +423,15 @@ export class GameScene extends Phaser.Scene {
       }
       this.inventoryView.refreshSlot(slotName, hasMeleeBoost ? weapon.value : 0);
     }
+  }
+
+  /** Apply poison to an equipped weapon: permanently increase its power and mark it poisoned. */
+  private applyPoisonToWeapon(slotName: string, amount: number): void {
+    const weapon = this.inventory.getItem(slotName);
+    if (!weapon) return;
+    weapon.value += amount;
+    weapon.poisoned = true;
+    this.updatePlayerStats();
   }
 
   /** Update power display on all bow shot cards on the grid to reflect equipped bonuses. */
@@ -2578,12 +2586,6 @@ export class GameScene extends Phaser.Scene {
               this.inventoryView.clearAllHighlights();
               this.inventory.unequip(def.name);
               ghost.destroy();
-              for (const ab of invWeaponAbilities) {
-                const aDef = getAbility(ab.abilityId);
-                if (aDef.effect === "tempBuffWeapon") {
-                  this.tempWeaponBonus += ab.params.amount as number;
-                }
-              }
               this.updatePlayerStats();
               this.fireAbilities(invWeaponAbilities, () => {});
               return;
@@ -2600,6 +2602,11 @@ export class GameScene extends Phaser.Scene {
                 this.inventoryView.clearAllHighlights();
                 this.inventory.unequip(def.name);
                 ghost.destroy();
+                // Apply poison directly to the target weapon
+                const aDef = getAbility(ab.abilityId);
+                if (aDef.effect === "poisonWeapon") {
+                  this.applyPoisonToWeapon(tagSlot, ab.params.amount as number);
+                }
                 const slotOrigin = this.inventoryView.getSlotWorldPos(tagSlot);
                 this.fireAbilities([ab], () => {}, slotOrigin ?? undefined);
                 return;
@@ -2665,6 +2672,11 @@ export class GameScene extends Phaser.Scene {
                 ghost.destroy();
                 this.inventoryView.setSlotContentAlpha(def.name, 1);
                 this.inventory.unequip(def.name);
+                // Apply poison directly to the target weapon
+                const mDef = getAbility(matchingAb.abilityId);
+                if (mDef.effect === "poisonWeapon") {
+                  this.applyPoisonToWeapon(overSlot, matchingAb.params.amount as number);
+                }
                 // Move target item to the freed source slot if compatible
                 if (this.inventory.canEquip(def.name, otherItem)) {
                   this.inventory.unequip(overSlot);
@@ -2682,6 +2694,11 @@ export class GameScene extends Phaser.Scene {
               if (matchingAb) {
                 ghost.destroy();
                 this.inventoryView.setSlotContentAlpha(def.name, 1);
+                // Apply poison directly to the target weapon
+                const mDef = getAbility(matchingAb.abilityId);
+                if (mDef.effect === "poisonWeapon") {
+                  this.applyPoisonToWeapon(def.name, matchingAb.params.amount as number);
+                }
                 this.inventory.unequip(overSlot);
                 const slotOrigin = this.inventoryView.getSlotWorldPos(def.name);
                 this.fireAbilities([matchingAb], () => {}, slotOrigin ?? undefined);
@@ -3145,7 +3162,7 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         // Step 2: After a brief hold, fly fate card into player portrait
         this.time.delayedCall(300, () => {
-          const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier() + this.tempWeaponBonus);
+          const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier());
 
           this.tweens.add({
             targets: fateCard,
@@ -3454,7 +3471,6 @@ export class GameScene extends Phaser.Scene {
         this.freeGuardedLoot(guardedLoot, cellPos);
       }
 
-      this.tempWeaponBonus = 0;
       this.isResolving = false;
       this.combatMonster = null;
 

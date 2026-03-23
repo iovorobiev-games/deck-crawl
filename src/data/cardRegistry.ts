@@ -43,16 +43,16 @@ export const cardRegistry: Record<string, CardData> = {
   gold_pile_large: { id: "gold_pile_large", goldValue: 6, type: CardType.Treasure, name: "Pile of Gold", value: 6, description: "6 Gold Coins", image: "pile_of_gold" },
 
   // --- Treasure - Weapons ---
-  guardsman_sword: { id: "guardsman_sword", goldValue: 8, type: CardType.Treasure, name: "Guardsman Sword", value: 1, description: "", slot: "weapon", image: "shortsword" },
-  knights_sword: { id: "knights_sword", goldValue: 16, type: CardType.Treasure, name: "Knights Sword", value: 2, description: "", slot: "weapon", image: "knights_sword" },
-  battle_axe: { id: "battle_axe", goldValue: 32, type: CardType.Treasure, name: "Battle Axe", value: 4, description: "", slot: "weapon", image: "crude_axe" },
+  guardsman_sword: { id: "guardsman_sword", goldValue: 8, type: CardType.Treasure, name: "Guardsman Sword", value: 1, description: "", slot: "weapon", tag: "weapon", image: "shortsword" },
+  knights_sword: { id: "knights_sword", goldValue: 16, type: CardType.Treasure, name: "Knights Sword", value: 2, description: "", slot: "weapon", tag: "weapon", image: "knights_sword" },
+  battle_axe: { id: "battle_axe", goldValue: 32, type: CardType.Treasure, name: "Battle Axe", value: 4, description: "", slot: "weapon", tag: "weapon", image: "crude_axe" },
   shortbow: { id: "shortbow", goldValue: 3, type: CardType.Treasure, name: "Shortbow", value: 0, description: "Adds 3 Bow Shot cards into a dungeon deck", slot: "weapon", image: "shortbow", tag: "bow", abilities: [{ abilityId: "equip_degrade", params: { cardId: "bow_shot", count: 3 } }] },
   elven_bow: { id: "elven_bow", goldValue: 10.5, type: CardType.Treasure, name: "Elven Bow", value: 0, description: "Adds 3 Strong Bow Shot cards into a dungeon deck.\nAgility +1", slot: "weapon", image: "elven_bow", tag: "bow", agilityBonus: 1, abilities: [{ abilityId: "equip_degrade", params: { cardId: "strong_bow_shot", count: 3 } }] },
-  ogre_axe: { id: "ogre_axe", goldValue: 14, type: CardType.Treasure, name: "Ogre Axe", value: 2, description: "Adds Weapon Degradation to Dungeon Deck if equipped", slot: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+  ogre_axe: { id: "ogre_axe", goldValue: 14, type: CardType.Treasure, name: "Ogre Axe", value: 2, description: "Adds Weapon Degradation to Dungeon Deck if equipped", slot: "weapon", tag: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
 
   // --- Treasure - Shields ---
   wooden_shield: { id: "wooden_shield", goldValue: 4, type: CardType.Treasure, name: "Wooden Shield", value: 0, description: "", slot: "weapon", image: "wooden_shield", abilities: [{ abilityId: "armour", params: { amount: 2 } }] },
-  spiked_shield: { id: "spiked_shield", goldValue: 14, type: CardType.Treasure, name: "Spiked Shield", value: 1, description: "", slot: "weapon", image: "spiked_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
+  spiked_shield: { id: "spiked_shield", goldValue: 14, type: CardType.Treasure, name: "Spiked Shield", value: 1, description: "", slot: "weapon", tag: "weapon", image: "spiked_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
   guardsman_shield: { id: "guardsman_shield", goldValue: 6, type: CardType.Treasure, name: "Guardsman Shield", value: 0, description: "", slot: "weapon", image: "knights_shield", abilities: [{ abilityId: "armour", params: { amount: 3 } }] },
 
   // --- Treasure - Armour ---
@@ -73,7 +73,7 @@ export const cardRegistry: Record<string, CardData> = {
   phylactery: { id: "phylactery", goldValue: -4, type: CardType.Treasure, name: "Phylactery", value: 0, description: "On Discard: Adds +2 Power to necromancer. \nNecromancer doesn't return after death.", slot: "backpack", image: "phylactery", abilities: [{ abilityId: "buff_monster_type", params: { monsterId: "crypt_lord", amount: 2 } }] },
 
   // --- Consumables ---
-  poison_vial: { id: "poison_vial", goldValue: 4, type: CardType.Treasure, name: "Poison", value: 0, description: "On Weapon: Adds +2 Power for the next Battle", slot: "backpack", image: "poison", abilities: [{ abilityId: "temp_buff_weapon", params: { amount: 2 } }] },
+  poison_vial: { id: "poison_vial", goldValue: 4, type: CardType.Treasure, name: "Poison", value: 0, description: "On Weapon: Permanently adds +2 Power", slot: "backpack", image: "poison", abilities: [{ abilityId: "poison_weapon", params: { amount: 2, tag: "weapon" } }] },
   lockpick: { id: "lockpick", goldValue: 4.24, type: CardType.Treasure, name: "Lockpick", value: 0, description: "On Chest: Opens a chest", slot: "backpack", image: "lockpicks", onlyGuarded: true, abilities: [{ abilityId: "auto_open_chest", params: {} }] },
 
   // --- Scrolls ---
@@ -86,8 +86,8 @@ export const cardRegistry: Record<string, CardData> = {
   disarm_kit: { id: "disarm_kit", goldValue: 2.98, type: CardType.Potion, name: "Disarming Kit", value: 0, description: "On Traps: Removes Traps", slot: "backpack", image: "disarming_kit", onlyGuarded: true, abilities: [{ abilityId: "disarm_tool", params: { amount: 1 } }] },
 
   // --- Degrading weapons ---
-  rusty_sword: { id: "rusty_sword", goldValue: 6, type: CardType.Treasure, name: "Rusty Sword", value: 1, description: "Adds Weapon Degradation to Dungeon Deck when equipped", slot: "weapon", image: "rusty_sword", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
-  crude_axe: { id: "crude_axe", goldValue: 14, type: CardType.Treasure, name: "Crude Axe", value: 2, description: "Adds Weapon Degradation to Dungeon Deck when equipped", slot: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+  rusty_sword: { id: "rusty_sword", goldValue: 6, type: CardType.Treasure, name: "Rusty Sword", value: 1, description: "Adds Weapon Degradation to Dungeon Deck when equipped", slot: "weapon", tag: "weapon", image: "rusty_sword", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+  crude_axe: { id: "crude_axe", goldValue: 14, type: CardType.Treasure, name: "Crude Axe", value: 2, description: "Adds Weapon Degradation to Dungeon Deck when equipped", slot: "weapon", tag: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
 
   // --- Events ---
   attack_from_shadows: { id: "attack_from_shadows", goldValue: 2, type: CardType.Event, name: "Attack from Shadows", value: 1, description: "Deals 1 Damage to the Hero", image: "attack_from_shadows", tag: "curse", abilities: [{ abilityId: "attack_from_shadows", params: { amount: 1 } }] },
