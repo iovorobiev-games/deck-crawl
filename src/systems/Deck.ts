@@ -73,23 +73,24 @@ export class Deck {
   }
 
   private generateLootPool(config: LootConfig, poolSize: number): void {
-    this.lootPool = [];
+    const guaranteed: CardData[] = [];
 
-    // Add guaranteed cards (1 copy each)
+    // Collect guaranteed cards separately
     if (config.guaranteed) {
       for (const id of config.guaranteed) {
-        this.lootPool.push(getCard(id));
+        guaranteed.push(getCard(id));
       }
     }
 
     // Build candidates with count tracking
+    this.lootPool = [];
     const candidates = config.pool.map(entry => ({
       ...entry,
       currentCount: 0,
     }));
 
-    // Fill remaining slots with weighted random draws
-    const remaining = poolSize - this.lootPool.length;
+    // Fill slots with weighted random draws
+    const remaining = poolSize - guaranteed.length;
     for (let i = 0; i < remaining; i++) {
       const available = candidates.filter(c => c.currentCount < c.maxCount);
       if (available.length === 0) break;
@@ -109,7 +110,13 @@ export class Deck {
       selected.currentCount++;
     }
 
+    // Shuffle random items, then insert guaranteed items in the first half
     this.shuffleLoot();
+    const halfPool = Math.max(1, Math.floor(this.lootPool.length / 2));
+    for (const card of guaranteed) {
+      const pos = Math.floor(Math.random() * halfPool);
+      this.lootPool.splice(pos, 0, card);
+    }
   }
 
   mergeCards(newCards: CardData[]): void {
@@ -119,11 +126,8 @@ export class Deck {
     this.shuffle();
   }
 
-  mergeLoot(newLoot: CardData[]): void {
-    for (const card of newLoot) {
-      this.lootPool.push(card);
-    }
-    this.shuffleLoot();
+  replaceLoot(newLoot: CardData[]): void {
+    this.lootPool = newLoot;
   }
 
   private shuffle(): void {
