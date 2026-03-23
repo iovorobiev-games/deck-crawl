@@ -73,7 +73,7 @@ export const cardRegistry: Record<string, CardData> = {
   phylactery: { id: "phylactery", goldValue: -4, type: CardType.Treasure, name: "Phylactery", value: 0, description: "On Discard: Adds +2 Power to necromancer. \nNecromancer doesn't return after death.", slot: "backpack", image: "phylactery", abilities: [{ abilityId: "buff_monster_type", params: { monsterId: "crypt_lord", amount: 2 } }] },
 
   // --- Consumables ---
-  poison_vial: { id: "poison_vial", goldValue: 4, type: CardType.Treasure, name: "Poison", value: 0, description: "On Weapon: Permanently adds +2 Power", slot: "backpack", image: "poison", abilities: [{ abilityId: "poison_weapon", params: { amount: 2, tag: "weapon" } }] },
+  poison_vial: { id: "poison_vial", goldValue: 4, type: CardType.Treasure, name: "Poison", value: 0, description: "On Weapon: +2 Power for the next Battle", slot: "backpack", image: "poison", abilities: [{ abilityId: "poison_weapon", params: { amount: 2, tag: "weapon" } }] },
   lockpick: { id: "lockpick", goldValue: 4.24, type: CardType.Treasure, name: "Lockpick", value: 0, description: "On Chest: Opens a chest", slot: "backpack", image: "lockpicks", onlyGuarded: true, abilities: [{ abilityId: "auto_open_chest", params: {} }] },
 
   // --- Scrolls ---

@@ -64,6 +64,7 @@ export class GameScene extends Phaser.Scene {
   private levelFlavorText!: Phaser.GameObjects.Text;
   private backgroundImage!: Phaser.GameObjects.Image;
   private discardedCardIds: Set<string> = new Set();
+  private poisonedWeapons: { slotName: string; amount: number }[] = [];
   private dragTargetMonster: Card | null = null;
   private hoverPreviewCard: Card | null = null;
   private vignetteFX!: VignettePostFX;
@@ -425,12 +426,26 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Apply poison to an equipped weapon: permanently increase its power and mark it poisoned. */
+  /** Apply poison to an equipped weapon: increase its power and mark it poisoned until combat ends. */
   private applyPoisonToWeapon(slotName: string, amount: number): void {
     const weapon = this.inventory.getItem(slotName);
     if (!weapon) return;
     weapon.value += amount;
     weapon.poisoned = true;
+    this.poisonedWeapons.push({ slotName, amount });
+    this.updatePlayerStats();
+  }
+
+  /** Revert all active poison effects after combat. */
+  private revertPoison(): void {
+    for (const { slotName, amount } of this.poisonedWeapons) {
+      const weapon = this.inventory.getItem(slotName);
+      if (weapon && weapon.poisoned) {
+        weapon.value = Math.max(0, weapon.value - amount);
+        weapon.poisoned = false;
+      }
+    }
+    this.poisonedWeapons = [];
     this.updatePlayerStats();
   }
 
@@ -3471,6 +3486,7 @@ export class GameScene extends Phaser.Scene {
         this.freeGuardedLoot(guardedLoot, cellPos);
       }
 
+      this.revertPoison();
       this.isResolving = false;
       this.combatMonster = null;
 
