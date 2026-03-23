@@ -653,7 +653,10 @@ export class GameScene extends Phaser.Scene {
       const monsterCard = new Card(this, pos.x, pos.y, plan.cardData);
       monsterCard.setDepth(10);
       this.grid.placeCard(plan.slot.col, plan.slot.row, monsterCard);
-      monsterCard.dealFrom(deckX, deckY);
+      const selfCount = this.gridCountCard(plan.cardData.id);
+      monsterCard.dealFrom(deckX, deckY, () => {
+        this.executeOnRevealAbilities(monsterCard, plan.cardData, undefined, selfCount);
+      });
 
       if (lootCard) {
         monsterCard.guardedLoot = lootCard;
@@ -684,8 +687,9 @@ export class GameScene extends Phaser.Scene {
       const card = new Card(this, pos.x, pos.y, plan.cardData);
       this.applyBowShotBonus(card);
       this.grid.placeCard(plan.slot.col, plan.slot.row, card);
+      const selfCount = this.gridCountCard(plan.cardData.id);
       card.dealFrom(deckX, deckY, () => {
-        this.executeOnRevealAbilities(card, plan.cardData);
+        this.executeOnRevealAbilities(card, plan.cardData, undefined, selfCount);
       });
       this.setupCardInteraction(card);
       if (plan.cardData.type === CardType.Trap) {
@@ -754,7 +758,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private executeOnRevealAbilities(card: Card, cardData: CardData, onComplete?: () => void): void {
+  private executeOnRevealAbilities(card: Card, cardData: CardData, onComplete?: () => void, gridSelfCount?: number): void {
     if (!cardData.abilities) {
       onComplete?.();
       return;
@@ -795,6 +799,24 @@ export class GameScene extends Phaser.Scene {
             processNext(idx + 1);
           } else {
             this.playSummonToDeckAnimation(card, cardId, count, () => processNext(idx + 1));
+          }
+          break;
+        }
+        case "shuffleIntoDeckOnGridCount": {
+          const cardId = ability.params.cardId as string;
+          const count = ability.params.count as number;
+          const requiredOtherCount = ability.params.requiredOtherCount as number;
+          const othersOnGrid = (gridSelfCount ?? this.gridCountCard(cardData.id)) - 1;
+          if (othersOnGrid === requiredOtherCount && !this.deck.hasCard(cardId) && !this.gridHasCard(cardId)) {
+            // Add to deck immediately to prevent duplicate summons from simultaneous reveals
+            const cardsToInsert = [];
+            for (let i = 0; i < count; i++) {
+              cardsToInsert.push(getCard(cardId));
+            }
+            this.deck.mergeCards(cardsToInsert);
+            this.playSummonToDeckAnimation(card, cardId, count, () => processNext(idx + 1));
+          } else {
+            processNext(idx + 1);
           }
           break;
         }
@@ -1696,6 +1718,17 @@ export class GameScene extends Phaser.Scene {
       }
     }
     return false;
+  }
+
+  private gridCountCard(id: string): number {
+    let count = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const card = this.grid.getCardAt(c, r);
+        if (card && card.cardData.id === id) count++;
+      }
+    }
+    return count;
   }
 
   private reduceEquippedWeaponPower(amount: number): void {

@@ -45,7 +45,8 @@ export type AbilityEffect =
   | "boostBowDamage"
   | "addAgilityToBowDamage"
   | "recycleBowShots"
-  | "poisonWeapon";
+  | "poisonWeapon"
+  | "shuffleIntoDeckOnGridCount";
 
 export interface AbilityDef {
   id: string;
@@ -142,25 +143,13 @@ const abilityRegistry: Record<string, AbilityDef> = {
     id: "dark_ritual_summon",
     trigger: "onResolve",
     effect: "shuffleIntoDeck",
-    description: "Summons a tentacle into the deck",
-  },
-  tentacle_summon: {
-    id: "tentacle_summon",
-    trigger: "onReveal",
-    effect: "shuffleIntoDeck",
-    description: "Summons a horrendous tentacle",
-  },
-  horrendous_summon: {
-    id: "horrendous_summon",
-    trigger: "onReveal",
-    effect: "shuffleIntoDeck",
-    description: "Summons a terrible tentacle",
+    description: "Summons a terrible tentacle into the deck",
   },
   terrible_summon: {
     id: "terrible_summon",
     trigger: "onReveal",
-    effect: "shuffleIntoDeckIfAbsent",
-    description: "Summons the Terror From The Beyond",
+    effect: "shuffleIntoDeckOnGridCount",
+    description: "Summons the Terror From The Beyond when 3 tentacles are on the grid",
   },
   terror_reveal_damage: {
     id: "terror_reveal_damage",
