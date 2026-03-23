@@ -3503,10 +3503,19 @@ export class GameScene extends Phaser.Scene {
     const conditionalReturn = monsterDeathAbilities.filter(a => getAbility(a.abilityId).effect === "returnSelfConditional");
     for (const ab of conditionalReturn) {
       const requiredDiscardId = ab.params.requiredDiscardId as string;
+      const upgradeCardId = ab.params.upgradeCardId as string | undefined;
       if (!this.discardedCardIds.has(requiredDiscardId)) {
-        // Condition met: card NOT discarded, so monster returns
+        // Condition NOT met: card NOT discarded, so monster returns
         const freshCopy = getCard(monsterCard.cardData.id);
         this.deck.mergeCards([freshCopy]);
+        this.updateDeckVisual();
+        this.updateHUD();
+      } else if (upgradeCardId) {
+        // Condition met: shuffle upgraded boss version into deck
+        const bossCard = getCard(upgradeCardId);
+        bossCard.isBoss = true;
+        bossCard.value += this.currentLevelIndex * 2;
+        this.deck.mergeCards([bossCard]);
         this.updateDeckVisual();
         this.updateHUD();
       }
