@@ -471,6 +471,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Apply equipped bow bonuses to a single card's power display if it's a bow shot. */
+  private applyLevelScaling(card: CardData): void {
+    const powerBonus = this.currentLevelIndex * 2;
+    if (powerBonus > 0 && card.type === CardType.Monster) {
+      card.value += powerBonus;
+    }
+  }
+
   private applyBowShotBonus(card: Card): void {
     const bowAbility = card.cardData.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
     if (!bowAbility) return;
@@ -813,7 +820,9 @@ export class GameScene extends Phaser.Scene {
             // Suppress sound here — animation will play it at the right time
             const cardsToInsert = [];
             for (let i = 0; i < count; i++) {
-              cardsToInsert.push(getCard(cardId));
+              const c = getCard(cardId);
+              this.applyLevelScaling(c);
+              cardsToInsert.push(c);
             }
             const saved = this.deck.onShuffle;
             this.deck.onShuffle = null;
@@ -1880,6 +1889,7 @@ export class GameScene extends Phaser.Scene {
 
     for (let i = 0; i < count; i++) {
       const data = getCard(cardId);
+      this.applyLevelScaling(data);
       cardDatas.push(data);
       const card = new Card(this, sourcePos.x, sourcePos.y, data);
       this.applyBowShotBonus(card);
@@ -3494,6 +3504,7 @@ export class GameScene extends Phaser.Scene {
     // If monster reshuffles itself, create a fresh copy for the deck
     if (hasSelfReshuffle) {
       const freshCopy = getCard(monsterCard.cardData.id);
+      this.applyLevelScaling(freshCopy);
       this.deck.mergeCards([freshCopy]);
       this.updateDeckVisual();
       this.updateHUD();
@@ -3507,6 +3518,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.discardedCardIds.has(requiredDiscardId)) {
         // Condition NOT met: card NOT discarded, so monster returns
         const freshCopy = getCard(monsterCard.cardData.id);
+        this.applyLevelScaling(freshCopy);
         this.deck.mergeCards([freshCopy]);
         this.updateDeckVisual();
         this.updateHUD();
@@ -3514,7 +3526,7 @@ export class GameScene extends Phaser.Scene {
         // Condition met: shuffle upgraded boss version into deck
         const bossCard = getCard(upgradeCardId);
         bossCard.isBoss = true;
-        bossCard.value += this.currentLevelIndex * 2;
+        this.applyLevelScaling(bossCard);
         this.deck.mergeCards([bossCard]);
         this.updateDeckVisual();
         this.updateHUD();
