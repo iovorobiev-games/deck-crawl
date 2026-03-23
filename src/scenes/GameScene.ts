@@ -2598,19 +2598,11 @@ export class GameScene extends Phaser.Scene {
             this.inventory.unequip(def.name);
             ghost.destroy();
             // Fire portrait abilities
-            let hasAsyncAbility = false;
-            for (const ab of invPortraitAbilities) {
-              const aDef = getAbility(ab.abilityId);
-              if (aDef.effect === "healPlayer") {
-                this.sfx.play(SOUND_KEYS.potion);
-                this.player.heal(ab.params.amount as number);
-              } else if (aDef.effect === "removeDarkEvent") {
-                this.sfx.play(SOUND_KEYS.holySpell04);
-                hasAsyncAbility = true;
-                this.playRemoveCurseAnimation(() => {});
-              }
-            }
-            if (!hasAsyncAbility) {
+            const hasAsyncAbility = invPortraitAbilities.some(ab => getAbility(ab.abilityId).effect === "removeDarkEvent");
+            if (hasAsyncAbility) {
+              this.sfx.play(SOUND_KEYS.holySpell04);
+              this.playRemoveCurseAnimation(() => {});
+            } else {
               this.fireAbilities(invPortraitAbilities, () => {});
             }
             // Recycle scroll if Wizard's Hat equipped
