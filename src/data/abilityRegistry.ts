@@ -44,7 +44,8 @@ export type AbilityEffect =
   | "recycleScrolls"
   | "boostBowDamage"
   | "addAgilityToBowDamage"
-  | "recycleBowShots";
+  | "recycleBowShots"
+  | "poisonWeapon";
 
 export interface AbilityDef {
   id: string;
@@ -238,6 +239,12 @@ const abilityRegistry: Record<string, AbilityDef> = {
     trigger: "dragOnWeapon",
     effect: "tempBuffWeapon",
     description: "Temporarily boosts weapon power for next battle",
+  },
+  poison_weapon: {
+    id: "poison_weapon",
+    trigger: "dragOnTag",
+    effect: "poisonWeapon",
+    description: "Permanently adds power to the target weapon",
   },
   remove_dark_event: {
     id: "remove_dark_event",

@@ -153,12 +153,20 @@ export class InventoryView extends Phaser.GameObjects.Container {
     const bgSprite = this.scene.add.image(0, 0, CardBackgroundMap[item.type]);
     mc.add(bgSprite);
 
+    // Apply green poison tint
+    if (item.poisoned) {
+      bgSprite.setTint(0x88ff88);
+    }
+
     // Card art
     if (item.image) {
       const cardImage = this.scene.add.image(0, ART_CENTER_Y, item.image);
       const tex = cardImage.texture.getSourceImage();
       const artScale = Math.min(ART_MAX_W / tex.width, ART_MAX_H / tex.height);
       cardImage.setScale(artScale);
+      if (item.poisoned) {
+        cardImage.setTint(0x88ff88);
+      }
       mc.add(cardImage);
     }
 

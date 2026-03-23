@@ -35,6 +35,7 @@ export interface CardData {
   equipTriggered?: boolean;
   goldValue?: number;
   onlyGuarded?: boolean;
+  poisoned?: boolean;
 }
 
 export const CardColorMap: Record<CardType, number> = {
