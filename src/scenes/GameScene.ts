@@ -2686,6 +2686,7 @@ export class GameScene extends Phaser.Scene {
               this.inventory.unequip(def.name);
               ghost.destroy();
               // Auto-open the chest: reveal loot without agility check
+              this.sfx.play(SOUND_KEYS.chestOpen);
               const chestCell = this.grid.findCard(chestTarget);
               const lootInfo = this.chestLoot.get(chestTarget);
               if (chestCell && lootInfo) {
