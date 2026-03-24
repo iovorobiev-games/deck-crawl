@@ -245,6 +245,7 @@ export class GameScene extends Phaser.Scene {
   private initLevel(levelIndex: number): void {
     const level = this.dungeonLevels[levelIndex];
     this.deck = Deck.fromDungeonLevel(level, levelIndex);
+    this.deck.onShuffle = () => this.sfx.play(SOUND_KEYS.cardDraw3);
     this.currentLevelKey = getCard(level.key);
   }
 
@@ -809,11 +810,15 @@ export class GameScene extends Phaser.Scene {
           const othersOnGrid = (gridSelfCount ?? this.gridCountCard(cardData.id)) - 1;
           if (othersOnGrid === requiredOtherCount && !this.deck.hasCard(cardId) && !this.gridHasCard(cardId)) {
             // Add to deck immediately to prevent duplicate summons from simultaneous reveals
+            // Suppress sound here — animation will play it at the right time
             const cardsToInsert = [];
             for (let i = 0; i < count; i++) {
               cardsToInsert.push(getCard(cardId));
             }
+            const saved = this.deck.onShuffle;
+            this.deck.onShuffle = null;
             this.deck.mergeCards(cardsToInsert);
+            this.deck.onShuffle = saved;
             this.playSummonToDeckAnimation(card, cardId, count, () => processNext(idx + 1));
           } else {
             processNext(idx + 1);
@@ -845,6 +850,7 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "addFateModifier": {
+          this.sfx.play(SOUND_KEYS.holySpell06);
           const mod = ability.params.modifier as number;
           this.playFlyToFateDeckAnimation({ x: card.x, y: card.y }, mod, () => processNext(idx + 1));
           break;
@@ -1310,10 +1316,11 @@ export class GameScene extends Phaser.Scene {
     const def = getAbility(ability.abilityId);
     switch (def.effect) {
       case "healPlayer":
+        this.sfx.play(SOUND_KEYS.potion);
         this.player.heal(ability.params.amount as number);
         break;
       case "removeDarkEvent":
-        this.sfx.play(SOUND_KEYS.vibraphoneMystery);
+        this.sfx.play(SOUND_KEYS.holySpell04);
         card.disableInteractive();
         card.resolve(() => {
           this.playRemoveCurseAnimation(() => {
@@ -1378,6 +1385,7 @@ export class GameScene extends Phaser.Scene {
 
     switch (def.effect) {
       case "healPlayer":
+        this.sfx.play(SOUND_KEYS.potion);
         this.player.heal(current.params.amount as number);
         break;
       case "damagePlayer":
@@ -1420,7 +1428,7 @@ export class GameScene extends Phaser.Scene {
         return; // async
       }
       case "addFateModifier": {
-        this.sfx.play(SOUND_KEYS.vibraphoneMystery);
+        this.sfx.play(SOUND_KEYS.holySpell06);
         const modifier = current.params.modifier as number;
         const origin = sourcePos ?? { x: GAME_W / 2, y: GAME_H / 2 };
         this.playFlyToFateDeckAnimation(origin, modifier, () => {
@@ -1463,8 +1471,6 @@ export class GameScene extends Phaser.Scene {
     const applyEffect = () => {
       switch (def.effect) {
         case "reduceTargetMonsterPower": {
-          // Fire bolt sound
-          this.sfx.play(SOUND_KEYS.fireBolt);
           let amount = current.params.amount as number;
           if (this.lastUsedScrollId) {
             amount += this.getScrollDamageBonus();
@@ -1484,8 +1490,6 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "reduceAdjacentMonsterPower": {
-          // Fireball sound
-          this.sfx.play(SOUND_KEYS.fireball);
           let amount = current.params.amount as number;
           if (this.lastUsedScrollId) {
             amount += this.getScrollDamageBonus();
@@ -1531,8 +1535,20 @@ export class GameScene extends Phaser.Scene {
         }
       }
       const source = { x: this.playerView.x, y: this.playerView.y };
+      // Play magic sounds when VFX starts, not when effect resolves
+      if (def.effect === "reduceTargetMonsterPower") {
+        this.sfx.play(SOUND_KEYS.fireBolt);
+      } else if (def.effect === "reduceAdjacentMonsterPower") {
+        this.sfx.play(SOUND_KEYS.fireball);
+      }
       vfx(this, source, vfxTargets, applyEffect);
     } else {
+      // No VFX — play sound immediately before applying effect
+      if (def.effect === "reduceTargetMonsterPower") {
+        this.sfx.play(SOUND_KEYS.fireBolt);
+      } else if (def.effect === "reduceAdjacentMonsterPower") {
+        this.sfx.play(SOUND_KEYS.fireball);
+      }
       applyEffect();
     }
   }
@@ -1811,6 +1827,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "addFateModifier": {
+        this.sfx.play(SOUND_KEYS.holySpell06);
         const mod = current.ability.params.modifier as number;
         this.playFlyToFateDeckAnimation({ x: current.card.x, y: current.card.y }, mod, () => {
           this.executeOnExploreAbilities(rest, onComplete);
@@ -1909,6 +1926,9 @@ export class GameScene extends Phaser.Scene {
     const deckWorldY = 200;
     let completed = 0;
 
+    // Play shuffle sound at the start of the fly animation
+    this.sfx.play(SOUND_KEYS.cardDraw3);
+
     // Fade out overlay alongside card flight
     this.tweens.add({
       targets: overlay,
@@ -1939,7 +1959,11 @@ export class GameScene extends Phaser.Scene {
           card.destroy();
           completed++;
           if (completed === tempCards.length) {
+            // Sound already played at animation start — suppress duplicate
+            const saved = this.deck.onShuffle;
+            this.deck.onShuffle = null;
             this.deck.mergeCards(cardDatas);
+            this.deck.onShuffle = saved;
             this.updateDeckVisual();
             this.updateHUD();
             onComplete();
@@ -2568,8 +2592,10 @@ export class GameScene extends Phaser.Scene {
             for (const ab of invPortraitAbilities) {
               const aDef = getAbility(ab.abilityId);
               if (aDef.effect === "healPlayer") {
+                this.sfx.play(SOUND_KEYS.potion);
                 this.player.heal(ab.params.amount as number);
               } else if (aDef.effect === "removeDarkEvent") {
+                this.sfx.play(SOUND_KEYS.holySpell04);
                 hasAsyncAbility = true;
                 this.playRemoveCurseAnimation(() => {});
               }
@@ -2671,6 +2697,7 @@ export class GameScene extends Phaser.Scene {
               this.inventory.unequip(def.name);
               ghost.destroy();
               // Auto-open the chest: reveal loot without agility check
+              this.sfx.play(SOUND_KEYS.chestOpen);
               const chestCell = this.grid.findCard(chestTarget);
               const lootInfo = this.chestLoot.get(chestTarget);
               if (chestCell && lootInfo) {
@@ -2902,6 +2929,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "removeDarkEvent": {
+        this.sfx.play(SOUND_KEYS.holySpell04);
         // Remove first card with tag "curse" from deck
         this.deck.removeFirstByTag("curse");
         this.executeOnResolveAbilities(card, rest, onComplete);
@@ -2915,6 +2943,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "addFateModifier": {
+        this.sfx.play(SOUND_KEYS.holySpell06);
         const modifier = current.params.modifier as number;
         this.playFlyToFateDeckAnimation({ x: card.x, y: card.y }, modifier, () => {
           this.executeOnResolveAbilities(card, rest, onComplete);
@@ -2974,6 +3003,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "addFateModifier": {
+        this.sfx.play(SOUND_KEYS.holySpell06);
         const modifier = current.params.modifier as number;
         this.playFlyToFateDeckAnimation({ x: trapCard.x, y: trapCard.y }, modifier, () => {
           this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
@@ -4088,6 +4118,7 @@ export class GameScene extends Phaser.Scene {
                 const success = modifiedAgility >= lockDifficulty;
 
                 if (success) {
+                  this.sfx.play(SOUND_KEYS.clickUnlock);
                   this.trapCleanup(trapCard, modifier);
                 } else {
                   this.sfx.playRandom(SOUND_GROUPS.squelching);
