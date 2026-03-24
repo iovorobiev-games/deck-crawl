@@ -31,9 +31,6 @@ export class Inventory extends Phaser.Events.EventEmitter {
     const def = SLOT_DEFS.find((d) => d.name === slotName);
     if (!def) return false;
     if (!card.slot) return false;
-    // Prevent equipping on top of a key card
-    const current = this.slots.get(slotName);
-    if (current?.isKey) return false;
     return def.accepted.includes(card.slot);
   }
 
@@ -63,7 +60,6 @@ export class Inventory extends Phaser.Events.EventEmitter {
     const itemA = this.slots.get(slotA);
     const itemB = this.slots.get(slotB);
     if (!itemA || !itemB) return false;
-    if (itemA.isKey || itemB.isKey) return false;
     const defA = SLOT_DEFS.find((d) => d.name === slotA);
     const defB = SLOT_DEFS.find((d) => d.name === slotB);
     if (!defA || !defB) return false;
@@ -88,7 +84,7 @@ export class Inventory extends Phaser.Events.EventEmitter {
     for (const def of SLOT_DEFS) {
       if (def.name.startsWith("backpack")) continue;
       const item = this.slots.get(def.name);
-      if (item) total += item.value;
+      if (item && item.slot === "weapon") total += item.value;
     }
     return total;
   }

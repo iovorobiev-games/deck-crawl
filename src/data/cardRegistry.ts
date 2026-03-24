@@ -106,9 +106,9 @@ export const cardRegistry: Record<string, CardData> = {
   hardened_chest: { id: "hardened_chest", goldValue: 1.67, type: CardType.Chest, name: "Hardened Chest", value: 0, description: "Trapped: 1 Damage on failed Agility check", lockDifficulty: 3, trapDamage: 1, image: "hardened_chest" },
 
   // --- Keys ---
-  rusty_key: { id: "rusty_key", goldValue: 0, type: CardType.Treasure, name: "Rusty Key", value: 1, description: "Opens The Dungeon Door", slot: "weapon", isKey: true, deckLevel: 1, image: "rusty_key" },
-  temple_key: { id: "temple_key", goldValue: 0, type: CardType.Treasure, name: "Temple Key", value: 2, description: "Opens the temple gate", slot: "weapon", isKey: true, deckLevel: 2, image: "rusty_key" },
-  master_key: { id: "master_key", goldValue: 0, type: CardType.Treasure, name: "Master Key", value: 3, description: "Opens the final door", slot: "weapon", isKey: true, deckLevel: 3, image: "rusty_key" },
+  rusty_key: { id: "rusty_key", goldValue: 0, type: CardType.Treasure, name: "Rusty Key", value: 0, description: "Opens The Dungeon Door", slot: "weapon", isKey: true, deckLevel: 1, image: "rusty_key" },
+  temple_key: { id: "temple_key", goldValue: 0, type: CardType.Treasure, name: "Temple Key", value: 0, description: "Opens the temple gate", slot: "weapon", isKey: true, deckLevel: 2, image: "rusty_key" },
+  master_key: { id: "master_key", goldValue: 0, type: CardType.Treasure, name: "Master Key", value: 0, description: "Opens the final door", slot: "weapon", isKey: true, deckLevel: 3, image: "rusty_key" },
 
   // --- Doors ---
   hall_door: { id: "hall_door", goldValue: 0, type: CardType.Door, name: "Hall Door", value: 0, description: "Open with the key", deckLevel: 1, image: "door" },
