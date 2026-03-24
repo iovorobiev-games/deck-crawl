@@ -2803,6 +2803,7 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.setSlotContentAlpha(def.name, 1);
           } else {
             // Dropped on empty space — discard
+            this.discardedCardIds.add(item.id);
             const discardAbilities = this.collectAbilities("onDiscard", item);
             const discardSlotPos = this.inventoryView.getSlotWorldPos(def.name);
             this.fireAbilities(discardAbilities, () => {}, discardSlotPos ?? undefined);
