@@ -22,6 +22,7 @@ function weightedSample(entries: DeckEntry[], size: number): CardData[] {
 export class Deck {
   private cards: CardData[] = [];
   private lootPool: CardData[] = [];
+  onShuffle: (() => void) | null = null;
 
   constructor(config: DeckEntry[]) {
     if (config.length > 0) {
@@ -126,6 +127,7 @@ export class Deck {
       const j = Math.floor(Math.random() * (i + 1));
       [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
     }
+    this.onShuffle?.();
   }
 
   private shuffleLoot(): void {
@@ -133,6 +135,7 @@ export class Deck {
       const j = Math.floor(Math.random() * (i + 1));
       [this.lootPool[i], this.lootPool[j]] = [this.lootPool[j], this.lootPool[i]];
     }
+    this.onShuffle?.();
   }
 
   draw(n: number): CardData[] {

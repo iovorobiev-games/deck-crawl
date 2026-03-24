@@ -20,6 +20,7 @@ export const SOUND_KEYS = {
 
   // Chest / Trap
   chestOpen: "chest_open",
+  clickUnlock: "click_unlock",
   squelching1: "squelching_1",
   squelching2: "squelching_2",
 
@@ -65,6 +66,7 @@ export const SOUND_FILES: Record<string, string> = {
   [SOUND_KEYS.fireball]: "sounds/Fireball 3.wav",
   [SOUND_KEYS.fireBolt]: "sounds/Fireball 1.wav",
   [SOUND_KEYS.chestOpen]: "sounds/Chest Open 1.wav",
+  [SOUND_KEYS.clickUnlock]: "sounds/Click_Unlock_1.wav",
   [SOUND_KEYS.squelching1]: "sounds/squelching_1.wav",
   [SOUND_KEYS.squelching2]: "sounds/squelching_2.wav",
   [SOUND_KEYS.stoneWalk1]: "sounds/Stone Walk 1.wav",

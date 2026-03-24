@@ -245,6 +245,7 @@ export class GameScene extends Phaser.Scene {
   private initLevel(levelIndex: number): void {
     const level = this.dungeonLevels[levelIndex];
     this.deck = Deck.fromDungeonLevel(level, levelIndex);
+    this.deck.onShuffle = () => this.sfx.play(SOUND_KEYS.cardDraw3);
     this.currentLevelKey = getCard(level.key);
   }
 
@@ -1463,8 +1464,6 @@ export class GameScene extends Phaser.Scene {
     const applyEffect = () => {
       switch (def.effect) {
         case "reduceTargetMonsterPower": {
-          // Fire bolt sound
-          this.sfx.play(SOUND_KEYS.fireBolt);
           let amount = current.params.amount as number;
           if (this.lastUsedScrollId) {
             amount += this.getScrollDamageBonus();
@@ -1484,8 +1483,6 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "reduceAdjacentMonsterPower": {
-          // Fireball sound
-          this.sfx.play(SOUND_KEYS.fireball);
           let amount = current.params.amount as number;
           if (this.lastUsedScrollId) {
             amount += this.getScrollDamageBonus();
@@ -1531,8 +1528,20 @@ export class GameScene extends Phaser.Scene {
         }
       }
       const source = { x: this.playerView.x, y: this.playerView.y };
+      // Play magic sounds when VFX starts, not when effect resolves
+      if (def.effect === "reduceTargetMonsterPower") {
+        this.sfx.play(SOUND_KEYS.fireBolt);
+      } else if (def.effect === "reduceAdjacentMonsterPower") {
+        this.sfx.play(SOUND_KEYS.fireball);
+      }
       vfx(this, source, vfxTargets, applyEffect);
     } else {
+      // No VFX — play sound immediately before applying effect
+      if (def.effect === "reduceTargetMonsterPower") {
+        this.sfx.play(SOUND_KEYS.fireBolt);
+      } else if (def.effect === "reduceAdjacentMonsterPower") {
+        this.sfx.play(SOUND_KEYS.fireball);
+      }
       applyEffect();
     }
   }
@@ -4088,6 +4097,7 @@ export class GameScene extends Phaser.Scene {
                 const success = modifiedAgility >= lockDifficulty;
 
                 if (success) {
+                  this.sfx.play(SOUND_KEYS.clickUnlock);
                   this.trapCleanup(trapCard, modifier);
                 } else {
                   this.sfx.playRandom(SOUND_GROUPS.squelching);
