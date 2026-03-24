@@ -3511,12 +3511,18 @@ export class GameScene extends Phaser.Scene {
     for (const ab of conditionalReturn) {
       const requiredDiscardId = ab.params.requiredDiscardId as string;
       const conditionMet = this.discardedCardIds.has(requiredDiscardId);
-      // Return to deck if condition not met, OR if boss hasn't delivered the key yet
-      if (!conditionMet || (monsterCard.cardData.isBoss && this.currentLevelKey)) {
+      if (!conditionMet) {
+        // Condition NOT met: monster returns to deck
         const freshCopy = getCard(monsterCard.cardData.id);
         if (monsterCard.cardData.isBoss) freshCopy.isBoss = true;
         this.applyLevelScaling(freshCopy);
         this.deck.mergeCards([freshCopy]);
+        this.updateDeckVisual();
+        this.updateHUD();
+      } else if (monsterCard.cardData.isBoss && this.currentLevelKey) {
+        // Boss dies permanently — shuffle the key into the dungeon deck
+        this.deck.mergeCards([this.currentLevelKey]);
+        this.currentLevelKey = null;
         this.updateDeckVisual();
         this.updateHUD();
       }
