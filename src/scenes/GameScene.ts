@@ -810,11 +810,15 @@ export class GameScene extends Phaser.Scene {
           const othersOnGrid = (gridSelfCount ?? this.gridCountCard(cardData.id)) - 1;
           if (othersOnGrid === requiredOtherCount && !this.deck.hasCard(cardId) && !this.gridHasCard(cardId)) {
             // Add to deck immediately to prevent duplicate summons from simultaneous reveals
+            // Suppress sound here — animation will play it at the right time
             const cardsToInsert = [];
             for (let i = 0; i < count; i++) {
               cardsToInsert.push(getCard(cardId));
             }
+            const saved = this.deck.onShuffle;
+            this.deck.onShuffle = null;
             this.deck.mergeCards(cardsToInsert);
+            this.deck.onShuffle = saved;
             this.playSummonToDeckAnimation(card, cardId, count, () => processNext(idx + 1));
           } else {
             processNext(idx + 1);
@@ -1922,6 +1926,9 @@ export class GameScene extends Phaser.Scene {
     const deckWorldY = 200;
     let completed = 0;
 
+    // Play shuffle sound at the start of the fly animation
+    this.sfx.play(SOUND_KEYS.cardDraw3);
+
     // Fade out overlay alongside card flight
     this.tweens.add({
       targets: overlay,
@@ -1952,7 +1959,11 @@ export class GameScene extends Phaser.Scene {
           card.destroy();
           completed++;
           if (completed === tempCards.length) {
+            // Sound already played at animation start — suppress duplicate
+            const saved = this.deck.onShuffle;
+            this.deck.onShuffle = null;
             this.deck.mergeCards(cardDatas);
+            this.deck.onShuffle = saved;
             this.updateDeckVisual();
             this.updateHUD();
             onComplete();
