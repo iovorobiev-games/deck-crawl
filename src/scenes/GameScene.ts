@@ -471,6 +471,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Apply equipped bow bonuses to a single card's power display if it's a bow shot. */
+  private applyLevelScaling(card: CardData): void {
+    const powerBonus = this.currentLevelIndex * 2;
+    if (powerBonus > 0 && card.type === CardType.Monster) {
+      card.value += powerBonus;
+    }
+  }
+
   private applyBowShotBonus(card: Card): void {
     const bowAbility = card.cardData.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
     if (!bowAbility) return;
@@ -572,8 +579,11 @@ export class GameScene extends Phaser.Scene {
       const plan: PlacementPlan = { cardData, slot };
 
       if (cardData.type === CardType.Monster) {
-        if (cardData.isBoss && this.currentLevelKey) {
-          plan.generatedLoot = this.currentLevelKey;
+        const level = this.dungeonLevels[this.currentLevelIndex];
+        const keyReady = cardData.isBoss && this.currentLevelKey
+          && (!level.keyCondition || this.discardedCardIds.has(level.keyCondition));
+        if (keyReady) {
+          plan.generatedLoot = this.currentLevelKey!;
           this.currentLevelKey = null;
         } else {
           const existing = this.findUnguardedLootOnGrid(claimedSet);
@@ -813,7 +823,9 @@ export class GameScene extends Phaser.Scene {
             // Suppress sound here — animation will play it at the right time
             const cardsToInsert = [];
             for (let i = 0; i < count; i++) {
-              cardsToInsert.push(getCard(cardId));
+              const c = getCard(cardId);
+              this.applyLevelScaling(c);
+              cardsToInsert.push(c);
             }
             const saved = this.deck.onShuffle;
             this.deck.onShuffle = null;
@@ -884,6 +896,7 @@ export class GameScene extends Phaser.Scene {
               if (newValue <= 0) {
                 const deadCell = this.grid.findCard(target);
                 if (deadCell) this.grid.removeCard(deadCell.col, deadCell.row);
+                this.handleMonsterDeathAbilities(target);
                 this.freeGuardedLootIfAny(target);
                 target.resolve(() => processNext(idx + 1));
               } else {
@@ -1590,6 +1603,7 @@ export class GameScene extends Phaser.Scene {
     const [current, ...rest] = monsters;
     const cell = this.grid.findCard(current);
     if (cell) this.grid.removeCard(cell.col, cell.row);
+    this.handleMonsterDeathAbilities(current);
     this.freeGuardedLootIfAny(current);
     current.resolve(() => {
       this.resolveDeadMonsters(rest, onComplete);
@@ -1880,6 +1894,7 @@ export class GameScene extends Phaser.Scene {
 
     for (let i = 0; i < count; i++) {
       const data = getCard(cardId);
+      this.applyLevelScaling(data);
       cardDatas.push(data);
       const card = new Card(this, sourcePos.x, sourcePos.y, data);
       this.applyBowShotBonus(card);
@@ -2588,19 +2603,11 @@ export class GameScene extends Phaser.Scene {
             this.inventory.unequip(def.name);
             ghost.destroy();
             // Fire portrait abilities
-            let hasAsyncAbility = false;
-            for (const ab of invPortraitAbilities) {
-              const aDef = getAbility(ab.abilityId);
-              if (aDef.effect === "healPlayer") {
-                this.sfx.play(SOUND_KEYS.potion);
-                this.player.heal(ab.params.amount as number);
-              } else if (aDef.effect === "removeDarkEvent") {
-                this.sfx.play(SOUND_KEYS.holySpell04);
-                hasAsyncAbility = true;
-                this.playRemoveCurseAnimation(() => {});
-              }
-            }
-            if (!hasAsyncAbility) {
+            const hasAsyncAbility = invPortraitAbilities.some(ab => getAbility(ab.abilityId).effect === "removeDarkEvent");
+            if (hasAsyncAbility) {
+              this.sfx.play(SOUND_KEYS.holySpell04);
+              this.playRemoveCurseAnimation(() => {});
+            } else {
               this.fireAbilities(invPortraitAbilities, () => {});
             }
             // Recycle scroll if Wizard's Hat equipped
@@ -2798,6 +2805,7 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.setSlotContentAlpha(def.name, 1);
           } else {
             // Dropped on empty space — discard
+            this.discardedCardIds.add(item.id);
             const discardAbilities = this.collectAbilities("onDiscard", item);
             const discardSlotPos = this.inventoryView.getSlotWorldPos(def.name);
             this.fireAbilities(discardAbilities, () => {}, discardSlotPos ?? undefined);
@@ -3462,6 +3470,38 @@ export class GameScene extends Phaser.Scene {
     processNext();
   }
 
+  /** Handle onMonsterDeath abilities: self-reshuffle, conditional return, key shuffle. */
+  private handleMonsterDeathAbilities(monsterCard: Card): void {
+    const deathAbilities = this.collectAbilities("onMonsterDeath", monsterCard.cardData);
+    const hasSelfReshuffle = deathAbilities.some(a => getAbility(a.abilityId).effect === "shuffleSelfIntoDeck");
+
+    if (hasSelfReshuffle) {
+      const freshCopy = getCard(monsterCard.cardData.id);
+      this.applyLevelScaling(freshCopy);
+      this.deck.mergeCards([freshCopy]);
+      this.updateDeckVisual();
+      this.updateHUD();
+    }
+
+    const conditionalReturn = deathAbilities.filter(a => getAbility(a.abilityId).effect === "returnSelfConditional");
+    for (const ab of conditionalReturn) {
+      const requiredDiscardId = ab.params.requiredDiscardId as string;
+      const conditionMet = this.discardedCardIds.has(requiredDiscardId);
+      if (!conditionMet) {
+        const freshCopy = getCard(monsterCard.cardData.id);
+        if (monsterCard.cardData.isBoss) freshCopy.isBoss = true;
+        this.applyLevelScaling(freshCopy);
+        this.deck.mergeCards([freshCopy]);
+        this.updateDeckVisual();
+        this.updateHUD();
+      } else if (monsterCard.cardData.isBoss && this.currentLevelKey) {
+        const keyId = this.currentLevelKey.id;
+        this.currentLevelKey = null;
+        this.playSummonToDeckAnimation({ x: monsterCard.x, y: monsterCard.y }, keyId, 1, () => {});
+      }
+    }
+  }
+
   private combatCleanup(monsterCard: Card, fateModifier: number): void {
     // Remove overlay and fight button
     if (this.combatOverlay) {
@@ -3482,35 +3522,10 @@ export class GameScene extends Phaser.Scene {
     if (cell) this.grid.removeCard(cell.col, cell.row);
     this.updatePlayerStats();
 
-    // Fire onMonsterDeath abilities from equipped items if monster is dead
-    const monsterDead = monsterCard.cardData.value <= 0;
-    const equipDeathAbilities = monsterDead ? this.collectEquippedAbilities("onMonsterDeath") : [];
+    // Combat always kills the monster (it counterattacks first if it survives the player's hit)
+    const equipDeathAbilities = this.collectEquippedAbilities("onMonsterDeath");
     this.fireAbilities(equipDeathAbilities, () => {});
-
-    // Collect onMonsterDeath abilities from the monster card itself
-    const monsterDeathAbilities = monsterDead ? this.collectAbilities("onMonsterDeath", monsterCard.cardData) : [];
-    const hasSelfReshuffle = monsterDeathAbilities.some(a => getAbility(a.abilityId).effect === "shuffleSelfIntoDeck");
-
-    // If monster reshuffles itself, create a fresh copy for the deck
-    if (hasSelfReshuffle) {
-      const freshCopy = getCard(monsterCard.cardData.id);
-      this.deck.mergeCards([freshCopy]);
-      this.updateDeckVisual();
-      this.updateHUD();
-    }
-
-    // Handle returnSelfConditional — return to deck if condition met
-    const conditionalReturn = monsterDeathAbilities.filter(a => getAbility(a.abilityId).effect === "returnSelfConditional");
-    for (const ab of conditionalReturn) {
-      const requiredDiscardId = ab.params.requiredDiscardId as string;
-      if (!this.discardedCardIds.has(requiredDiscardId)) {
-        // Condition met: card NOT discarded, so monster returns
-        const freshCopy = getCard(monsterCard.cardData.id);
-        this.deck.mergeCards([freshCopy]);
-        this.updateDeckVisual();
-        this.updateHUD();
-      }
-    }
+    this.handleMonsterDeathAbilities(monsterCard);
 
     monsterCard.resolve(() => {
       // Shuffle fate card back
@@ -4626,7 +4641,7 @@ export class GameScene extends Phaser.Scene {
           const tempDeck = Deck.fromDungeonLevel(nextLevel, this.currentLevelIndex);
           const newCards = tempDeck.draw(tempDeck.remaining);
           this.deck.mergeCards(newCards);
-          this.deck.mergeLoot(tempDeck.drainLoot());
+          this.deck.replaceLoot(tempDeck.drainLoot());
 
           this.currentLevelKey = getCard(nextLevel.key);
 

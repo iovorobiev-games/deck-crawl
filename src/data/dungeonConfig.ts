@@ -18,6 +18,8 @@ export interface DungeonLevel {
   cards: DeckEntry[];
   loot: LootConfig;
   boss: string;
+  /** Card ID that must be discarded before the boss drops the key. */
+  keyCondition?: string;
   key: string;
   door: string;
 }
@@ -223,6 +225,7 @@ export const dungeonConfig: DungeonConfig = {
         bufferSize: 8,
       },
       boss: "crypt_lord",
+      keyCondition: "phylactery",
       key: "master_key",
       door: "final_door",
     },
