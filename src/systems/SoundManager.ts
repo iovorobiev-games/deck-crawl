@@ -40,8 +40,13 @@ export const SOUND_KEYS = {
   coinsGather: "coins_gather",
   keysJingling: "keys_jingling",
 
-  // Scrolls
+  // Potions
+  potion: "potion",
+
+  // Scrolls / Spells
   vibraphoneMystery: "vibraphone_mystery",
+  holySpell04: "holy_spell_04",
+  holySpell06: "holy_spell_06",
 } as const;
 
 /** Grouped sound keys for random selection. */
@@ -79,7 +84,10 @@ export const SOUND_FILES: Record<string, string> = {
   [SOUND_KEYS.cardDraw3]: "sounds/card_draw_3.wav",
   [SOUND_KEYS.coinsGather]: "sounds/coins_gather_quick.wav",
   [SOUND_KEYS.keysJingling]: "sounds/keys_jingling.wav",
+  [SOUND_KEYS.potion]: "sounds/potion.wav",
   [SOUND_KEYS.vibraphoneMystery]: "sounds/vibraphone_mystery.wav",
+  [SOUND_KEYS.holySpell04]: "sounds/Holy Spell Cast Blast 04 HQ.wav",
+  [SOUND_KEYS.holySpell06]: "sounds/Holy Spell Cast Blast 06 HQ.wav",
 };
 
 export class SoundManager {

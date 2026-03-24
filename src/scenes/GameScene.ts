@@ -846,6 +846,7 @@ export class GameScene extends Phaser.Scene {
           break;
         }
         case "addFateModifier": {
+          this.sfx.play(SOUND_KEYS.holySpell06);
           const mod = ability.params.modifier as number;
           this.playFlyToFateDeckAnimation({ x: card.x, y: card.y }, mod, () => processNext(idx + 1));
           break;
@@ -1311,10 +1312,11 @@ export class GameScene extends Phaser.Scene {
     const def = getAbility(ability.abilityId);
     switch (def.effect) {
       case "healPlayer":
+        this.sfx.play(SOUND_KEYS.potion);
         this.player.heal(ability.params.amount as number);
         break;
       case "removeDarkEvent":
-        this.sfx.play(SOUND_KEYS.vibraphoneMystery);
+        this.sfx.play(SOUND_KEYS.holySpell04);
         card.disableInteractive();
         card.resolve(() => {
           this.playRemoveCurseAnimation(() => {
@@ -1379,6 +1381,7 @@ export class GameScene extends Phaser.Scene {
 
     switch (def.effect) {
       case "healPlayer":
+        this.sfx.play(SOUND_KEYS.potion);
         this.player.heal(current.params.amount as number);
         break;
       case "damagePlayer":
@@ -1421,7 +1424,7 @@ export class GameScene extends Phaser.Scene {
         return; // async
       }
       case "addFateModifier": {
-        this.sfx.play(SOUND_KEYS.vibraphoneMystery);
+        this.sfx.play(SOUND_KEYS.holySpell06);
         const modifier = current.params.modifier as number;
         const origin = sourcePos ?? { x: GAME_W / 2, y: GAME_H / 2 };
         this.playFlyToFateDeckAnimation(origin, modifier, () => {
@@ -1820,6 +1823,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "addFateModifier": {
+        this.sfx.play(SOUND_KEYS.holySpell06);
         const mod = current.ability.params.modifier as number;
         this.playFlyToFateDeckAnimation({ x: current.card.x, y: current.card.y }, mod, () => {
           this.executeOnExploreAbilities(rest, onComplete);
@@ -2577,8 +2581,10 @@ export class GameScene extends Phaser.Scene {
             for (const ab of invPortraitAbilities) {
               const aDef = getAbility(ab.abilityId);
               if (aDef.effect === "healPlayer") {
+                this.sfx.play(SOUND_KEYS.potion);
                 this.player.heal(ab.params.amount as number);
               } else if (aDef.effect === "removeDarkEvent") {
+                this.sfx.play(SOUND_KEYS.holySpell04);
                 hasAsyncAbility = true;
                 this.playRemoveCurseAnimation(() => {});
               }
@@ -2911,6 +2917,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "removeDarkEvent": {
+        this.sfx.play(SOUND_KEYS.holySpell04);
         // Remove first card with tag "curse" from deck
         this.deck.removeFirstByTag("curse");
         this.executeOnResolveAbilities(card, rest, onComplete);
@@ -2924,6 +2931,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "addFateModifier": {
+        this.sfx.play(SOUND_KEYS.holySpell06);
         const modifier = current.params.modifier as number;
         this.playFlyToFateDeckAnimation({ x: card.x, y: card.y }, modifier, () => {
           this.executeOnResolveAbilities(card, rest, onComplete);
@@ -2983,6 +2991,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case "addFateModifier": {
+        this.sfx.play(SOUND_KEYS.holySpell06);
         const modifier = current.params.modifier as number;
         this.playFlyToFateDeckAnimation({ x: trapCard.x, y: trapCard.y }, modifier, () => {
           this.executeOnTrapTriggeredAbilities(trapCard, rest, onComplete);
