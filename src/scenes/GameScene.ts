@@ -294,11 +294,13 @@ export class GameScene extends Phaser.Scene {
         // MaxHP increased — heal the difference
         this.player.heal(diff);
       } else {
-        // MaxHP decreased — cap current HP
+        // MaxHP decreased — subtract the lost bonus HP (minimum 1)
+        const lost = -diff;
+        this.player.hp = Math.max(1, this.player.hp - lost);
         if (this.player.hp > this.player.maxHp) {
           this.player.hp = this.player.maxHp;
-          this.player.emit("hpChanged", this.player.hp, this.player.maxHp);
         }
+        this.player.emit("hpChanged", this.player.hp, this.player.maxHp);
       }
     }
     this.playerView.updateStats(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier());
