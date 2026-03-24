@@ -48,14 +48,9 @@ export class Deck {
     const poolSize = consumers + level.loot.bufferSize;
     deck.generateLootPool(level.loot, poolSize);
 
-    if (level.deferredBoss) {
-      // Add the regular version; the real boss appears later via ability
-      deck.cards.push(getCard(level.deferredBoss));
-    } else {
-      const bossCard = getCard(level.boss);
-      bossCard.isBoss = true;
-      deck.cards.push(bossCard);
-    }
+    const bossCard = getCard(level.boss);
+    bossCard.isBoss = true;
+    deck.cards.push(bossCard);
     deck.cards.push(getCard(level.door));
 
     // Scale monster power by dungeon depth: +2 per level above the first

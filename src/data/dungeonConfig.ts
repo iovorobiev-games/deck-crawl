@@ -18,8 +18,8 @@ export interface DungeonLevel {
   cards: DeckEntry[];
   loot: LootConfig;
   boss: string;
-  /** If set, this card is added to the deck instead of the boss. The boss only appears when shuffled in by an ability. */
-  deferredBoss?: string;
+  /** Card ID that must be discarded before the boss drops the key. */
+  keyCondition?: string;
   key: string;
   door: string;
 }
@@ -224,8 +224,8 @@ export const dungeonConfig: DungeonConfig = {
         ],
         bufferSize: 8,
       },
-      boss: "crypt_lord_boss",
-      deferredBoss: "crypt_lord",
+      boss: "crypt_lord",
+      keyCondition: "phylactery",
       key: "master_key",
       door: "final_door",
     },

@@ -579,8 +579,11 @@ export class GameScene extends Phaser.Scene {
       const plan: PlacementPlan = { cardData, slot };
 
       if (cardData.type === CardType.Monster) {
-        if (cardData.isBoss && this.currentLevelKey) {
-          plan.generatedLoot = this.currentLevelKey;
+        const level = this.dungeonLevels[this.currentLevelIndex];
+        const keyReady = cardData.isBoss && this.currentLevelKey
+          && (!level.keyCondition || this.discardedCardIds.has(level.keyCondition));
+        if (keyReady) {
+          plan.generatedLoot = this.currentLevelKey!;
           this.currentLevelKey = null;
         } else {
           const existing = this.findUnguardedLootOnGrid(claimedSet);
@@ -3506,20 +3509,13 @@ export class GameScene extends Phaser.Scene {
     const conditionalReturn = monsterDeathAbilities.filter(a => getAbility(a.abilityId).effect === "returnSelfConditional");
     for (const ab of conditionalReturn) {
       const requiredDiscardId = ab.params.requiredDiscardId as string;
-      const upgradeCardId = ab.params.upgradeCardId as string | undefined;
-      if (!this.discardedCardIds.has(requiredDiscardId)) {
-        // Condition NOT met: card NOT discarded, so monster returns
+      const conditionMet = this.discardedCardIds.has(requiredDiscardId);
+      // Return to deck if condition not met, OR if boss hasn't delivered the key yet
+      if (!conditionMet || (monsterCard.cardData.isBoss && this.currentLevelKey)) {
         const freshCopy = getCard(monsterCard.cardData.id);
+        if (monsterCard.cardData.isBoss) freshCopy.isBoss = true;
         this.applyLevelScaling(freshCopy);
         this.deck.mergeCards([freshCopy]);
-        this.updateDeckVisual();
-        this.updateHUD();
-      } else if (upgradeCardId) {
-        // Condition met: shuffle upgraded boss version into deck
-        const bossCard = getCard(upgradeCardId);
-        bossCard.isBoss = true;
-        this.applyLevelScaling(bossCard);
-        this.deck.mergeCards([bossCard]);
         this.updateDeckVisual();
         this.updateHUD();
       }
