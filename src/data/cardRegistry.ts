@@ -46,7 +46,7 @@ export const cardRegistry: Record<string, CardData> = {
   battle_axe: { id: "battle_axe", goldValue: 32, type: CardType.Treasure, name: "Battle Axe", value: 4, description: "", slot: "weapon", tag: "weapon", image: "crude_axe" },
   shortbow: { id: "shortbow", goldValue: 3, type: CardType.Treasure, name: "Shortbow", value: 0, description: "Adds 3 Bow Shot cards into a dungeon deck", slot: "weapon", image: "shortbow", tag: "bow", abilities: [{ abilityId: "equip_degrade", params: { cardId: "bow_shot", count: 3 } }] },
   elven_bow: { id: "elven_bow", goldValue: 10.5, type: CardType.Treasure, name: "Elven Bow", value: 0, description: "Adds 3 Strong Bow Shot cards into a dungeon deck.\nAgility +1", slot: "weapon", image: "elven_bow", tag: "bow", agilityBonus: 1, abilities: [{ abilityId: "equip_degrade", params: { cardId: "strong_bow_shot", count: 3 } }] },
-  ogre_axe: { id: "ogre_axe", goldValue: 14, type: CardType.Treasure, name: "Ogre Axe", value: 2, description: "Adds Weapon Degradation to Dungeon Deck if equipped", slot: "weapon", tag: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
+  ogre_axe: { id: "ogre_axe", goldValue: 14, type: CardType.Treasure, name: "Ogre Axe", value: 3, description: "Adds Weapon Degradation to Dungeon Deck if equipped", slot: "weapon", tag: "weapon", image: "crude_axe", abilities: [{ abilityId: "equip_degrade", params: { cardId: "weapon_degradation", count: 1 } }] },
 
   // --- Treasure - Shields ---
   wooden_shield: { id: "wooden_shield", goldValue: 4, type: CardType.Treasure, name: "Wooden Shield", value: 0, description: "", slot: "weapon", image: "wooden_shield", abilities: [{ abilityId: "armour", params: { amount: 2 } }] },
