@@ -642,6 +642,13 @@ export class GameScene extends Phaser.Scene {
 
   private placeGridCard(plan: { cardData: CardData; slot: { col: number; row: number }; existingLoot?: Card; generatedLoot?: CardData }): void {
     this.sfx.playRandom(SOUND_GROUPS.cardDraw);
+
+    // Boss with key must occupy a genuinely empty cell — re-pick if slot was taken
+    if (plan.cardData.isBoss && plan.generatedLoot && this.grid.getCardAt(plan.slot.col, plan.slot.row)) {
+      const fresh = this.grid.getEmptySlots();
+      if (fresh.length > 0) plan.slot = fresh[0];
+    }
+
     const pos = this.grid.worldPos(plan.slot.col, plan.slot.row);
     const deckX = 350;
     const deckY = 200;
