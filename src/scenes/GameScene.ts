@@ -896,6 +896,7 @@ export class GameScene extends Phaser.Scene {
               if (newValue <= 0) {
                 const deadCell = this.grid.findCard(target);
                 if (deadCell) this.grid.removeCard(deadCell.col, deadCell.row);
+                this.handleMonsterDeathAbilities(target);
                 this.freeGuardedLootIfAny(target);
                 target.resolve(() => processNext(idx + 1));
               } else {
@@ -1602,6 +1603,7 @@ export class GameScene extends Phaser.Scene {
     const [current, ...rest] = monsters;
     const cell = this.grid.findCard(current);
     if (cell) this.grid.removeCard(cell.col, cell.row);
+    this.handleMonsterDeathAbilities(current);
     this.freeGuardedLootIfAny(current);
     current.resolve(() => {
       this.resolveDeadMonsters(rest, onComplete);
@@ -3468,6 +3470,38 @@ export class GameScene extends Phaser.Scene {
     processNext();
   }
 
+  /** Handle onMonsterDeath abilities: self-reshuffle, conditional return, key shuffle. */
+  private handleMonsterDeathAbilities(monsterCard: Card): void {
+    const deathAbilities = this.collectAbilities("onMonsterDeath", monsterCard.cardData);
+    const hasSelfReshuffle = deathAbilities.some(a => getAbility(a.abilityId).effect === "shuffleSelfIntoDeck");
+
+    if (hasSelfReshuffle) {
+      const freshCopy = getCard(monsterCard.cardData.id);
+      this.applyLevelScaling(freshCopy);
+      this.deck.mergeCards([freshCopy]);
+      this.updateDeckVisual();
+      this.updateHUD();
+    }
+
+    const conditionalReturn = deathAbilities.filter(a => getAbility(a.abilityId).effect === "returnSelfConditional");
+    for (const ab of conditionalReturn) {
+      const requiredDiscardId = ab.params.requiredDiscardId as string;
+      const conditionMet = this.discardedCardIds.has(requiredDiscardId);
+      if (!conditionMet) {
+        const freshCopy = getCard(monsterCard.cardData.id);
+        if (monsterCard.cardData.isBoss) freshCopy.isBoss = true;
+        this.applyLevelScaling(freshCopy);
+        this.deck.mergeCards([freshCopy]);
+        this.updateDeckVisual();
+        this.updateHUD();
+      } else if (monsterCard.cardData.isBoss && this.currentLevelKey) {
+        const keyId = this.currentLevelKey.id;
+        this.currentLevelKey = null;
+        this.playSummonToDeckAnimation({ x: monsterCard.x, y: monsterCard.y }, keyId, 1, () => {});
+      }
+    }
+  }
+
   private combatCleanup(monsterCard: Card, fateModifier: number): void {
     // Remove overlay and fight button
     if (this.combatOverlay) {
@@ -3488,45 +3522,10 @@ export class GameScene extends Phaser.Scene {
     if (cell) this.grid.removeCard(cell.col, cell.row);
     this.updatePlayerStats();
 
-    // Fire onMonsterDeath abilities from equipped items if monster is dead
-    const monsterDead = monsterCard.cardData.value <= 0;
-    const equipDeathAbilities = monsterDead ? this.collectEquippedAbilities("onMonsterDeath") : [];
+    // Combat always kills the monster (it counterattacks first if it survives the player's hit)
+    const equipDeathAbilities = this.collectEquippedAbilities("onMonsterDeath");
     this.fireAbilities(equipDeathAbilities, () => {});
-
-    // Collect onMonsterDeath abilities from the monster card itself
-    const monsterDeathAbilities = monsterDead ? this.collectAbilities("onMonsterDeath", monsterCard.cardData) : [];
-    const hasSelfReshuffle = monsterDeathAbilities.some(a => getAbility(a.abilityId).effect === "shuffleSelfIntoDeck");
-
-    // If monster reshuffles itself, create a fresh copy for the deck
-    if (hasSelfReshuffle) {
-      const freshCopy = getCard(monsterCard.cardData.id);
-      this.applyLevelScaling(freshCopy);
-      this.deck.mergeCards([freshCopy]);
-      this.updateDeckVisual();
-      this.updateHUD();
-    }
-
-    // Handle returnSelfConditional — return to deck if condition met
-    const conditionalReturn = monsterDeathAbilities.filter(a => getAbility(a.abilityId).effect === "returnSelfConditional");
-    for (const ab of conditionalReturn) {
-      const requiredDiscardId = ab.params.requiredDiscardId as string;
-      const conditionMet = this.discardedCardIds.has(requiredDiscardId);
-      if (!conditionMet) {
-        // Condition NOT met: monster returns to deck
-        const freshCopy = getCard(monsterCard.cardData.id);
-        if (monsterCard.cardData.isBoss) freshCopy.isBoss = true;
-        this.applyLevelScaling(freshCopy);
-        this.deck.mergeCards([freshCopy]);
-        this.updateDeckVisual();
-        this.updateHUD();
-      } else if (monsterCard.cardData.isBoss && this.currentLevelKey) {
-        // Boss dies permanently — shuffle the key into the dungeon deck
-        this.deck.mergeCards([this.currentLevelKey]);
-        this.currentLevelKey = null;
-        this.updateDeckVisual();
-        this.updateHUD();
-      }
-    }
+    this.handleMonsterDeathAbilities(monsterCard);
 
     monsterCard.resolve(() => {
       // Shuffle fate card back
