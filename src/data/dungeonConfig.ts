@@ -74,11 +74,10 @@ export const dungeonConfig: DungeonConfig = {
           { id: "rusty_sword", weight: 3, maxCount: 3 },
           { id: "guardsman_sword", weight: 0.15, maxCount: 2 },
           { id: "knights_sword", weight: 0.06, maxCount: 1 },
-          { id: "battle_axe", weight: 0.03, maxCount: 1 },
           { id: "ogre_axe", weight: 0.7, maxCount: 2 },
           { id: "crude_axe", weight: 0.7, maxCount: 2 },
-          { id: "shortbow", weight: 1.5, maxCount: 3 },
-          { id: "elven_bow", weight: 0.12, maxCount: 1 },
+          { id: "shortbow", weight: 2, maxCount: 3 },
+          { id: "elven_bow", weight: 0.25, maxCount: 1 },
           // Backpack (constant)
           { id: "quiver", weight: 1.3, maxCount: 3 },
           // Scrolls (consumable)
@@ -114,9 +113,9 @@ export const dungeonConfig: DungeonConfig = {
       loot: {
         pool: [
           // Potions
-          { id: "lesser_health_potion", weight: 1, maxCount: 3 },
-          { id: "minor_health_potion", weight: 3, maxCount: 3 },
-          { id: "health_potion", weight: 3, maxCount: 3 },
+          { id: "lesser_health_potion", weight: 2, maxCount: 3 },
+          { id: "minor_health_potion", weight: 4, maxCount: 3 },
+          { id: "health_potion", weight: 4, maxCount: 3 },
           // Tools
           { id: "lockpick", weight: 2, maxCount: 3 },
           { id: "disarm_kit", weight: 2, maxCount: 3 },
@@ -144,13 +143,13 @@ export const dungeonConfig: DungeonConfig = {
           { id: "battle_axe", weight: 1, maxCount: 1 },
           { id: "ogre_axe", weight: 3, maxCount: 3 },
           { id: "crude_axe", weight: 2, maxCount: 3 },
-          { id: "shortbow", weight: 1, maxCount: 3 },
-          { id: "elven_bow", weight: 2, maxCount: 2 },
+          { id: "shortbow", weight: 1.5, maxCount: 3 },
+          { id: "elven_bow", weight: 2.5, maxCount: 2 },
           // Backpack
           { id: "quiver", weight: 1, maxCount: 3 },
           // Scrolls
-          { id: "fireball_scroll", weight: 3, maxCount: 3 },
-          { id: "scroll_of_fire_bolt", weight: 2, maxCount: 3 },
+          { id: "fireball_scroll", weight: 2, maxCount: 3 },
+          { id: "scroll_of_fire_bolt", weight: 3, maxCount: 3 },
           { id: "scroll_of_cleansing", weight: 1, maxCount: 3 },
           { id: "scroll_of_blessing", weight: 1, maxCount: 3 },
         ],
@@ -182,9 +181,9 @@ export const dungeonConfig: DungeonConfig = {
         guaranteed: ["phylactery"],
         pool: [
           // Potions
-          { id: "lesser_health_potion", weight: 0.5, maxCount: 3 },
-          { id: "minor_health_potion", weight: 1, maxCount: 3 },
-          { id: "health_potion", weight: 5, maxCount: 3 },
+          { id: "lesser_health_potion", weight: 1.5, maxCount: 3 },
+          { id: "minor_health_potion", weight: 2.5, maxCount: 3 },
+          { id: "health_potion", weight: 7, maxCount: 3 },
           // Tools
           { id: "lockpick", weight: 1, maxCount: 3 },
           { id: "disarm_kit", weight: 1, maxCount: 3 },
@@ -212,15 +211,15 @@ export const dungeonConfig: DungeonConfig = {
           { id: "battle_axe", weight: 3, maxCount: 1 },
           { id: "ogre_axe", weight: 4, maxCount: 3 },
           { id: "crude_axe", weight: 4, maxCount: 3 },
-          { id: "shortbow", weight: 0.5, maxCount: 3 },
-          { id: "elven_bow", weight: 4, maxCount: 2 },
+          { id: "shortbow", weight: 1, maxCount: 3 },
+          { id: "elven_bow", weight: 5, maxCount: 2 },
           // Backpack
           { id: "quiver", weight: 1, maxCount: 3 },
           // Scrolls
-          { id: "fireball_scroll", weight: 4, maxCount: 3 },
-          { id: "scroll_of_fire_bolt", weight: 2, maxCount: 4 },
-          { id: "scroll_of_cleansing", weight: 1, maxCount: 3 },
-          { id: "scroll_of_blessing", weight: 1, maxCount: 3 },
+          { id: "fireball_scroll", weight: 3.5, maxCount: 3 },
+          { id: "scroll_of_fire_bolt", weight: 5, maxCount: 4 },
+          { id: "scroll_of_cleansing", weight: 2, maxCount: 3 },
+          { id: "scroll_of_blessing", weight: 2, maxCount: 3 },
         ],
         bufferSize: 8,
       },
