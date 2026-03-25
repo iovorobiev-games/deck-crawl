@@ -582,7 +582,7 @@ export class GameScene extends Phaser.Scene {
 
       if (cardData.type === CardType.Monster) {
         const level = this.dungeonLevels[this.currentLevelIndex];
-        const keyReady = cardData.isBoss && this.currentLevelKey
+        const keyReady = cardData.isBoss && cardData.id === level.boss && this.currentLevelKey
           && (!level.keyCondition || this.discardedCardIds.has(level.keyCondition));
         if (keyReady) {
           plan.generatedLoot = this.currentLevelKey!;
@@ -1528,6 +1528,7 @@ export class GameScene extends Phaser.Scene {
           if (newValue <= 0) {
             const cell = this.grid.findCard(target);
             if (cell) this.grid.removeCard(cell.col, cell.row);
+            this.handleMonsterDeathAbilities(target);
             target.resolve(() => {
               this.freeGuardedLootIfAny(target);
               this.fireDragOnMonsterAbilities(rest, target, onComplete);
@@ -3482,8 +3483,12 @@ export class GameScene extends Phaser.Scene {
     processNext();
   }
 
-  /** Handle onMonsterDeath abilities: self-reshuffle, conditional return, key shuffle. */
+  /** Handle onMonsterDeath abilities: equipped abilities, self-reshuffle, conditional return, key shuffle. */
   private handleMonsterDeathAbilities(monsterCard: Card): void {
+    // Fire onMonsterDeath abilities from equipped items (e.g. vampiric heal)
+    const equipDeathAbilities = this.collectEquippedAbilities("onMonsterDeath");
+    this.fireAbilities(equipDeathAbilities, () => {});
+
     const deathAbilities = this.collectAbilities("onMonsterDeath", monsterCard.cardData);
     const hasSelfReshuffle = deathAbilities.some(a => getAbility(a.abilityId).effect === "shuffleSelfIntoDeck");
 
@@ -3535,8 +3540,6 @@ export class GameScene extends Phaser.Scene {
     this.updatePlayerStats();
 
     // Combat always kills the monster (it counterattacks first if it survives the player's hit)
-    const equipDeathAbilities = this.collectEquippedAbilities("onMonsterDeath");
-    this.fireAbilities(equipDeathAbilities, () => {});
     this.handleMonsterDeathAbilities(monsterCard);
 
     monsterCard.resolve(() => {
