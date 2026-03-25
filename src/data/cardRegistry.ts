@@ -35,10 +35,10 @@ export const cardRegistry: Record<string, CardData> = {
   hidden_pit: { id: "hidden_pit", goldValue: 1.67, type: CardType.Trap, name: "Hidden Pit", value: 0, description: "Blocks Explore.\nDamage: 1", lockDifficulty: 3, trapDamage: 1, image: "hidden_pit" },
 
   // --- Gold ---
-  gold_pile_small: { id: "gold_pile_small", goldValue: 2, type: CardType.Treasure, name: "Pile of Gold", value: 2, description: "2 Gold Coins", image: "pile_of_gold" },
-  gold_pile_3: { id: "gold_pile_3", goldValue: 3, type: CardType.Treasure, name: "Pile of Gold", value: 3, description: "3 Gold Coins", image: "pile_of_gold" },
-  gold_pile_medium: { id: "gold_pile_medium", goldValue: 4, type: CardType.Treasure, name: "Pile of Gold", value: 4, description: "4 Gold Coins", image: "pile_of_gold" },
-  gold_pile_large: { id: "gold_pile_large", goldValue: 6, type: CardType.Treasure, name: "Pile of Gold", value: 6, description: "6 Gold Coins", image: "pile_of_gold" },
+  gold_pile_small: { id: "gold_pile_small", goldValue: 2, type: CardType.Treasure, name: "Pile of Gold", value: 2, description: "2 Gold Coins", slot: "backpack", image: "pile_of_gold" },
+  gold_pile_3: { id: "gold_pile_3", goldValue: 3, type: CardType.Treasure, name: "Pile of Gold", value: 3, description: "3 Gold Coins", slot: "backpack", image: "pile_of_gold" },
+  gold_pile_medium: { id: "gold_pile_medium", goldValue: 4, type: CardType.Treasure, name: "Pile of Gold", value: 4, description: "4 Gold Coins", slot: "backpack", image: "pile_of_gold" },
+  gold_pile_large: { id: "gold_pile_large", goldValue: 6, type: CardType.Treasure, name: "Pile of Gold", value: 6, description: "6 Gold Coins", slot: "backpack", image: "pile_of_gold" },
 
   // --- Treasure - Weapons ---
   guardsman_sword: { id: "guardsman_sword", goldValue: 8, type: CardType.Treasure, name: "Guardsman Sword", value: 1, description: "", slot: "weapon", tag: "weapon", image: "shortsword" },

@@ -1023,6 +1023,12 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
+  private isGoldPile(card: Card): boolean {
+    return card.cardData.type === CardType.Treasure &&
+      card.cardData.slot === "backpack" &&
+      !card.cardData.abilities?.length;
+  }
+
   private hasDragAbility(card: Card): boolean {
     return this.hasAnyDragAbility(card);
   }
@@ -1166,6 +1172,15 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
+      // Highlight portrait when dragging a gold pile over it
+      if (this.isGoldPile(card)) {
+        if (this.playerView.isPointOver(world.x, world.y)) {
+          this.playerView.showDropHighlight(card.cardData.description);
+        } else {
+          this.playerView.hideDropHighlight();
+        }
+      }
+
       // Ability-target highlights (portrait, traps, monsters, chests, weapons, tags)
       // are NOT shown for grid drags — items must be equipped to use abilities.
     };
@@ -1178,6 +1193,17 @@ export class GameScene extends Phaser.Scene {
 
       // Clear all grid card highlights
       this.clearGridHighlights();
+
+      // Gold piles can be collected by dragging onto the player portrait
+      if (this.isGoldPile(card) && this.playerView.isPointOver(world.x, world.y)) {
+        this.playerView.hideDropHighlight();
+        this.inventoryView.clearAllHighlights();
+        this.sfx.play(SOUND_KEYS.coinsGather);
+        this.player.addGold(card.cardData.value);
+        card.disableInteractive();
+        card.resolve(() => { this.finishDrag(); });
+        return;
+      }
 
       // Items cannot use abilities from the grid — must be equipped first.
       // If dropped on a valid ability target, show feedback and snap back.
@@ -2880,29 +2906,6 @@ export class GameScene extends Phaser.Scene {
       this.enterExchangerMode(card);
       return;
     }
-
-    // Gold piles: Treasure cards without a slot grant gold on resolve
-    if (card.cardData.type === CardType.Treasure && !card.cardData.slot) {
-      this.sfx.play(SOUND_KEYS.coinsGather);
-      this.player.addGold(card.cardData.value);
-    }
-
-    this.isResolving = true;
-    this.discardedCardIds.add(card.cardData.id);
-
-    // Fire onResolve abilities before resolving
-    const resolveAbilities = this.collectAbilities("onResolve", card.cardData);
-    this.executeOnResolveAbilities(card, resolveAbilities, () => {
-      this.grid.removeCard(cell.col, cell.row);
-      this.updatePlayerStats();
-
-      card.resolve(() => {
-        this.isResolving = false;
-        if (this.player.hp <= 0) {
-          this.showGameOver();
-        }
-      });
-    });
   }
 
   private executeOnResolveAbilities(
