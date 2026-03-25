@@ -75,7 +75,7 @@ export class GameOverScreen extends Phaser.GameObjects.Container {
     });
 
     btn.on("pointerdown", () => {
-      scene.scene.restart();
+      window.location.reload();
     });
 
     this.add(btn);
