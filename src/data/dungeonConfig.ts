@@ -74,7 +74,7 @@ export const dungeonConfig: DungeonConfig = {
           { id: "rusty_sword", weight: 3, maxCount: 3 },
           { id: "guardsman_sword", weight: 0.15, maxCount: 2 },
           { id: "knights_sword", weight: 0.06, maxCount: 1 },
-          { id: "ogre_axe", weight: 0.7, maxCount: 2 },
+          { id: "ogre_axe", weight: 0.1, maxCount: 2 },
           { id: "crude_axe", weight: 0.7, maxCount: 2 },
           { id: "shortbow", weight: 2, maxCount: 3 },
           { id: "elven_bow", weight: 0.25, maxCount: 1 },
@@ -107,7 +107,8 @@ export const dungeonConfig: DungeonConfig = {
         { id: "spike_trap", weight: 1 },
         { id: "hidden_pit", weight: 1 },
         { id: "gold_pile_medium", weight: 1 },
-        { id: "quiver", weight: 1 },
+        { id: "quiver", weight: 0.5 },
+        { id: "lesser_health_potion", weight: 0.5 },
         { id: "lockpick", weight: 1 },
       ],
       loot: {
@@ -141,8 +142,8 @@ export const dungeonConfig: DungeonConfig = {
           { id: "guardsman_sword", weight: 4, maxCount: 3 },
           { id: "knights_sword", weight: 1.5, maxCount: 1 },
           { id: "battle_axe", weight: 1, maxCount: 1 },
-          { id: "ogre_axe", weight: 3, maxCount: 3 },
-          { id: "crude_axe", weight: 2, maxCount: 3 },
+          { id: "ogre_axe", weight: 1.5, maxCount: 3 },
+          { id: "crude_axe", weight: 3, maxCount: 3 },
           { id: "shortbow", weight: 1.5, maxCount: 3 },
           { id: "elven_bow", weight: 2.5, maxCount: 2 },
           // Backpack
@@ -173,7 +174,8 @@ export const dungeonConfig: DungeonConfig = {
         { id: "poison_dart_trap", weight: 1 },
         { id: "bear_trap", weight: 1 },
         { id: "pressure_plate", weight: 2 },
-        { id: "quiver", weight: 1 },
+        { id: "quiver", weight: 0.5 },
+        { id: "lesser_health_potion", weight: 0.5 },
         { id: "gold_pile_large", weight: 1 },
         { id: "lockpick", weight: 1 },
       ],
@@ -181,7 +183,7 @@ export const dungeonConfig: DungeonConfig = {
         guaranteed: ["phylactery"],
         pool: [
           // Potions
-          { id: "lesser_health_potion", weight: 1.5, maxCount: 3 },
+          { id: "lesser_health_potion", weight: 0.5, maxCount: 3 },
           { id: "minor_health_potion", weight: 2.5, maxCount: 3 },
           { id: "health_potion", weight: 7, maxCount: 3 },
           // Tools
@@ -208,9 +210,9 @@ export const dungeonConfig: DungeonConfig = {
           { id: "rusty_sword", weight: 1, maxCount: 3 },
           { id: "guardsman_sword", weight: 4, maxCount: 3 },
           { id: "knights_sword", weight: 5, maxCount: 2 },
-          { id: "battle_axe", weight: 3, maxCount: 1 },
-          { id: "ogre_axe", weight: 4, maxCount: 3 },
-          { id: "crude_axe", weight: 4, maxCount: 3 },
+          { id: "battle_axe", weight: 4, maxCount: 1 },
+          { id: "ogre_axe", weight: 5, maxCount: 3 },
+          { id: "crude_axe", weight: 3, maxCount: 3 },
           { id: "shortbow", weight: 1, maxCount: 3 },
           { id: "elven_bow", weight: 5, maxCount: 2 },
           // Backpack
