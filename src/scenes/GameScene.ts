@@ -1221,6 +1221,16 @@ export class GameScene extends Phaser.Scene {
 
       const slotName = this.inventoryView.getSlotAtPoint(world.x, world.y);
 
+      // Gold piles auto-collect when dropped on inventory slots
+      if (slotName && this.isGoldPile(card) && this.inventory.canEquip(slotName, card.cardData) && !this.inventory.getItem(slotName)) {
+        this.inventoryView.clearAllHighlights();
+        this.sfx.play(SOUND_KEYS.coinsGather);
+        this.player.addGold(card.cardData.value);
+        card.disableInteractive();
+        card.resolve(() => { this.finishDrag(); });
+        return;
+      }
+
       if (slotName && this.inventory.canEquip(slotName, card.cardData) && !this.inventory.getItem(slotName)) {
         // Key collected — play jingling sound
         if (card.cardData.isKey) {
