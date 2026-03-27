@@ -161,6 +161,8 @@ export class Card extends Phaser.GameObjects.Container {
       maxWidth: DESCR_BG_W - 16,
       fontSize: 13,
       baseColor: "#ddd",
+      maxHeight: DESCR_BG_H - 8,
+      minFontSize: 8,
     });
     this.descrContainer.setPosition(0, DESCR_Y);
     this.add(this.descrContainer);

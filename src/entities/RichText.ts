@@ -138,6 +138,8 @@ export interface RichTextOptions {
   fontSize: number;
   baseColor: string;
   lineSpacing?: number;
+  maxHeight?: number;
+  minFontSize?: number;
 }
 
 /**
@@ -149,30 +151,47 @@ export interface RichTextOptions {
  * - `[hp]`              — inline HP icon
  * - `[agi]`             — inline Agility icon
  */
+function layoutLines(description: string, maxWidth: number, fontSize: number): LayoutLine[] {
+  const iconSize = Math.round(fontSize * 1.15);
+  const spaceW = measureWord(" ", fontSize, "normal");
+  const paragraphs = description.split("\n");
+  const lines: LayoutLine[] = [];
+
+  for (const para of paragraphs) {
+    const trimmed = para.trim();
+    if (trimmed === "") {
+      lines.push({ items: [], totalWidth: 0 });
+      continue;
+    }
+    const tokens = parseTokens(trimmed);
+    const words = toWords(tokens, fontSize, iconSize);
+    lines.push(...wrapLines(words, maxWidth, spaceW));
+  }
+  return lines;
+}
+
 export function createRichDescription(
   scene: Phaser.Scene,
   description: string,
   options: RichTextOptions,
 ): Phaser.GameObjects.Container {
-  const { maxWidth, fontSize, baseColor, lineSpacing = 4 } = options;
+  let { maxWidth, fontSize, baseColor, lineSpacing = 4, maxHeight, minFontSize = 8 } = options;
   const container = new Phaser.GameObjects.Container(scene, 0, 0);
+
+  // Shrink font until text fits within maxHeight
+  if (maxHeight) {
+    while (fontSize > minFontSize) {
+      const lines = layoutLines(description, maxWidth, fontSize);
+      const totalH = lines.length * (fontSize + lineSpacing);
+      if (totalH <= maxHeight) break;
+      fontSize--;
+    }
+  }
+
   const iconSize = Math.round(fontSize * 1.15);
   const lineHeight = fontSize + lineSpacing;
   const spaceW = measureWord(" ", fontSize, "normal");
-
-  const paragraphs = description.split("\n");
-  const allLines: LayoutLine[] = [];
-
-  for (const para of paragraphs) {
-    const trimmed = para.trim();
-    if (trimmed === "") {
-      allLines.push({ items: [], totalWidth: 0 });
-      continue;
-    }
-    const tokens = parseTokens(trimmed);
-    const words = toWords(tokens, fontSize, iconSize);
-    allLines.push(...wrapLines(words, maxWidth, spaceW));
-  }
+  const allLines = layoutLines(description, maxWidth, fontSize);
 
   const totalHeight = allLines.length * lineHeight;
   const startY = -totalHeight / 2;
