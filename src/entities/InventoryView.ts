@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Inventory, SLOT_DEFS, SlotDef } from "../systems/Inventory";
 import { CardData, CardType, CardColorMap, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
 import { CARD_W as FULL_CARD_W, CARD_H as FULL_CARD_H } from "./Card";
+import { createRichDescription } from "./RichText";
 
 const SLOT_W = 157;
 const SLOT_H = 186;
@@ -185,15 +186,14 @@ export class InventoryView extends Phaser.GameObjects.Container {
     }).setOrigin(0.5);
     mc.add(nameText);
 
-    // Description text
-    const descrText = this.scene.add.text(0, DESCR_Y, item.description || "", {
-      fontSize: "13px",
-      fontFamily: "monospace",
-      color: "#ddd",
-      align: "center",
-      wordWrap: { width: DESCR_BG_W - 16 },
-    }).setOrigin(0.5);
-    mc.add(descrText);
+    // Description text (rich text)
+    const descrContainer = createRichDescription(this.scene, item.description || "", {
+      maxWidth: DESCR_BG_W - 16,
+      fontSize: 13,
+      baseColor: "#ddd",
+    });
+    descrContainer.setPosition(0, DESCR_Y);
+    mc.add(descrContainer);
 
     // Power icon — bottom-left
     const displayPower = item.value + powerBonus;

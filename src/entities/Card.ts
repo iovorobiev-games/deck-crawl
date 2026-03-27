@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { CardData, CardType, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
 import { getAbility } from "../data/abilityRegistry";
+import { createRichDescription } from "./RichText";
 
 export const CARD_W = 171;
 export const CARD_H = 202;
@@ -20,7 +21,7 @@ export class Card extends Phaser.GameObjects.Container {
   private cardImage: Phaser.GameObjects.Image | null = null;
   private descrSprite!: Phaser.GameObjects.Image;
   private nameText!: Phaser.GameObjects.Text;
-  private descrText!: Phaser.GameObjects.Text;
+  private descrContainer!: Phaser.GameObjects.Container;
   private highlightGfx: Phaser.GameObjects.Graphics | null = null;
   private dropTargetGfx: Phaser.GameObjects.Graphics | null = null;
   private buffText: Phaser.GameObjects.Text | null = null;
@@ -74,15 +75,8 @@ export class Card extends Phaser.GameObjects.Container {
     }).setOrigin(0.5);
     this.add(this.nameText);
 
-    // 5. Mechanical description text on description BG
-    this.descrText = this.scene.add.text(0, DESCR_Y, this.buildDescriptionText(), {
-      fontSize: "13px",
-      fontFamily: "monospace",
-      color: "#ddd",
-      align: "center",
-      wordWrap: { width: DESCR_BG_W - 16 },
-    }).setOrigin(0.5);
-    this.add(this.descrText);
+    // 5. Mechanical description text on description BG (rich text)
+    this.rebuildDescription(this.buildDescriptionText());
 
     // 6. Stat icons (power, shield) on card corners
     this.createStatIcons();
@@ -142,6 +136,19 @@ export class Card extends Phaser.GameObjects.Container {
       }).setOrigin(0.5);
       this.add(this.lockValueText);
     }
+  }
+
+  private rebuildDescription(text: string): void {
+    if (this.descrContainer) {
+      this.descrContainer.destroy();
+    }
+    this.descrContainer = createRichDescription(this.scene, text, {
+      maxWidth: DESCR_BG_W - 16,
+      fontSize: 13,
+      baseColor: "#ddd",
+    });
+    this.descrContainer.setPosition(0, DESCR_Y);
+    this.add(this.descrContainer);
   }
 
   private buildDescriptionText(): string {
@@ -212,7 +219,7 @@ export class Card extends Phaser.GameObjects.Container {
 
   updateValue(newValue: number): void {
     this.cardData.value = newValue;
-    this.descrText.setText(this.buildDescriptionText());
+    this.rebuildDescription(this.buildDescriptionText());
     if (this.powerValueText) {
       this.powerValueText.setText(`${newValue}`);
     }
@@ -228,7 +235,7 @@ export class Card extends Phaser.GameObjects.Container {
   markDoorOpened(): void {
     this.bgSprite.setTint(0xaa88ff);
     this.nameText.setText("OPENED!");
-    this.descrText.setText("Unlocked");
+    this.rebuildDescription("Unlocked");
   }
 
   /** Restrict hit area to only the bottom peekHeight pixels (the visible peek region). */
