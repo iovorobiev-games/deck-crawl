@@ -17,6 +17,7 @@ import { CRTPostFX } from "../pipelines/CRTPostFX";
 import { VignettePostFX } from "../pipelines/VignettePostFX";
 import { getVfx, VfxTarget } from "../effects/vfxRegistry";
 import { SoundManager, SOUND_KEYS, SOUND_GROUPS } from "../systems/SoundManager";
+import { stripMarkup } from "../entities/RichText";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -1175,7 +1176,7 @@ export class GameScene extends Phaser.Scene {
       // Highlight portrait when dragging a gold pile over it
       if (this.isGoldPile(card)) {
         if (this.playerView.isPointOver(world.x, world.y)) {
-          this.playerView.showDropHighlight(card.cardData.description);
+          this.playerView.showDropHighlight(stripMarkup(card.cardData.description));
         } else {
           this.playerView.hideDropHighlight();
         }
@@ -2523,7 +2524,7 @@ export class GameScene extends Phaser.Scene {
             // Highlight portrait if item has dragOnPlayerPortrait ability
             if (this.collectAbilities("dragOnPlayerPortrait", item).length > 0) {
               if (this.playerView.isPointOver(world.x, world.y)) {
-                this.playerView.showDropHighlight(item.description);
+                this.playerView.showDropHighlight(stripMarkup(item.description));
               } else {
                 this.playerView.hideDropHighlight();
               }
