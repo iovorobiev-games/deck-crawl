@@ -18,6 +18,7 @@ import { VignettePostFX } from "../pipelines/VignettePostFX";
 import { getVfx, VfxTarget } from "../effects/vfxRegistry";
 import { SoundManager, SOUND_KEYS, SOUND_GROUPS } from "../systems/SoundManager";
 import { stripMarkup } from "../entities/RichText";
+import { SpriteButton } from "../entities/SpriteButton";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -29,9 +30,7 @@ export class GameScene extends Phaser.Scene {
   private grid!: Grid;
   private deckText!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text; // hidden, kept for alpha toggling
-  private exploreBtn!: Phaser.GameObjects.Container;
-  private exploreBtnBg!: Phaser.GameObjects.Graphics;
-  private exploreBtnText!: Phaser.GameObjects.Text;
+  private exploreBtn!: SpriteButton;
   private deckGroup!: Phaser.GameObjects.Container;
   private deckVisual: Phaser.GameObjects.Image[] = [];
   private playerView!: PlayerView;
@@ -186,42 +185,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createExploreButton(): void {
-    this.exploreBtn = this.add.container(0, 398);
+    this.exploreBtn = new SpriteButton(this, 0, 398, 160, 56, "EXPLORE");
     this.deckGroup.add(this.exploreBtn);
-
-    this.exploreBtnBg = this.add.graphics();
-    this.drawExploreButtonBg(0x3355aa);
-    this.exploreBtn.add(this.exploreBtnBg);
-
-    this.exploreBtnText = this.add.text(0, 0, "EXPLORE", {
-      fontSize: "28px",
-      fontFamily: "monospace",
-      color: "#ffffff",
-      fontStyle: "bold",
-    }).setOrigin(0.5);
-    this.exploreBtn.add(this.exploreBtnText);
-
-    this.exploreBtn.setSize(140, 56);
-    this.exploreBtn.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, 140, 56),
-      Phaser.Geom.Rectangle.Contains
-    );
-
-    this.exploreBtn.on("pointerover", () => {
-      if (!this.deck.isEmpty && !this.hasTrapOnGrid()) this.drawExploreButtonBg(0x4466cc);
-    });
-    this.exploreBtn.on("pointerout", () => {
-      this.drawExploreButtonBg(this.isExploreBlocked() ? 0x333344 : 0x3355aa);
-    });
     this.exploreBtn.on("pointerdown", () => this.onExplore());
-  }
-
-  private drawExploreButtonBg(color: number): void {
-    this.exploreBtnBg.clear();
-    this.exploreBtnBg.fillStyle(color, 1);
-    this.exploreBtnBg.fillRoundedRect(-70, -28, 140, 56, 12);
-    this.exploreBtnBg.lineStyle(2, 0x6688ee, 0.6);
-    this.exploreBtnBg.strokeRoundedRect(-70, -28, 140, 56, 12);
   }
 
   private createPlayerView(): void {
@@ -4772,14 +4738,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private enableExploreButton(): void {
-    this.drawExploreButtonBg(0x3355aa);
-    this.exploreBtnText.setText("EXPLORE");
-    this.exploreBtnText.setColor("#ffffff");
+    this.exploreBtn.setEnabled(true);
+    this.exploreBtn.setText("EXPLORE");
+    this.exploreBtn.setTextColor("#6b4f42");
   }
 
   private disableExploreButton(): void {
-    this.drawExploreButtonBg(0x333344);
-    this.exploreBtnText.setText(this.hasTrapOnGrid() ? "BLOCKED" : "EMPTY");
-    this.exploreBtnText.setColor("#666666");
+    this.exploreBtn.setEnabled(false);
+    this.exploreBtn.setText(this.hasTrapOnGrid() ? "BLOCKED" : "EMPTY");
+    this.exploreBtn.setTextColor("#4a3a3e");
   }
 }

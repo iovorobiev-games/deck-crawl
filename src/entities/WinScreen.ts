@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { Player } from "../systems/Player";
 import { Inventory, SLOT_DEFS } from "../systems/Inventory";
 import { CardData } from "./CardData";
+import { SpriteButton } from "./SpriteButton";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -72,54 +73,13 @@ export class WinScreen extends Phaser.GameObjects.Container {
     }
 
     // PLAY AGAIN button
-    const btnW = 320;
-    const btnH = 80;
     const btnY = Math.max(lootY + 60, 760);
-    const btn = scene.add.container(GAME_W / 2, btnY);
-
-    const btnBg = scene.add.graphics();
-    btnBg.fillStyle(0x33aa55, 1);
-    btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
-    btnBg.lineStyle(3, 0x44bb66, 0.8);
-    btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
-    btn.add(btnBg);
-
-    const btnText = scene.add
-      .text(0, 0, "PLAY AGAIN", {
-        fontSize: "36px",
-        fontFamily: "monospace",
-        color: "#ffffff",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-    btn.add(btnText);
-
-    btn.setSize(btnW, btnH);
-    btn.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, btnW, btnH),
-      Phaser.Geom.Rectangle.Contains
-    );
-
-    btn.on("pointerover", () => {
-      btnBg.clear();
-      btnBg.fillStyle(0x44bb66, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
-      btnBg.lineStyle(3, 0x44bb66, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
+    const btn = new SpriteButton(scene, GAME_W / 2, btnY, 320, 80, "PLAY AGAIN", {
+      fontSize: "36px",
     });
-
-    btn.on("pointerout", () => {
-      btnBg.clear();
-      btnBg.fillStyle(0x33aa55, 1);
-      btnBg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
-      btnBg.lineStyle(3, 0x44bb66, 0.8);
-      btnBg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 16);
-    });
-
     btn.on("pointerdown", () => {
       window.location.reload();
     });
-
     this.add(btn);
 
     scene.add.existing(this);
