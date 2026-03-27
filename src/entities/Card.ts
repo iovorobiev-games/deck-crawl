@@ -78,7 +78,22 @@ export class Card extends Phaser.GameObjects.Container {
     // 5. Mechanical description text on description BG (rich text)
     this.rebuildDescription(this.buildDescriptionText());
 
-    // 6. Stat icons (power, shield) on card corners
+    // 6. Tag badge (centered near bottom of card, Event cards only)
+    if (this.cardData.tag && this.cardData.type === CardType.Event) {
+      const tagY = CARD_H / 2 - 2;
+      const tagBg = this.scene.add.image(0, tagY, "tag_bg");
+      this.add(tagBg);
+      const label = this.cardData.tag.charAt(0).toUpperCase() + this.cardData.tag.slice(1);
+      const tagText = this.scene.add.text(0, tagY, label, {
+        fontSize: "11px",
+        fontFamily: "monospace",
+        color: "#fff",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.add(tagText);
+    }
+
+    // 7. Stat icons (power, shield) on card corners
     this.createStatIcons();
   }
 

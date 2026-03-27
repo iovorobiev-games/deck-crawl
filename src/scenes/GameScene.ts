@@ -1338,7 +1338,7 @@ export class GameScene extends Phaser.Scene {
         this.sfx.play(SOUND_KEYS.holySpell04);
         card.disableInteractive();
         card.resolve(() => {
-          this.playRemoveCurseAnimation(() => {
+          this.playRemoveMisfortuneAnimation(() => {
             recycleAfterUse();
             this.finishDrag();
           });
@@ -2054,11 +2054,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Remove the first curse-tagged card from the deck and animate it appearing
+   * Remove the first misfortune-tagged card from the deck and animate it appearing
    * near the deck then dissolving.
    */
-  private playRemoveCurseAnimation(onComplete: () => void): void {
-    const removed = this.deck.removeFirstByTag("curse");
+  private playRemoveMisfortuneAnimation(onComplete: () => void): void {
+    const removed = this.deck.removeFirstByTag("misfortune");
     if (!removed) {
       onComplete();
       return;
@@ -2090,7 +2090,7 @@ export class GameScene extends Phaser.Scene {
       duration: 400,
       ease: "Back.easeOut",
       onComplete: () => {
-        // Hold briefly so the player can see the removed curse
+        // Hold briefly so the player can see the removed misfortune
         this.time.delayedCall(1000, () => {
           // Fade and shrink away
           this.tweens.add({
@@ -2609,7 +2609,7 @@ export class GameScene extends Phaser.Scene {
             const hasAsyncAbility = invPortraitAbilities.some(ab => getAbility(ab.abilityId).effect === "removeDarkEvent");
             if (hasAsyncAbility) {
               this.sfx.play(SOUND_KEYS.holySpell04);
-              this.playRemoveCurseAnimation(() => {});
+              this.playRemoveMisfortuneAnimation(() => {});
             } else {
               this.fireAbilities(invPortraitAbilities, () => {});
             }
@@ -2918,8 +2918,8 @@ export class GameScene extends Phaser.Scene {
       }
       case "removeDarkEvent": {
         this.sfx.play(SOUND_KEYS.holySpell04);
-        // Remove first card with tag "curse" from deck
-        this.deck.removeFirstByTag("curse");
+        // Remove first card with tag "misfortune" from deck
+        this.deck.removeFirstByTag("misfortune");
         this.executeOnResolveAbilities(card, rest, onComplete);
         break;
       }
@@ -3474,6 +3474,8 @@ export class GameScene extends Phaser.Scene {
       if (!conditionMet) {
         const freshCopy = getCard(monsterCard.cardData.id);
         if (monsterCard.cardData.isBoss) freshCopy.isBoss = true;
+        const returnTag = ab.params.returnTag as string | undefined;
+        if (returnTag) freshCopy.tag = returnTag;
         this.applyLevelScaling(freshCopy);
         this.deck.mergeCards([freshCopy]);
         this.updateDeckVisual();
