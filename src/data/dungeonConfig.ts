@@ -110,6 +110,7 @@ export const dungeonConfig: DungeonConfig = {
         { id: "quiver", weight: 0.5 },
         { id: "lesser_health_potion", weight: 0.5 },
         { id: "lockpick", weight: 1 },
+        { id: "scroll_of_fire_bolt", weight: 1 },
       ],
       loot: {
         pool: [
@@ -118,7 +119,7 @@ export const dungeonConfig: DungeonConfig = {
           { id: "minor_health_potion", weight: 4, maxCount: 3 },
           { id: "health_potion", weight: 4, maxCount: 3 },
           // Tools
-          { id: "lockpick", weight: 2, maxCount: 3 },
+          { id: "lockpick", weight: 1, maxCount: 3 },
           { id: "disarm_kit", weight: 2, maxCount: 3 },
           { id: "altar_of_luck", weight: 0.5, maxCount: 2 },
           { id: "poison_vial", weight: 2, maxCount: 3 },
@@ -141,17 +142,17 @@ export const dungeonConfig: DungeonConfig = {
           { id: "rusty_sword", weight: 3, maxCount: 3 },
           { id: "guardsman_sword", weight: 4, maxCount: 3 },
           { id: "knights_sword", weight: 1.5, maxCount: 1 },
-          { id: "battle_axe", weight: 1, maxCount: 1 },
+          { id: "battle_axe", weight: 0.25, maxCount: 1 },
           { id: "ogre_axe", weight: 1.5, maxCount: 3 },
           { id: "crude_axe", weight: 3, maxCount: 3 },
-          { id: "shortbow", weight: 1.5, maxCount: 3 },
-          { id: "elven_bow", weight: 2.5, maxCount: 2 },
+          { id: "shortbow", weight: 2.5, maxCount: 3 },
+          { id: "elven_bow", weight: 2, maxCount: 2 },
           // Backpack
-          { id: "quiver", weight: 1, maxCount: 3 },
+          { id: "quiver", weight: 2, maxCount: 3 },
           // Scrolls
           { id: "fireball_scroll", weight: 2, maxCount: 3 },
           { id: "scroll_of_fire_bolt", weight: 3, maxCount: 3 },
-          { id: "scroll_of_cleansing", weight: 1, maxCount: 3 },
+          { id: "scroll_of_cleansing", weight: 2, maxCount: 3 },
           { id: "scroll_of_blessing", weight: 1, maxCount: 3 },
         ],
         bufferSize: 8,
