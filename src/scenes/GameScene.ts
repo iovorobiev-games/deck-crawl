@@ -870,11 +870,7 @@ export class GameScene extends Phaser.Scene {
               const newValue = Math.max(0, target.cardData.value - bowDamage);
               target.updateValue(newValue);
               if (newValue <= 0) {
-                const deadCell = this.grid.findCard(target);
-                if (deadCell) this.grid.removeCard(deadCell.col, deadCell.row);
-                this.handleMonsterDeathAbilities(target);
-                this.freeGuardedLootIfAny(target);
-                target.resolve(() => processNext(idx + 1));
+                this.killMonster(target, () => processNext(idx + 1));
               } else {
                 // Target survived — recycle bow shot if passive equipped
                 if (canRecycle) {
@@ -978,6 +974,8 @@ export class GameScene extends Phaser.Scene {
     lootCard.setAlpha(1);
     lootCard.setDepth(0);
     lootCard.restoreFullHitArea();
+    const pos = this.grid.worldPos(cellPos.col, cellPos.row);
+    lootCard.setPosition(pos.x, pos.y);
     this.grid.placeCard(cellPos.col, cellPos.row, lootCard);
     this.setupCardInteraction(lootCard);
   }
@@ -1503,11 +1501,7 @@ export class GameScene extends Phaser.Scene {
           const newValue = Math.max(0, target.cardData.value - amount);
           target.updateValue(newValue);
           if (newValue <= 0) {
-            const cell = this.grid.findCard(target);
-            if (cell) this.grid.removeCard(cell.col, cell.row);
-            this.handleMonsterDeathAbilities(target);
-            target.resolve(() => {
-              this.freeGuardedLootIfAny(target);
+            this.killMonster(target, () => {
               this.fireDragOnMonsterAbilities(rest, target, onComplete);
             });
           } else {
@@ -1608,35 +1602,42 @@ export class GameScene extends Phaser.Scene {
     return false;
   }
 
+  /** Centralised monster-death handler.  Every monster removal MUST go
+   *  through this so that death abilities, guarded-loot and the resolve
+   *  animation are always executed in the same order. */
+  private killMonster(monsterCard: Card, onComplete?: () => void): void {
+    const cell = this.grid.findCard(monsterCard);
+    const cellPos = cell ? { col: cell.col, row: cell.row } : null;
+    if (cell) this.grid.removeCard(cell.col, cell.row);
+
+    this.handleMonsterDeathAbilities(monsterCard);
+
+    // Free guarded loot at the monster's former cell so it never moves
+    const guardedLoot = monsterCard.guardedLoot;
+    if (guardedLoot) {
+      if (cellPos) {
+        this.freeGuardedLoot(guardedLoot, cellPos);
+      } else {
+        guardedLoot.destroy();
+        this.guardedByMonster.delete(guardedLoot);
+      }
+      monsterCard.guardedLoot = null;
+    }
+
+    monsterCard.resolve(() => {
+      onComplete?.();
+    });
+  }
+
   private resolveDeadMonsters(monsters: Card[], onComplete: () => void): void {
     if (monsters.length === 0) {
       onComplete();
       return;
     }
     const [current, ...rest] = monsters;
-    const cell = this.grid.findCard(current);
-    if (cell) this.grid.removeCard(cell.col, cell.row);
-    this.handleMonsterDeathAbilities(current);
-    this.freeGuardedLootIfAny(current);
-    current.resolve(() => {
+    this.killMonster(current, () => {
       this.resolveDeadMonsters(rest, onComplete);
     });
-  }
-
-  private freeGuardedLootIfAny(monsterCard: Card): void {
-    const guardedLoot = monsterCard.guardedLoot;
-    if (!guardedLoot) return;
-    // Try to find a free cell to place the loot
-    const emptySlots = this.grid.getEmptySlots();
-    if (emptySlots.length > 0) {
-      const slot = emptySlots[0];
-      this.freeGuardedLoot(guardedLoot, slot);
-    } else {
-      // No space — just destroy the loot
-      guardedLoot.destroy();
-    }
-    this.guardedByMonster.delete(guardedLoot);
-    monsterCard.guardedLoot = null;
   }
 
   private static readonly DRAG_TRIGGERS: AbilityTrigger[] = [
@@ -3509,19 +3510,9 @@ export class GameScene extends Phaser.Scene {
       this.fightBtn = null;
     }
 
-    // Capture guarded loot info before monster resolves
-    const guardedLoot = monsterCard.guardedLoot;
-    const cell = this.grid.findCard(monsterCard);
-    const cellPos = cell ? { col: cell.col, row: cell.row } : null;
-
-    // Remove monster from grid
-    if (cell) this.grid.removeCard(cell.col, cell.row);
     this.updatePlayerStats();
 
-    // Combat always kills the monster (it counterattacks first if it survives the player's hit)
-    this.handleMonsterDeathAbilities(monsterCard);
-
-    monsterCard.resolve(() => {
+    this.killMonster(monsterCard, () => {
       // Shuffle fate card back
       this.player.shuffleFateCardBack(fateModifier);
 
@@ -3552,11 +3543,6 @@ export class GameScene extends Phaser.Scene {
       // Slide fate deck down and restore power display
       this.playerView.slideFateDeckDown(this);
       this.playerView.restorePower(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier());
-
-      // Free the guarded loot into the now-empty grid slot
-      if (guardedLoot && cellPos) {
-        this.freeGuardedLoot(guardedLoot, cellPos);
-      }
 
       this.revertPoison();
       this.isResolving = false;
