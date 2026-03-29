@@ -30,12 +30,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image("icon_agility", "sprites/Agility.PNG");
 
     // Inventory slot backgrounds
-    this.load.image("slot_left_arm", "sprites/left_arm.PNG");
-    this.load.image("slot_right_arm", "sprites/right_arm.PNG");
-    this.load.image("slot_head", "sprites/head.PNG");
-    this.load.image("slot_armour", "sprites/armour_slot.PNG");
-    this.load.image("slot_backpack1", "sprites/backpack_1.PNG");
-    this.load.image("slot_backpack2", "sprites/backpack_2.PNG");
+    this.load.image("slot_left_arm", "sprites/Inventory_Hand_1.png");
+    this.load.image("slot_right_arm", "sprites/Inventory_Hand_2.png");
+    this.load.image("slot_head", "sprites/Inventory_Head.png");
+    this.load.image("slot_armour", "sprites/Inventory_Body.png");
+    this.load.image("slot_backpack1", "sprites/Inventory_Bag_1.png");
+    this.load.image("slot_backpack2", "sprites/Inventory_Bag_2.png");
 
     // Card stat icons
     this.load.image("icon_card_power", "sprites/card_power.PNG");
