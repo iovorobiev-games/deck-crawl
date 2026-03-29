@@ -22,6 +22,15 @@ const SLOT_SPRITE_MAP: Record<string, string> = {
   backpack2: "slot_backpack2",
 };
 
+const SLOT_LABEL_MAP: Record<string, string> = {
+  weapon1: "Hand",
+  weapon2: "Hand",
+  head: "Head",
+  armour: "Body",
+  backpack1: "Bag",
+  backpack2: "Bag",
+};
+
 interface SlotVisual {
   def: SlotDef;
   container: Phaser.GameObjects.Container;
@@ -42,7 +51,7 @@ const SLOT_POSITIONS: Record<string, number> = {
   backpack2: 1492,
 };
 
-const SLOT_Y = 910;
+const SLOT_Y = 918;
 
 export class InventoryView extends Phaser.GameObjects.Container {
   private slotVisuals: Map<string, SlotVisual> = new Map();
@@ -72,8 +81,20 @@ export class InventoryView extends Phaser.GameObjects.Container {
     const slotSpriteKey = SLOT_SPRITE_MAP[def.name];
     let slotBgImage: Phaser.GameObjects.Image | null = null;
     if (slotSpriteKey) {
-      slotBgImage = this.scene.add.image(0, 0, slotSpriteKey);
+      slotBgImage = this.scene.add.image(0, -18, slotSpriteKey);
       container.add(slotBgImage);
+    }
+
+    const label = SLOT_LABEL_MAP[def.name];
+    if (label) {
+      const labelText = this.scene.add.text(0, -109, label, {
+        fontSize: "20px",
+        fontFamily: "monospace",
+        color: "#35160e",
+        fontStyle: "bold",
+        align: "center",
+      }).setOrigin(0.5);
+      container.add(labelText);
     }
 
     const bg = this.scene.add.graphics();
@@ -128,11 +149,8 @@ export class InventoryView extends Phaser.GameObjects.Container {
     }
 
     if (item) {
-      visual.slotBgImage?.setVisible(false);
       visual.miniCard = this.createMiniCard(item, powerBonus);
       visual.container.add(visual.miniCard);
-    } else {
-      visual.slotBgImage?.setVisible(true);
     }
   }
 
