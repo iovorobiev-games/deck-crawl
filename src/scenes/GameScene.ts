@@ -2759,8 +2759,8 @@ export class GameScene extends Phaser.Scene {
           } else if (overSlot && this.inventory.canSwap(def.name, overSlot)) {
             // Before swapping, check if either item has a dragOnTag ability matching the other's tag
             const otherItem = this.inventory.getItem(overSlot)!;
-            // Check if dragged item targets the other item's tag
-            if (otherItem.tag) {
+            // Check if dragged item targets the other item's tag (skip if target is in backpack)
+            if (otherItem.tag && !overSlot.startsWith("backpack")) {
               const draggedTagAbilities = this.collectAbilities("dragOnTag", item);
               const matchingAb = draggedTagAbilities.find(ab => ab.params.tag === otherItem.tag);
               if (matchingAb) {
@@ -2782,8 +2782,8 @@ export class GameScene extends Phaser.Scene {
                 return;
               }
             }
-            // Check if other item targets the dragged item's tag
-            if (item.tag) {
+            // Check if other item targets the dragged item's tag (skip if target is in backpack)
+            if (item.tag && !def.name.startsWith("backpack")) {
               const otherTagAbilities = this.collectAbilities("dragOnTag", otherItem);
               const matchingAb = otherTagAbilities.find(ab => ab.params.tag === item.tag);
               if (matchingAb) {
