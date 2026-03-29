@@ -43,12 +43,12 @@ interface SlotVisual {
 
 // Layout positions for each slot (absolute x, all at same y)
 const SLOT_POSITIONS: Record<string, number> = {
-  head: 764,
-  weapon2: 596,
-  weapon1: 428,
-  armour: 1156,
-  backpack1: 1324,
-  backpack2: 1492,
+  weapon1: 297.5,
+  weapon2: 480,
+  head: 662.5,
+  armour: 1257,
+  backpack1: 1439.5,
+  backpack2: 1622.5,
 };
 
 const SLOT_Y = 918;

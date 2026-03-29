@@ -34,6 +34,9 @@ export class GameScene extends Phaser.Scene {
   private deckGroup!: Phaser.GameObjects.Container;
   private deckVisual: Phaser.GameObjects.Image[] = [];
   private playerView!: PlayerView;
+  private fateDeckSprite!: Phaser.GameObjects.Image;
+  private fateDeckStackCards: Phaser.GameObjects.Image[] = [];
+  private activeFateCard: Phaser.GameObjects.Container | null = null;
   private fateDeckPopup: FateDeckPopup | null = null;
   private isResolving = false;
   private combatMonster: Card | null = null;
@@ -191,11 +194,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPlayerView(): void {
-    this.playerView = new PlayerView(this, GAME_W / 2, 910);
+    this.playerView = new PlayerView(this, 867.5, 910);
     this.playerView.updateStats(this.player);
     this.playerView.updateGold(this.player.gold);
 
-    this.playerView.on("pointerdown", () => {
+    // Fate deck stack between portrait and armour slot
+    this.fateDeckStackCards = [];
+    for (let i = 2; i >= 1; i--) {
+      const stackCard = this.add.image(1073.5, 914 + i * 4, "fate_card");
+      stackCard.setDepth(498 + (2 - i));
+      this.fateDeckStackCards.push(stackCard);
+    }
+    this.fateDeckSprite = this.add.image(1073.5, 914, "fate_card");
+    this.fateDeckSprite.setDepth(500);
+    this.fateDeckSprite.setInteractive();
+    this.fateDeckSprite.on("pointerdown", () => {
       if (this.fateDeckPopup) return;
       this.fateDeckPopup = new FateDeckPopup(
         this,
@@ -207,6 +220,183 @@ export class GameScene extends Phaser.Scene {
         this.fateDeckPopup = null;
       });
     });
+  }
+
+  private static readonly FATE_DECK_Y = 914;
+
+  private peekFateCard(): void {
+    if (this.activeFateCard) return;
+    const deckPos = this.getFateDeckWorldPos();
+    const card = this.add.container(deckPos.x, deckPos.y);
+    card.setDepth(501);
+    card.add(this.add.image(0, 0, "fate_card"));
+    this.activeFateCard = card;
+
+    this.tweens.add({
+      targets: card,
+      y: deckPos.y - 30,
+      duration: 300,
+      ease: "Power2",
+    });
+  }
+
+  private getFateDeckWorldPos(): { x: number; y: number } {
+    return { x: this.fateDeckSprite.x, y: this.fateDeckSprite.y };
+  }
+
+  /**
+   * Animate drawing a fate card: slide up from deck, flip face-up, hold, slide back.
+   * Calls onComplete with the drawn modifier once the card is back on the deck.
+   */
+  private animateFateCardDraw(onComplete: (modifier: number) => void): void {
+    const modifier = this.player.drawFateCard();
+    const deckPos = this.getFateDeckWorldPos();
+
+    // Reuse the peeked card or create a new one
+    let card: Phaser.GameObjects.Container;
+    let cardImg: Phaser.GameObjects.Image;
+    if (this.activeFateCard) {
+      card = this.activeFateCard;
+      cardImg = card.getAt(0) as Phaser.GameObjects.Image;
+    } else {
+      card = this.add.container(deckPos.x, deckPos.y);
+      cardImg = this.add.image(0, 0, "fate_card");
+      card.add(cardImg);
+    }
+
+    // 1. Slide up from deck
+    this.tweens.add({
+      targets: card,
+      y: deckPos.y - 140,
+      duration: 400,
+      ease: "Power2",
+      onComplete: () => {
+        card.setDepth(9000);
+
+        // 2. Flip face up (scaleX squeeze → swap texture → expand)
+        this.tweens.add({
+          targets: card,
+          scaleX: 0,
+          duration: 150,
+          ease: "Sine.easeIn",
+          onComplete: () => {
+            cardImg.setTexture("fate_card_face");
+            const modLabel = modifier > 0 ? `+${modifier}` : `${modifier}`;
+            const modText = this.add
+              .text(0, 4, modLabel, {
+                fontSize: "72px",
+                fontFamily: "monospace",
+                color: "#f6d4b1",
+                fontStyle: "bold",
+              })
+              .setOrigin(0.5);
+            card.add(modText);
+
+            this.tweens.add({
+              targets: card,
+              scaleX: 1,
+              duration: 150,
+              ease: "Sine.easeOut",
+              onComplete: () => {
+                // Hold to show modifier
+                this.time.delayedCall(500, () => {
+                  // 3. Slide back onto deck
+                  this.tweens.add({
+                    targets: card,
+                    y: deckPos.y,
+                    duration: 300,
+                    ease: "Power2",
+                    onComplete: () => {
+                      this.activeFateCard = card;
+                      onComplete(modifier);
+                    },
+                  });
+                });
+              },
+            });
+          },
+        });
+      },
+    });
+  }
+
+  /**
+   * After resolution: flip the active fate card face-down, shuffle the deck.
+   * Safe to call even when no active fate card exists.
+   */
+  private animateFateCardResolve(): void {
+    const card = this.activeFateCard;
+
+    if (!card) {
+      return;
+    }
+
+    // 5. Flip face down
+    this.tweens.add({
+      targets: card,
+      scaleX: 0,
+      duration: 150,
+      ease: "Sine.easeIn",
+      onComplete: () => {
+        card.removeAll(true);
+        card.add(this.add.image(0, 0, "fate_card"));
+
+        this.tweens.add({
+          targets: card,
+          scaleX: 1,
+          duration: 150,
+          ease: "Sine.easeOut",
+          onComplete: () => {
+            card.destroy();
+            this.activeFateCard = null;
+
+            // 6. Riffle shuffle
+            this.animateDeckShuffle(() => {});
+          },
+        });
+      },
+    });
+  }
+
+  private animateDeckShuffle(onComplete: () => void): void {
+    const allCards = [...this.fateDeckStackCards, this.fateDeckSprite];
+    const origX = this.fateDeckSprite.x;
+    // Split deck: even-indexed cards go left, odd go right
+    const leftGroup = allCards.filter((_, i) => i % 2 === 0);
+    const rightGroup = allCards.filter((_, i) => i % 2 !== 0);
+    const spread = 20;
+    let iteration = 0;
+    const totalIterations = 3;
+
+    // Store original positions and depths to restore after shuffle
+    const origState = allCards.map(c => ({ card: c, y: c.y, depth: c.depth }));
+
+    const doShuffle = () => {
+      if (iteration >= totalIterations) {
+        // Restore original x, y, and depth for each card
+        origState.forEach(s => { s.card.x = origX; s.card.y = s.y; s.card.setDepth(s.depth); });
+        onComplete();
+        return;
+      }
+      // Swap depth order each iteration for visual interleaving
+      const baseDepth = 498;
+      allCards.forEach((c, i) => c.setDepth(baseDepth + ((i + iteration) % allCards.length)));
+
+      // Split apart
+      this.tweens.add({ targets: leftGroup, x: origX - spread, duration: 80, ease: "Sine.easeOut" });
+      this.tweens.add({
+        targets: rightGroup, x: origX + spread, duration: 80, ease: "Sine.easeOut",
+        onComplete: () => {
+          // Merge back
+          this.tweens.add({ targets: leftGroup, x: origX, duration: 80, ease: "Sine.easeIn" });
+          this.tweens.add({
+            targets: rightGroup, x: origX, duration: 80, ease: "Sine.easeIn",
+            onComplete: () => { iteration++; doShuffle(); },
+          });
+        },
+      });
+    };
+    doShuffle();
   }
 
   private initLevel(levelIndex: number): void {
@@ -2371,7 +2561,7 @@ export class GameScene extends Phaser.Scene {
       [this.player.fateDeck[i], this.player.fateDeck[j]] = [this.player.fateDeck[j], this.player.fateDeck[i]];
     }
 
-    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+    const fateDeckPos = this.getFateDeckWorldPos();
     const fateCardW = 100;
     const fateCardH = 140;
 
@@ -3118,7 +3308,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Slide fate deck up
-    this.playerView.slideFateDeckUp(this);
+    this.peekFateCard();
   }
 
   private exitCombatMode(): void {
@@ -3169,7 +3359,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Slide fate deck down
-    this.playerView.slideFateDeckDown(this);
+    this.animateFateCardResolve();
 
     this.isResolving = false;
     this.combatMonster = null;
@@ -3183,128 +3373,54 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.combatOverlay) this.combatOverlay.disableInteractive();
 
-    // Step 1: Draw & reveal fate card
-    const modifier = this.player.drawFateCard();
-    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+    this.animateFateCardDraw((modifier) => {
+      const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier());
+      this.playerView.showTempPower(modifiedPower);
 
-    // Create fate card visual
-    const fateCardW = 100;
-    const fateCardH = 140;
-    const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
-    fateCard.setDepth(9000);
-    fateCard.setScale(0.3);
+      // Player attacks monster
+      this.time.delayedCall(100, () => {
+        const origX = this.playerView.x;
+        const origY = this.playerView.y;
+        const attackX = origX + (monsterCard.x - origX) * 0.6;
+        const attackY = origY + (monsterCard.y - origY) * 0.6;
 
-    const fateBg = this.add.graphics();
-    fateBg.fillStyle(0x1a1a2e, 1);
-    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
-    fateBg.lineStyle(2, 0x4444aa, 0.8);
-    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
-    fateCard.add(fateBg);
+        this.tweens.add({
+          targets: this.playerView,
+          x: attackX,
+          y: attackY,
+          duration: 250,
+          ease: "Power2",
+          onComplete: () => {
+            this.sfx.playRandom(SOUND_GROUPS.swordAttack);
+            const newMonsterValue = Math.max(0, monsterCard.cardData.value - modifiedPower);
+            monsterCard.updateValue(newMonsterValue);
 
-    let modColor: string;
-    let modLabel: string;
-    if (modifier > 0) {
-      modColor = "#44dd88";
-      modLabel = `+${modifier}`;
-    } else if (modifier < 0) {
-      modColor = "#ff5555";
-      modLabel = `${modifier}`;
-    } else {
-      modColor = "#888888";
-      modLabel = "0";
-    }
-
-    const modText = this.add
-      .text(0, 0, modLabel, {
-        fontSize: "40px",
-        fontFamily: "monospace",
-        color: modColor,
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-    fateCard.add(modText);
-
-    // Animate fate card appearing above player
-    const targetX = this.playerView.x - 140;
-    const targetY = this.playerView.y - 120;
-
-    this.tweens.add({
-      targets: fateCard,
-      x: targetX,
-      y: targetY,
-      scaleX: 1,
-      scaleY: 1,
-      duration: 500,
-      ease: "Back.easeOut",
-      onComplete: () => {
-        // Step 2: After a brief hold, fly fate card into player portrait
-        this.time.delayedCall(300, () => {
-          const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier());
-
-          this.tweens.add({
-            targets: fateCard,
-            x: this.playerView.x,
-            y: this.playerView.y,
-            scaleX: 0,
-            scaleY: 0,
-            duration: 300,
-            ease: "Power2",
-            onComplete: () => {
-              fateCard.destroy();
-              this.playerView.showTempPower(modifiedPower);
-
-              // Step 3: Player attacks monster
-              this.time.delayedCall(100, () => {
-                const origX = this.playerView.x;
-                const origY = this.playerView.y;
-                const attackX = origX + (monsterCard.x - origX) * 0.6;
-                const attackY = origY + (monsterCard.y - origY) * 0.6;
-
+            this.tweens.add({
+              targets: monsterCard,
+              x: monsterCard.x + 10,
+              duration: 50,
+              yoyo: true,
+              repeat: 3,
+              onComplete: () => {
                 this.tweens.add({
                   targets: this.playerView,
-                  x: attackX,
-                  y: attackY,
+                  x: origX,
+                  y: origY,
                   duration: 250,
                   ease: "Power2",
                   onComplete: () => {
-                    // Player hits monster — sword attack sound
-                    this.sfx.playRandom(SOUND_GROUPS.swordAttack);
-                    // Hit effect: shake monster
-                    const newMonsterValue = Math.max(0, monsterCard.cardData.value - modifiedPower);
-                    monsterCard.updateValue(newMonsterValue);
-
-                    this.tweens.add({
-                      targets: monsterCard,
-                      x: monsterCard.x + 10,
-                      duration: 50,
-                      yoyo: true,
-                      repeat: 3,
-                      onComplete: () => {
-                        // Return player to original position
-                        this.tweens.add({
-                          targets: this.playerView,
-                          x: origX,
-                          y: origY,
-                          duration: 250,
-                          ease: "Power2",
-                          onComplete: () => {
-                            // Step 4: Monster counterattack (if alive)
-                            if (newMonsterValue > 0) {
-                              this.monsterCounterattack(monsterCard, modifier);
-                            } else {
-                              this.combatCleanup(monsterCard, modifier);
-                            }
-                          },
-                        });
-                      },
-                    });
+                    if (newMonsterValue > 0) {
+                      this.monsterCounterattack(monsterCard, modifier);
+                    } else {
+                      this.combatCleanup(monsterCard, modifier);
+                    }
                   },
                 });
-              });
-            },
-          });
+              },
+            });
+          },
         });
-      },
+      });
     });
   }
 
@@ -3541,7 +3657,7 @@ export class GameScene extends Phaser.Scene {
       this.levelFlavorText.setAlpha(1);
 
       // Slide fate deck down and restore power display
-      this.playerView.slideFateDeckDown(this);
+      this.animateFateCardResolve();
       this.playerView.restorePower(this.player, this.inventory.powerBonus, this.getPassiveAgilityModifier() + this.inventory.agilityBonus, this.getPassivePowerModifier());
 
       this.revertPoison();
@@ -3654,7 +3770,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Slide fate deck up
-    this.playerView.slideFateDeckUp(this);
+    this.peekFateCard();
   }
 
   private exitChestMode(): void {
@@ -3699,7 +3815,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Slide fate deck down
-    this.playerView.slideFateDeckDown(this);
+    this.animateFateCardResolve();
 
     this.isResolving = false;
     this.crackingChest = null;
@@ -3712,97 +3828,29 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.chestOverlay) this.chestOverlay.disableInteractive();
 
-    const modifier = this.player.drawFateCard();
-    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+    this.animateFateCardDraw((modifier) => {
+      const modifiedAgility = Math.max(0, this.player.agility + this.inventory.agilityBonus + modifier + this.getPassiveAgilityModifier());
+      this.playerView.showTempAgility(modifiedAgility);
 
-    // Create fate card visual
-    const fateCardW = 100;
-    const fateCardH = 140;
-    const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
-    fateCard.setDepth(9000);
-    fateCard.setScale(0.3);
+      this.time.delayedCall(300, () => {
+        const lockDifficulty = chestCard.cardData.lockDifficulty ?? 0;
+        const success = modifiedAgility >= lockDifficulty;
 
-    const fateBg = this.add.graphics();
-    fateBg.fillStyle(0x1a1a2e, 1);
-    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
-    fateBg.lineStyle(2, 0x4444aa, 0.8);
-    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
-    fateCard.add(fateBg);
-
-    let modColor: string;
-    let modLabel: string;
-    if (modifier > 0) {
-      modColor = "#44dd88";
-      modLabel = `+${modifier}`;
-    } else if (modifier < 0) {
-      modColor = "#ff5555";
-      modLabel = `${modifier}`;
-    } else {
-      modColor = "#888888";
-      modLabel = "0";
-    }
-
-    const modText = this.add
-      .text(0, 0, modLabel, {
-        fontSize: "40px",
-        fontFamily: "monospace",
-        color: modColor,
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-    fateCard.add(modText);
-
-    // Animate fate card appearing above player
-    const targetX = this.playerView.x - 140;
-    const targetY = this.playerView.y - 120;
-
-    this.tweens.add({
-      targets: fateCard,
-      x: targetX,
-      y: targetY,
-      scaleX: 1,
-      scaleY: 1,
-      duration: 500,
-      ease: "Back.easeOut",
-      onComplete: () => {
-        this.time.delayedCall(300, () => {
-          const modifiedAgility = Math.max(0, this.player.agility + this.inventory.agilityBonus + modifier + this.getPassiveAgilityModifier());
-
-          this.tweens.add({
-            targets: fateCard,
-            x: this.playerView.x,
-            y: this.playerView.y,
-            scaleX: 0,
-            scaleY: 0,
-            duration: 300,
-            ease: "Power2",
-            onComplete: () => {
-              fateCard.destroy();
-              this.playerView.showTempAgility(modifiedAgility);
-
-              this.time.delayedCall(300, () => {
-                const lockDifficulty = chestCard.cardData.lockDifficulty ?? 0;
-                const success = modifiedAgility >= lockDifficulty;
-
-                if (success) {
-                  this.sfx.play(SOUND_KEYS.chestOpen);
-                  this.chestCleanup(chestCard, modifier);
-                } else {
-                  this.sfx.playRandom(SOUND_GROUPS.squelching);
-                  const trapDamage = chestCard.cardData.trapDamage ?? 0;
-                  if (trapDamage > 0) {
-                    this.applyDamageWithArmour(trapDamage, () => {
-                      this.chestCleanup(chestCard, modifier);
-                    });
-                  } else {
-                    this.chestCleanup(chestCard, modifier);
-                  }
-                }
-              });
-            },
-          });
-        });
-      },
+        if (success) {
+          this.sfx.play(SOUND_KEYS.chestOpen);
+          this.chestCleanup(chestCard, modifier);
+        } else {
+          this.sfx.playRandom(SOUND_GROUPS.squelching);
+          const trapDamage = chestCard.cardData.trapDamage ?? 0;
+          if (trapDamage > 0) {
+            this.applyDamageWithArmour(trapDamage, () => {
+              this.chestCleanup(chestCard, modifier);
+            });
+          } else {
+            this.chestCleanup(chestCard, modifier);
+          }
+        }
+      });
     });
   }
 
@@ -3851,7 +3899,7 @@ export class GameScene extends Phaser.Scene {
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
 
-      this.playerView.slideFateDeckDown(this);
+      this.animateFateCardResolve();
       this.playerView.restoreAgility(this.player);
 
       // Reveal loot card
@@ -3983,7 +4031,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Slide fate deck up
-    this.playerView.slideFateDeckUp(this);
+    this.peekFateCard();
   }
 
   private exitTrapMode(): void {
@@ -4028,7 +4076,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Slide fate deck down
-    this.playerView.slideFateDeckDown(this);
+    this.animateFateCardResolve();
 
     this.isResolving = false;
     this.disarmingTrap = null;
@@ -4041,101 +4089,33 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.trapOverlay) this.trapOverlay.disableInteractive();
 
-    // Reuse the same fate card + agility check flow as chest cracking
-    const modifier = this.player.drawFateCard();
-    const fateDeckPos = this.playerView.getFateDeckWorldPos();
+    this.animateFateCardDraw((modifier) => {
+      const modifiedAgility = Math.max(0, this.player.agility + this.inventory.agilityBonus + modifier + this.getPassiveAgilityModifier());
+      this.playerView.showTempAgility(modifiedAgility);
 
-    const fateCardW = 100;
-    const fateCardH = 140;
-    const fateCard = this.add.container(fateDeckPos.x, fateDeckPos.y);
-    fateCard.setDepth(9000);
-    fateCard.setScale(0.3);
+      this.time.delayedCall(300, () => {
+        const lockDifficulty = trapCard.cardData.lockDifficulty ?? 0;
+        const success = modifiedAgility >= lockDifficulty;
 
-    const fateBg = this.add.graphics();
-    fateBg.fillStyle(0x1a1a2e, 1);
-    fateBg.fillRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
-    fateBg.lineStyle(2, 0x4444aa, 0.8);
-    fateBg.strokeRoundedRect(-fateCardW / 2, -fateCardH / 2, fateCardW, fateCardH, 12);
-    fateCard.add(fateBg);
-
-    let modColor: string;
-    let modLabel: string;
-    if (modifier > 0) {
-      modColor = "#44dd88";
-      modLabel = `+${modifier}`;
-    } else if (modifier < 0) {
-      modColor = "#ff5555";
-      modLabel = `${modifier}`;
-    } else {
-      modColor = "#888888";
-      modLabel = "0";
-    }
-
-    const modText = this.add
-      .text(0, 0, modLabel, {
-        fontSize: "40px",
-        fontFamily: "monospace",
-        color: modColor,
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-    fateCard.add(modText);
-
-    const targetX = this.playerView.x - 140;
-    const targetY = this.playerView.y - 120;
-
-    this.tweens.add({
-      targets: fateCard,
-      x: targetX,
-      y: targetY,
-      scaleX: 1,
-      scaleY: 1,
-      duration: 500,
-      ease: "Back.easeOut",
-      onComplete: () => {
-        this.time.delayedCall(300, () => {
-          const modifiedAgility = Math.max(0, this.player.agility + this.inventory.agilityBonus + modifier + this.getPassiveAgilityModifier());
-
-          this.tweens.add({
-            targets: fateCard,
-            x: this.playerView.x,
-            y: this.playerView.y,
-            scaleX: 0,
-            scaleY: 0,
-            duration: 300,
-            ease: "Power2",
-            onComplete: () => {
-              fateCard.destroy();
-              this.playerView.showTempAgility(modifiedAgility);
-
-              this.time.delayedCall(300, () => {
-                const lockDifficulty = trapCard.cardData.lockDifficulty ?? 0;
-                const success = modifiedAgility >= lockDifficulty;
-
-                if (success) {
-                  this.sfx.play(SOUND_KEYS.clickUnlock);
-                  this.trapCleanup(trapCard, modifier);
-                } else {
-                  this.sfx.playRandom(SOUND_GROUPS.squelching);
-                  const trapDamage = trapCard.cardData.trapDamage ?? 0;
-                  const afterDamage = () => {
-                    // Fire onTrapTriggered abilities
-                    const trigAbilities = this.collectAbilities("onTrapTriggered", trapCard.cardData);
-                    this.executeOnTrapTriggeredAbilities(trapCard, trigAbilities, () => {
-                      this.trapCleanup(trapCard, modifier);
-                    });
-                  };
-                  if (trapDamage > 0) {
-                    this.applyDamageWithArmour(trapDamage, afterDamage);
-                  } else {
-                    afterDamage();
-                  }
-                }
-              });
-            },
-          });
-        });
-      },
+        if (success) {
+          this.sfx.play(SOUND_KEYS.clickUnlock);
+          this.trapCleanup(trapCard, modifier);
+        } else {
+          this.sfx.playRandom(SOUND_GROUPS.squelching);
+          const trapDamage = trapCard.cardData.trapDamage ?? 0;
+          const afterDamage = () => {
+            const trigAbilities = this.collectAbilities("onTrapTriggered", trapCard.cardData);
+            this.executeOnTrapTriggeredAbilities(trapCard, trigAbilities, () => {
+              this.trapCleanup(trapCard, modifier);
+            });
+          };
+          if (trapDamage > 0) {
+            this.applyDamageWithArmour(trapDamage, afterDamage);
+          } else {
+            afterDamage();
+          }
+        }
+      });
     });
   }
 
@@ -4180,7 +4160,7 @@ export class GameScene extends Phaser.Scene {
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
 
-      this.playerView.slideFateDeckDown(this);
+      this.animateFateCardResolve();
       this.playerView.restoreAgility(this.player);
 
       this.isResolving = false;
@@ -4368,7 +4348,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       // Animate a fate card visual flying from the exchanger card into the fate deck
-      const fateDeckPos = this.playerView.getFateDeckWorldPos();
+      const fateDeckPos = this.getFateDeckWorldPos();
       const fateCardW = 100;
       const fateCardH = 140;
       const fateCard = this.add.container(card.x, card.y);

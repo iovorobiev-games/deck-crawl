@@ -23,6 +23,8 @@ export class BootScene extends Phaser.Scene {
     // Player panel
     this.load.image("player_panel_bg", "sprites/player_panel_bg.PNG");
     this.load.image("player_portrait", "sprites/Player Portrait.PNG");
+    this.load.image("fate_card", "sprites/Fate_Card.png");
+    this.load.image("fate_card_face", "sprites/Fate_Card_Face.png");
 
     // Stat icons
     this.load.image("icon_power", "sprites/Power.PNG");

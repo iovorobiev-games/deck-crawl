@@ -3,9 +3,6 @@ import { Player } from "../systems/Player";
 
 const PLAYER_W = 168;
 const PLAYER_H = 198;
-const CORNER_R = 14;
-const STACK_BG = 0x2a2a4e;
-const STACK_BORDER = 0x4444aa;
 
 export class PlayerView extends Phaser.GameObjects.Container {
   private hpText!: Phaser.GameObjects.Text;
@@ -14,7 +11,6 @@ export class PlayerView extends Phaser.GameObjects.Container {
   private powerGroup!: Phaser.GameObjects.Container;
   private hpGroup!: Phaser.GameObjects.Container;
   private agilityGroup!: Phaser.GameObjects.Container;
-  private fateDeckGfx!: Phaser.GameObjects.Graphics;
   private portraitSprite!: Phaser.GameObjects.Image;
   private highlightTween: Phaser.Tweens.Tween | null = null;
   private healPreviewText: Phaser.GameObjects.Text | null = null;
@@ -24,7 +20,6 @@ export class PlayerView extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
 
-    this.createFateDeckStack();
     this.createPortrait();
 
     this.setSize(PLAYER_W, PLAYER_H);
@@ -35,32 +30,6 @@ export class PlayerView extends Phaser.GameObjects.Container {
 
     scene.add.existing(this);
     this.setDepth(1000);
-  }
-
-  private createFateDeckStack(): void {
-    this.fateDeckGfx = this.scene.add.graphics();
-    // Draw 2 offset card backs behind the portrait
-    for (let i = 0; i < 2; i++) {
-      const ox = (2 - i) * 4;
-      const oy = (2 - i) * 4;
-      this.fateDeckGfx.fillStyle(STACK_BG, 1);
-      this.fateDeckGfx.fillRoundedRect(
-        -PLAYER_W / 2 + ox,
-        -PLAYER_H / 2 + oy,
-        PLAYER_W,
-        PLAYER_H,
-        CORNER_R
-      );
-      this.fateDeckGfx.lineStyle(1, STACK_BORDER, 0.8);
-      this.fateDeckGfx.strokeRoundedRect(
-        -PLAYER_W / 2 + ox,
-        -PLAYER_H / 2 + oy,
-        PLAYER_W,
-        PLAYER_H,
-        CORNER_R
-      );
-    }
-    this.add(this.fateDeckGfx);
   }
 
   private createPortrait(): void {
@@ -148,32 +117,6 @@ export class PlayerView extends Phaser.GameObjects.Container {
 
   updateGold(gold: number): void {
     this.goldText.setText(`${gold}`);
-  }
-
-  slideFateDeckUp(scene: Phaser.Scene): void {
-    scene.tweens.add({
-      targets: this.fateDeckGfx,
-      y: this.fateDeckGfx.y - 40,
-      duration: 300,
-      ease: "Power2",
-    });
-  }
-
-  slideFateDeckDown(scene: Phaser.Scene): void {
-    scene.tweens.add({
-      targets: this.fateDeckGfx,
-      y: 0,
-      duration: 300,
-      ease: "Power2",
-    });
-  }
-
-  getFateDeckWorldPos(): { x: number; y: number } {
-    const worldMatrix = this.getWorldTransformMatrix();
-    return {
-      x: worldMatrix.tx,
-      y: worldMatrix.ty - 40,
-    };
   }
 
   showTempPower(value: number): void {
