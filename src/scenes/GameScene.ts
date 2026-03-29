@@ -513,7 +513,7 @@ export class GameScene extends Phaser.Scene {
     const emptySlots = this.grid.getEmptySlots();
     if (emptySlots.length === 0) return;
 
-    const drawCount = Math.min(count, this.deck.remaining);
+    const drawCount = Math.min(count, this.deck.remaining, emptySlots.length);
     if (drawCount === 0) return;
     const drawn = this.deck.draw(drawCount);
 
