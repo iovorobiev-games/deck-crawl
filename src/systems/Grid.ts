@@ -1,7 +1,7 @@
 import { Card, CARD_W, CARD_H } from "../entities/Card";
 
-export const COLS = 4;
-export const ROWS = 3;
+export const DEFAULT_COLS = 4;
+export const DEFAULT_ROWS = 3;
 const GAP_X = 16;
 const GAP_Y = 32;
 
@@ -14,16 +14,20 @@ export class Grid {
   private cells: (Card | null)[][] = [];
   private originX: number;
   private originY: number;
+  readonly cols: number;
+  readonly rows: number;
 
-  constructor(screenW: number, screenH: number) {
-    const gridW = COLS * CARD_W + (COLS - 1) * GAP_X;
-    const gridH = ROWS * CARD_H + (ROWS - 1) * GAP_Y;
+  constructor(screenW: number, screenH: number, cols = DEFAULT_COLS, rows = DEFAULT_ROWS) {
+    this.cols = cols;
+    this.rows = rows;
+    const gridW = cols * CARD_W + (cols - 1) * GAP_X;
+    const gridH = rows * CARD_H + (rows - 1) * GAP_Y;
     this.originX = (screenW - gridW) / 2 + CARD_W / 2;
     this.originY = (screenH - gridH) / 2 + CARD_H / 2 - 140;
 
-    for (let r = 0; r < ROWS; r++) {
+    for (let r = 0; r < rows; r++) {
       this.cells[r] = [];
-      for (let c = 0; c < COLS; c++) {
+      for (let c = 0; c < cols; c++) {
         this.cells[r][c] = null;
       }
     }
@@ -38,8 +42,8 @@ export class Grid {
 
   getEmptySlots(): CellPos[] {
     const empty: CellPos[] = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
         if (!this.cells[r][c]) {
           empty.push({ col: c, row: r });
         }
@@ -65,8 +69,8 @@ export class Grid {
   /** Return all cards currently on the grid (non-destructive). */
   getOccupiedCards(): Card[] {
     const cards: Card[] = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
         const card = this.cells[r][c];
         if (card) cards.push(card);
       }
@@ -77,8 +81,8 @@ export class Grid {
   /** Remove and return all cards currently on the grid */
   getAllCards(): Card[] {
     const cards: Card[] = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
         const card = this.cells[r][c];
         if (card) {
           cards.push(card);
@@ -91,8 +95,8 @@ export class Grid {
 
   /** Find which cell a card belongs to */
   findCard(card: Card): CellPos | null {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
         if (this.cells[r][c] === card) {
           return { col: c, row: r };
         }

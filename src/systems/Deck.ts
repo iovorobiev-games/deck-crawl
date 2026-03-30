@@ -31,7 +31,7 @@ export class Deck {
     this.shuffle();
   }
 
-  static fromDungeonLevel(level: DungeonLevel, levelIndex: number): Deck {
+  static fromDungeonLevel(level: DungeonLevel, levelIndex: number, gameplayLevelIndex = levelIndex): Deck {
     const deck = new Deck([]);
     deck.cards = weightedSample(level.cards, DUNGEON_DECK_SIZE);
 
@@ -53,8 +53,8 @@ export class Deck {
     deck.cards.push(bossCard);
     deck.cards.push(getCard(level.door));
 
-    // Scale monster power by dungeon depth: +2 per level above the first
-    const powerBonus = levelIndex * 2;
+    // Scale monster power by dungeon depth: +2 per gameplay level above the first
+    const powerBonus = Math.max(0, gameplayLevelIndex) * 2;
     if (powerBonus > 0) {
       for (const card of deck.cards) {
         if (card.type === CardType.Monster) {

@@ -22,6 +22,10 @@ export interface DungeonLevel {
   keyCondition?: string;
   key: string;
   door: string;
+  /** Tutorial levels get special intro sequences and smaller grids. */
+  isTutorial?: boolean;
+  /** Custom grid dimensions for this level (defaults to 4×3). */
+  gridSize?: { cols: number; rows: number };
 }
 
 export interface DungeonConfig {
@@ -32,6 +36,28 @@ export interface DungeonConfig {
 export const dungeonConfig: DungeonConfig = {
   name: "Dungeon Decks",
   levels: [
+    {
+      name: "Tomb Entrance",
+      flavorText: "",
+      cards: [],
+      loot: { pool: [], bufferSize: 0 },
+      boss: "tutorial_zombie",
+      key: "tomb_key",
+      door: "tomb_entrance",
+      isTutorial: true,
+      gridSize: { cols: 4, rows: 1 },
+    },
+    {
+      name: "Tomb Entrance",
+      flavorText: "",
+      cards: [],
+      loot: { pool: [], bufferSize: 0 },
+      boss: "tutorial_zombie",
+      key: "tomb_key",
+      door: "tomb_entrance",
+      isTutorial: true,
+      gridSize: { cols: 4, rows: 1 },
+    },
     {
       name: "Greeting Hall",
       flavorText: "The entrance is deceptively calm...",

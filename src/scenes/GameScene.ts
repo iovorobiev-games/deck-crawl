@@ -5,7 +5,7 @@ import { FateDeckPopup } from "../entities/FateDeckPopup";
 import { GameOverScreen } from "../entities/GameOverScreen";
 import { InventoryView } from "../entities/InventoryView";
 import { Deck } from "../systems/Deck";
-import { Grid, COLS, ROWS } from "../systems/Grid";
+import { Grid } from "../systems/Grid";
 import { Player } from "../systems/Player";
 import { Inventory, SLOT_DEFS } from "../systems/Inventory";
 import { CardType, CardData } from "../entities/CardData";
@@ -73,6 +73,13 @@ export class GameScene extends Phaser.Scene {
   private vignetteFX!: VignettePostFX;
   private lastUsedScrollId: string | null = null;
   private sfx!: SoundManager;
+  private playerPanelBg!: Phaser.GameObjects.Image;
+  private tutorialOverlay: Phaser.GameObjects.Rectangle | null = null;
+  private tutorialCursor: Phaser.GameObjects.Container | null = null;
+  private tutorialAwaitingExplore = false;
+  private tutorialText: Phaser.GameObjects.Container | null = null;
+  private tutorialHighlight: Phaser.GameObjects.RenderTexture | null = null;
+  private tutorialCursorToken = 0;
 
   constructor() {
     super({ key: "GameScene" });
@@ -92,10 +99,13 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.player = new Player(6);
-    this.grid = new Grid(GAME_W, GAME_H);
 
     this.dungeonLevels = dungeonConfig.levels;
     this.currentLevelIndex = 0;
+    const firstLevel = this.dungeonLevels[0];
+    const gridCols = firstLevel.gridSize?.cols ?? 4;
+    const gridRows = firstLevel.gridSize?.rows ?? 3;
+    this.grid = new Grid(GAME_W, GAME_H, gridCols, gridRows);
     this.initLevel(0);
     this.tintBackground();
 
@@ -107,15 +117,12 @@ export class GameScene extends Phaser.Scene {
     this.createDeckVisual();
     this.createExploreButton();
     this.createLevelIndicator();
-    this.add.image(GAME_W / 2, 910, "player_panel_bg");
+    this.playerPanelBg = this.add.image(GAME_W / 2, 910, "player_panel_bg");
     this.createPlayerView();
     this.inventoryView = new InventoryView(this, this.inventory);
     this.setupSlotDiscard();
 
     this.inventory.on("statsChanged", () => this.updatePlayerStats());
-
-    // Draw initial 3 cards
-    this.drawAndPlaceCards(3);
 
     this.player.on("hpChanged", () => this.updatePlayerStats());
     this.player.on("goldChanged", () => this.updateHUD());
@@ -128,7 +135,13 @@ export class GameScene extends Phaser.Scene {
     this.vignetteFX = this.cameras.main.getPostPipeline(
       VignettePostFX
     ) as VignettePostFX;
-    this.vignetteFX.setLevel(this.currentLevelIndex);
+    this.vignetteFX.setLevel(Math.max(0, this.gameplayLevelIndex));
+
+    if (this.currentLevel.isTutorial) {
+      this.runTutorialIntro();
+    } else {
+      this.drawAndPlaceCards(3);
+    }
   }
 
   private createHUD(): void {
@@ -157,14 +170,22 @@ export class GameScene extends Phaser.Scene {
 
   private createGridBackground(): void {
     this.gridBgGraphics = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const pos = this.grid.worldPos(c, r);
         const img = this.add.image(pos.x, pos.y, "grid_item");
         img.setDisplaySize(CARD_W, CARD_H);
         this.gridBgGraphics.push(img);
       }
     }
+  }
+
+  /** Rebuild grid and grid background when level changes grid dimensions. */
+  private rebuildGrid(cols: number, rows: number): void {
+    this.gridBgGraphics.forEach(img => img.destroy());
+    this.gridBgGraphics = [];
+    this.grid = new Grid(GAME_W, GAME_H, cols, rows);
+    this.createGridBackground();
   }
 
   private createDeckVisual(): void {
@@ -399,18 +420,691 @@ export class GameScene extends Phaser.Scene {
     doShuffle();
   }
 
+  // ── Tutorial intro ──────────────────────────────────────────────
+
+  /** Create a text label with the tutorial banner background behind it. */
+  private createTutorialText(
+    x: number, y: number, message: string,
+    style: Phaser.Types.GameObjects.Text.TextStyle, depth: number
+  ): Phaser.GameObjects.Container {
+    const pad = 16;
+    const container = this.add.container(x, y).setDepth(depth).setAlpha(0);
+    const bg = this.add.image(0, 0, "tutorial_text_bg");
+    const text = this.add.text(0, 0, message, style).setOrigin(0.5);
+    bg.setDisplaySize(text.width + pad * 2, text.height + pad * 2);
+    container.add([bg, text]);
+    return container;
+  }
+
+  private runTutorialIntro(): void {
+    // Hide all gameplay UI initially
+    this.deckGroup.setVisible(false);
+    this.gridBgGraphics.forEach(img => img.setVisible(false));
+    this.playerPanelBg.setVisible(false);
+    this.playerView.setVisible(false);
+    this.inventoryView.setVisible(false);
+    this.fateDeckSprite.setVisible(false);
+    this.fateDeckStackCards.forEach(c => c.setVisible(false));
+    this.disableExploreButton();
+
+    // Black overlay covering everything
+    this.tutorialOverlay = this.add.rectangle(
+      GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000
+    ).setDepth(10000);
+
+    const textStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontSize: "36px",
+      fontFamily: "monospace",
+      color: "#ccbbaa",
+      align: "center",
+      wordWrap: { width: 1200 },
+    };
+
+    // Step 1: "The Horrors lie in the Tomb of Fate" fades in (no banner)
+    const text1 = this.add.text(
+      GAME_W / 2, GAME_H / 2, "The Horrors lie in the Tomb of Fate", textStyle
+    ).setOrigin(0.5).setAlpha(0).setDepth(10001);
+
+    this.tweens.add({
+      targets: text1, alpha: 1, duration: 2000, ease: "Sine.easeIn",
+      onComplete: () => {
+        // Step 2: Hold 2s, then fade out
+        this.time.delayedCall(2000, () => {
+          this.tweens.add({
+            targets: text1, alpha: 0, duration: 500,
+            onComplete: () => {
+              text1.destroy();
+              this.tutorialIntroPhase2(textStyle);
+            },
+          });
+        });
+      },
+    });
+  }
+
+  private tutorialIntroPhase2(textStyle: Phaser.Types.GameObjects.Text.TextStyle): void {
+    // Step 3: Second text appears and background fades in behind it
+    const text2 = this.createTutorialText(
+      GAME_W / 2, GAME_H / 2,
+      "The Brave Hero is searching for it\nto calm the Horrors down",
+      textStyle, 10001
+    );
+    this.tutorialText = text2;
+
+    // Fade out overlay to reveal the background
+    if (this.tutorialOverlay) {
+      this.tweens.add({
+        targets: this.tutorialOverlay, alpha: 0, duration: 1500,
+        onComplete: () => {
+          this.tutorialOverlay?.destroy();
+          this.tutorialOverlay = null;
+        },
+      });
+    }
+
+    this.tweens.add({
+      targets: text2, alpha: 1, duration: 1000, ease: "Sine.easeIn",
+      onComplete: () => {
+        // Delay 0.5s → Steps sound → Delay 0.5s → Player panel slides up
+        this.time.delayedCall(500, () => {
+          this.sfx.playRandom(SOUND_GROUPS.stoneWalk);
+
+          this.time.delayedCall(500, () => {
+            this.tutorialSlidePlayerPanel(() => {
+              // Delay 1s → text slides down between grid and panel
+              this.time.delayedCall(1000, () => {
+                this.tweens.add({
+                  targets: text2, y: 688, duration: 800, ease: "Power2",
+                  onComplete: () => {
+                    this.tutorialRevealDeckAndGrid();
+                  },
+                });
+              });
+            });
+          });
+        });
+      },
+    });
+  }
+
+  private tutorialSlidePlayerPanel(onComplete: () => void): void {
+    // Position panel elements below screen, make visible, slide up
+    const slideOffset = GAME_H + 200;
+    const targetY = 910;
+    const fateTargetY = GameScene.FATE_DECK_Y;
+
+    this.playerPanelBg.setY(slideOffset).setVisible(true);
+    this.playerView.setY(slideOffset).setVisible(true);
+    this.fateDeckSprite.setY(slideOffset).setVisible(true);
+    this.fateDeckStackCards.forEach(c => c.setY(slideOffset).setVisible(true));
+    // InventoryView is at y=0 with children at absolute positions;
+    // offset it so the slots start off-screen, then slide back to y=0.
+    this.inventoryView.setY(slideOffset).setVisible(true);
+
+    this.tweens.add({
+      targets: this.playerPanelBg,
+      y: targetY, duration: 600, ease: "Power2",
+    });
+    this.tweens.add({
+      targets: this.playerView,
+      y: targetY, duration: 600, ease: "Power2",
+    });
+    this.tweens.add({
+      targets: this.inventoryView,
+      y: 0, duration: 600, ease: "Power2",
+    });
+    this.tweens.add({
+      targets: this.fateDeckSprite,
+      y: fateTargetY, duration: 600, ease: "Power2",
+    });
+    this.fateDeckStackCards.forEach((c, i) => {
+      this.tweens.add({
+        targets: c,
+        y: fateTargetY + (i + 1) * 4, duration: 600, ease: "Power2",
+      });
+    });
+
+    this.time.delayedCall(650, onComplete);
+  }
+
+  private tutorialRevealDeckAndGrid(): void {
+    // Deck group slides in from the left
+    this.deckGroup.setX(-200).setVisible(true);
+    this.tweens.add({
+      targets: this.deckGroup, x: 350, duration: 600, ease: "Power2",
+      onComplete: () => {
+        // Grid items pop up with scale animation
+        this.gridBgGraphics.forEach((img, i) => {
+          img.setScale(0).setVisible(true);
+          this.tweens.add({
+            targets: img,
+            scale: 1, duration: 300, ease: "Back.easeOut",
+            delay: i * 100,
+          });
+        });
+
+        // After grid animation, show cursor hint on explore button
+        const gridAnimDuration = this.gridBgGraphics.length * 100 + 300;
+        this.time.delayedCall(gridAnimDuration, () => {
+          this.enableExploreButton();
+          this.showTutorialCursor();
+          this.tutorialAwaitingExplore = true;
+        });
+      },
+    });
+  }
+
+  private showTutorialCursor(): void {
+    this.hideTutorialCursor();
+    const token = this.tutorialCursorToken;
+    const alive = () => token === this.tutorialCursorToken;
+
+    const btnWorldX = this.deckGroup.x + this.exploreBtn.x;
+    const btnWorldY = this.deckGroup.y + this.exploreBtn.y;
+    const startX = GAME_W / 2 - 80;
+    const startY = 688 - 20;
+    const endX = btnWorldX;
+    const endY = btnWorldY + 20;
+
+    const pointer = this.add.image(startX, startY, "pointer_1")
+      .setDepth(9999).setScale(0.8);
+    const ripple = this.add.graphics().setDepth(9998);
+
+    this.tutorialCursor = this.add.container(0, 0).setDepth(9999);
+    this.tutorialCursor.add([ripple, pointer]);
+
+    const playLoop = () => {
+      if (!alive()) return;
+      pointer.setPosition(startX, startY);
+      pointer.setTexture("pointer_1");
+      pointer.setAlpha(1);
+      ripple.clear();
+
+      this.tweens.add({
+        targets: pointer, x: endX, y: endY, duration: 800, ease: "Power2",
+        onComplete: () => {
+          if (!alive()) return;
+          pointer.setTexture("pointer_2");
+
+          let radius = 0;
+          this.time.addEvent({
+            delay: 16, repeat: 30,
+            callback: () => { if (!alive()) return; radius += 2; ripple.clear(); ripple.lineStyle(2, 0xffffff, 1 - radius / 60); ripple.strokeCircle(endX, endY, radius); },
+          });
+          this.time.delayedCall(600, () => { if (!alive()) return; ripple.clear(); pointer.setAlpha(0); this.time.delayedCall(400, playLoop); });
+        },
+      });
+    };
+    playLoop();
+  }
+
+  /** Animate a pointer from offset to a target position, looping with click effect. */
+  private showTutorialPointerTo(targetX: number, targetY: number): void {
+    this.hideTutorialCursor();
+    const token = this.tutorialCursorToken;
+    const alive = () => token === this.tutorialCursorToken;
+
+    const startX = targetX - 80;
+    const startY = targetY - 80;
+
+    const pointer = this.add.image(startX, startY, "pointer_1")
+      .setDepth(9999).setScale(0.8);
+    const ripple = this.add.graphics().setDepth(9998);
+
+    this.tutorialCursor = this.add.container(0, 0).setDepth(9999);
+    this.tutorialCursor.add([ripple, pointer]);
+
+    const playLoop = () => {
+      if (!alive()) return;
+      pointer.setPosition(startX, startY);
+      pointer.setTexture("pointer_1");
+      pointer.setAlpha(1);
+      ripple.clear();
+
+      this.tweens.add({
+        targets: pointer, x: targetX, y: targetY, duration: 800, ease: "Power2",
+        onComplete: () => {
+          if (!alive()) return;
+          pointer.setTexture("pointer_2");
+
+          let radius = 0;
+          this.time.addEvent({
+            delay: 16, repeat: 30,
+            callback: () => { if (!alive()) return; radius += 2; ripple.clear(); ripple.lineStyle(2, 0xffffff, 1 - radius / 60); ripple.strokeCircle(targetX, targetY, radius); },
+          });
+          this.time.delayedCall(600, () => { if (!alive()) return; ripple.clear(); pointer.setAlpha(0); this.time.delayedCall(400, playLoop); });
+        },
+      });
+    };
+    playLoop();
+  }
+
+  /** Animate a drag gesture: move to source, click, drag to target, release. Loops. */
+  private showTutorialDragCursor(fromX: number, fromY: number, toX: number, toY: number): void {
+    this.hideTutorialCursor();
+    const token = this.tutorialCursorToken;
+    const alive = () => token === this.tutorialCursorToken;
+
+    const startX = fromX - 60;
+    const startY = fromY - 60;
+
+    const pointer = this.add.image(startX, startY, "pointer_1")
+      .setDepth(9999).setScale(0.8);
+    const ripple = this.add.graphics().setDepth(9998);
+
+    this.tutorialCursor = this.add.container(0, 0).setDepth(9999);
+    this.tutorialCursor.add([ripple, pointer]);
+
+    const playLoop = () => {
+      if (!alive()) return;
+      pointer.setPosition(startX, startY);
+      pointer.setTexture("pointer_1");
+      pointer.setAlpha(1);
+      ripple.clear();
+
+      this.tweens.add({
+        targets: pointer, x: fromX, y: fromY, duration: 600, ease: "Power2",
+        onComplete: () => {
+          if (!alive()) return;
+          pointer.setTexture("pointer_2");
+
+          let radius = 0;
+          this.time.addEvent({
+            delay: 16, repeat: 20,
+            callback: () => { if (!alive()) return; radius += 2; ripple.clear(); ripple.lineStyle(2, 0xffffff, 1 - radius / 40); ripple.strokeCircle(fromX, fromY, radius); },
+          });
+
+          this.time.delayedCall(400, () => {
+            if (!alive()) return;
+            ripple.clear();
+            this.tweens.add({
+              targets: pointer, x: toX, y: toY, duration: 800, ease: "Power2",
+              onComplete: () => {
+                if (!alive()) return;
+                pointer.setTexture("pointer_1");
+                this.time.delayedCall(400, () => { if (!alive()) return; pointer.setAlpha(0); this.time.delayedCall(400, playLoop); });
+              },
+            });
+          });
+        },
+      });
+    };
+    playLoop();
+  }
+
+  private hideTutorialCursor(): void {
+    this.tutorialCursorToken++;
+    if (this.tutorialCursor) {
+      const cursor = this.tutorialCursor;
+      this.tutorialCursor = null;
+      cursor.each((child: Phaser.GameObjects.GameObject) => {
+        this.tweens.killTweensOf(child);
+      });
+      cursor.destroy(true);
+    }
+  }
+
+  private showTutorialNarrative(
+    messages: (
+      | string
+      | { text: string; autoDelay: number }
+      | { text: string; persistent?: boolean; onShow?: () => void; onHide?: () => void }
+      | { before: string; highlight: string; shake?: boolean; persistent?: boolean; onShow?: () => void; onHide?: () => void }
+    )[],
+    onComplete?: () => void
+  ): void {
+    const style: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontSize: "32px",
+      fontFamily: "monospace",
+      color: "#ccbbaa",
+      align: "center",
+      wordWrap: { width: 1200 },
+    };
+
+    let index = 0;
+    const showNext = () => {
+      if (index >= messages.length) {
+        onComplete?.();
+        return;
+      }
+
+      const msg = messages[index];
+      index++;
+
+      let textContainer: Phaser.GameObjects.Container;
+      let autoDelay = 0;
+      let persistent = false;
+      let onShow: (() => void) | undefined;
+      let onHide: (() => void) | undefined;
+
+      if (typeof msg === "string") {
+        textContainer = this.createTutorialText(GAME_W / 2, 688, msg, style, 10001);
+      } else if ("before" in msg) {
+        textContainer = this.createTutorialTextRich(GAME_W / 2, 688, msg, style, 10001);
+        onShow = msg.onShow; onHide = msg.onHide;
+        if ("persistent" in msg) persistent = !!msg.persistent;
+      } else {
+        textContainer = this.createTutorialText(GAME_W / 2, 688, msg.text, style, 10001);
+        if ("autoDelay" in msg) autoDelay = msg.autoDelay;
+        if ("persistent" in msg) persistent = !!msg.persistent;
+        if ("onShow" in msg) { onShow = msg.onShow; onHide = msg.onHide; }
+      }
+
+      const fadeOut = () => {
+        onHide?.();
+        this.tweens.add({
+          targets: textContainer, alpha: 0, duration: 400,
+          onComplete: () => {
+            textContainer.destroy();
+            showNext();
+          },
+        });
+      };
+
+      this.tweens.add({
+        targets: textContainer, alpha: 1, duration: 800, ease: "Sine.easeIn",
+        onComplete: () => {
+          onShow?.();
+          if (persistent) {
+            // Store for later manual destruction
+            this.tutorialText = textContainer;
+            return;
+          }
+          if (autoDelay > 0) {
+            this.time.delayedCall(autoDelay, fadeOut);
+          } else {
+            this.time.delayedCall(500, () => {
+              const advance = () => {
+                this.input.off("pointerdown", advance);
+                fadeOut();
+              };
+              this.input.on("pointerdown", advance);
+            });
+          }
+        },
+      });
+    };
+    showNext();
+  }
+
+  /** Tutorial text with a highlighted/shaking portion overlaid on the base text. */
+  private createTutorialTextRich(
+    x: number, y: number,
+    msg: { before: string; highlight: string; shake?: boolean },
+    style: Phaser.Types.GameObjects.Text.TextStyle,
+    depth: number
+  ): Phaser.GameObjects.Container {
+    const pad = 16;
+    const container = this.add.container(x, y).setDepth(depth).setAlpha(0);
+
+    // Full message for measurement, base text shows only the non-highlighted part
+    const fullMessage = msg.before + msg.highlight;
+    const spacer = " ".repeat(msg.highlight.length);
+    const baseText = this.add.text(0, 0, msg.before + spacer, style).setOrigin(0.5);
+
+    // Measure monospace char width
+    const charMeasure = this.add.text(0, 0, "M", style).setVisible(false);
+    const charW = charMeasure.width;
+    charMeasure.destroy();
+
+    // Find highlight position on the last line
+    const lines = fullMessage.split("\n");
+    const lastLine = lines[lines.length - 1];
+    const highlightStart = lastLine.indexOf(msg.highlight);
+    const highlightCenterChar = highlightStart + msg.highlight.length / 2;
+    const lineCenterChar = lastLine.length / 2;
+    const offsetX = (highlightCenterChar - lineCenterChar) * charW;
+
+    // Y: last line relative to centered text
+    const lineH = baseText.height / lines.length;
+    const offsetY = ((lines.length - 1) / 2) * lineH;
+
+    // Red overlay — one text per character so each shakes independently
+    const highlightStyle = { ...style, color: "#ee4444", fontStyle: "bold" };
+    const charTexts: Phaser.GameObjects.Text[] = [];
+    const startX = offsetX - (msg.highlight.length / 2) * charW + charW / 2;
+    for (let i = 0; i < msg.highlight.length; i++) {
+      const ch = this.add.text(startX + i * charW, offsetY, msg.highlight[i], highlightStyle)
+        .setOrigin(0.5);
+      charTexts.push(ch);
+    }
+
+    const bg = this.add.image(0, 0, "tutorial_text_bg");
+    bg.setDisplaySize(baseText.width + pad * 2, baseText.height + pad * 2);
+
+    container.add([bg, baseText, ...charTexts]);
+
+    if (msg.shake) {
+      const amp = 1.5;
+      const charData = charTexts.map(ch => ({
+        ch,
+        baseX: ch.x,
+        baseY: ch.y,
+        phaseX: Math.random() * Math.PI * 2,
+        phaseY: Math.random() * Math.PI * 2,
+        speedX: 3 + Math.random() * 4,
+        speedY: 2 + Math.random() * 3,
+      }));
+      this.time.addEvent({
+        delay: 16,
+        loop: true,
+        callback: () => {
+          const now = this.time.now / 1000;
+          for (const d of charData) {
+            if (!d.ch.active) return;
+            d.ch.x = d.baseX + Math.sin(now * d.speedX + d.phaseX) * amp;
+            d.ch.y = d.baseY + Math.cos(now * d.speedY + d.phaseY) * amp;
+          }
+        },
+      });
+    }
+
+    return container;
+  }
+
+  private onCardsPlaced(): void {
+    if (!this.currentLevel.isTutorial) return;
+
+    // Tutorial level 0: after first explore, show combat narrative
+    if (this.currentLevelIndex === 0 && this.deck.isEmpty) {
+      this.time.delayedCall(600, () => {
+        // Find the zombie card on the grid for highlight
+        const zombieCard = this.grid.getOccupiedCards().find(
+          c => c.cardData.type === CardType.Monster
+        );
+
+        this.isResolving = true;
+        this.showTutorialNarrative([
+          { text: "The Formidable Zombie is Guarding the Entrance.", autoDelay: 2000 },
+          {
+            text: "The Hero's power is less than the Zombie's.\nBut our Hero is tougher.",
+            onShow: () => this.showTutorialHighlight(zombieCard ?? null),
+            onHide: () => this.hideTutorialHighlight(),
+          },
+          {
+            before: "Defeat the zombie. Take the key.\nEnter ",
+            highlight: "The Tomb of Fate",
+            shake: true,
+            persistent: true,
+            onShow: () => {
+              this.isResolving = false;
+              if (zombieCard) this.showTutorialPointerTo(zombieCard.x, zombieCard.y);
+            },
+          },
+        ]);
+      });
+    }
+  }
+
+  /** Dark overlay with rectangular cutouts to spotlight specific areas. */
+  private showTutorialHighlight(zombieCard: Card | null): void {
+    const rt = this.add.renderTexture(0, 0, GAME_W, GAME_H)
+      .setOrigin(0).setDepth(9999);
+    rt.fill(0x000000, 0.6);
+
+    // Cutout areas
+    const cutouts: { x: number; y: number; w: number; h: number }[] = [];
+
+    // Player power stat: PlayerView at (867.5, 910), powerGroup at (-95, -105)
+    // icon_power sprite is 117x89
+    const playerPowerX = 867.5 - 95;
+    const playerPowerY = 910 - 105;
+    const pw = 117 + 16;
+    const ph = 89 + 16;
+    cutouts.push({ x: playerPowerX - pw / 2, y: playerPowerY - ph / 2, w: pw, h: ph });
+
+    // Zombie card power icon: bottom-left of card
+    if (zombieCard) {
+      const cardPowerX = zombieCard.x + (-CARD_W / 2 + 15);
+      const cardPowerY = zombieCard.y + (CARD_H / 2 - 12);
+      cutouts.push({ x: cardPowerX - 28, y: cardPowerY - 28, w: 56, h: 56 });
+    }
+
+    // Erase cutout rectangles from the overlay
+    for (const c of cutouts) {
+      const rect = this.add.rectangle(0, 0, c.w, c.h, 0xffffff).setOrigin(0).setVisible(false);
+      rt.erase(rect, c.x, c.y);
+      rect.destroy();
+    }
+
+    this.tutorialHighlight = rt;
+  }
+
+  private hideTutorialHighlight(): void {
+    if (this.tutorialHighlight) {
+      this.tutorialHighlight.destroy();
+      this.tutorialHighlight = null;
+    }
+  }
+
+  private tutorialCombatSequence(monsterCard: Card): void {
+    // Disable fight button during tutorial sequence
+    if (this.fightBtn) this.fightBtn.disableInteractive();
+
+    // Show overlay with cutout for player portrait+stats and fate deck
+    const rt = this.add.renderTexture(0, 0, GAME_W, GAME_H)
+      .setOrigin(0).setDepth(9999);
+    rt.fill(0x000000, 0.6);
+
+    // One big cutout covering player portrait + stats + fate deck
+    // Portrait at (867.5, 910), fate deck at (1073.5, 914)
+    const cutX = 867.5 - 180;
+    const cutY = 910 - 145;
+    const cutW = (1073.5 + 100) - cutX;
+    const cutH = 290;
+    const cutRect = this.add.rectangle(0, 0, cutW, cutH, 0xffffff).setOrigin(0).setVisible(false);
+    rt.erase(cutRect, cutX, cutY);
+    cutRect.destroy();
+
+    const style: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontSize: "32px",
+      fontFamily: "monospace",
+      color: "#ccbbaa",
+      align: "center",
+      wordWrap: { width: 1200 },
+    };
+
+    // Text 1: "Fate has always something to say..."
+    const text1 = this.createTutorialText(
+      GAME_W / 2, 688,
+      "Fate always has something to say.\nLet's see what it has here",
+      style, 10001
+    );
+    this.tweens.add({
+      targets: text1, alpha: 1, duration: 800, ease: "Sine.easeIn",
+    });
+
+    // After 2s, rig the fate deck to +1 and draw the fate card
+    this.time.delayedCall(3800, () => {
+      // Fade out text1
+      this.tweens.add({
+        targets: text1, alpha: 0, duration: 400,
+        onComplete: () => text1.destroy(),
+      });
+
+      // Rig fate deck: move +1 to front
+      const idx = this.player.fateDeck.indexOf(1);
+      if (idx > 0) {
+        this.player.fateDeck.splice(idx, 1);
+        this.player.fateDeck.unshift(1);
+      }
+
+      // Animate fate card draw
+      this.animateFateCardDraw((modifier) => {
+        // Show modified power immediately on the player panel
+        const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier());
+        this.playerView.showTempPower(modifiedPower);
+
+        // Text 2
+        const text2 = this.createTutorialText(
+          GAME_W / 2, 688,
+          "Seems Fate is on your side.\nYou got +1 to Power!",
+          style, 10001
+        );
+        this.tweens.add({
+          targets: text2, alpha: 1, duration: 800, ease: "Sine.easeIn",
+          onComplete: () => {
+            const dismiss = () => {
+              this.input.off("pointerdown", dismiss);
+              // Fade overlay and text
+              this.tweens.add({
+                targets: [text2, rt], alpha: 0, duration: 400,
+                onComplete: () => {
+                  text2.destroy();
+                  rt.destroy();
+                  // Continue with normal combat from the drawn modifier
+                  this.continueCombatAfterFateDraw(monsterCard, modifier);
+                },
+              });
+            };
+            this.time.delayedCall(500, () => {
+              this.input.on("pointerdown", dismiss);
+            });
+          },
+        });
+      });
+    });
+  }
+
+  /** Resume combat after the fate card has already been drawn (skip the draw step). */
+  private continueCombatAfterFateDraw(monsterCard: Card, modifier: number): void {
+    this.resolveCombatHit(monsterCard, modifier);
+  }
+
+  // ── End tutorial intro ─────────────────────────────────────────
+
   private initLevel(levelIndex: number): void {
     const level = this.dungeonLevels[levelIndex];
-    this.deck = Deck.fromDungeonLevel(level, levelIndex);
+    this.deck = Deck.fromDungeonLevel(level, levelIndex, this.gameplayLevelIndex);
     this.deck.onShuffle = () => this.sfx.play(SOUND_KEYS.cardDraw3);
     this.currentLevelKey = getCard(level.key);
+  }
+
+  /** Number of tutorial levels at the start of dungeonLevels. */
+  private get tutorialLevelCount(): number {
+    let count = 0;
+    for (const l of this.dungeonLevels) {
+      if (l.isTutorial) count++;
+      else break;
+    }
+    return count;
+  }
+
+  /** Current level index offset to skip tutorial levels (for display / tint). */
+  private get gameplayLevelIndex(): number {
+    return this.currentLevelIndex - this.tutorialLevelCount;
+  }
+
+  private get currentLevel(): DungeonLevel {
+    return this.dungeonLevels[this.currentLevelIndex];
   }
 
   /** Darken the background image based on current dungeon level. */
   private tintBackground(): void {
     // Per-level brightness: 1.0 = full bright, lower = darker
     const LEVEL_TINT = [1.0, 0.78, 0.55];
-    const brightness = LEVEL_TINT[Math.min(this.currentLevelIndex, LEVEL_TINT.length - 1)];
+    const idx = Math.max(0, this.gameplayLevelIndex);
+    const brightness = LEVEL_TINT[Math.min(idx, LEVEL_TINT.length - 1)];
     const channel = Math.round(brightness * 255);
     const tint = (channel << 16) | (channel << 8) | channel;
     this.backgroundImage.setTint(tint);
@@ -437,9 +1131,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelIndicator(): void {
-    const level = this.dungeonLevels[this.currentLevelIndex];
-    this.levelIndicator.setText(`Level ${this.currentLevelIndex + 1}: ${level.name}`);
-    this.levelFlavorText.setText(level.flavorText);
+    const level = this.currentLevel;
+    if (level.isTutorial) {
+      this.levelIndicator.setText(level.name);
+      this.levelFlavorText.setText(level.flavorText);
+    } else {
+      this.levelIndicator.setText(`Level ${this.gameplayLevelIndex + 1}: ${level.name}`);
+      this.levelFlavorText.setText(level.flavorText);
+    }
   }
 
   private updatePlayerStats(): void {
@@ -468,8 +1167,8 @@ export class GameScene extends Phaser.Scene {
 
   private getPassivePowerModifier(): number {
     let total = 0;
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (card?.cardData.abilities) {
           for (const ab of card.cardData.abilities) {
@@ -510,8 +1209,8 @@ export class GameScene extends Phaser.Scene {
   private getPassiveAgilityModifier(): number {
     let total = 0;
     // Scan grid cards
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (card?.cardData.abilities) {
           for (const ab of card.cardData.abilities) {
@@ -616,8 +1315,8 @@ export class GameScene extends Phaser.Scene {
     if (this.hasEquippedPassive("addAgilityToBowDamage")) {
       agilityBonus = this.player.agility + this.getPassiveAgilityModifier() + this.inventory.agilityBonus;
     }
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (!card?.cardData.abilities) continue;
         const bowAbility = card.cardData.abilities.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
@@ -651,8 +1350,8 @@ export class GameScene extends Phaser.Scene {
 
   private getMonsterPowerBuff(): number {
     let total = 0;
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (card?.cardData.abilities) {
           for (const ab of card.cardData.abilities) {
@@ -669,8 +1368,8 @@ export class GameScene extends Phaser.Scene {
 
   private updateMonsterBuffIndicators(): void {
     const buff = this.getMonsterPowerBuff();
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (card && card.cardData.type === CardType.Monster) {
           card.setBuffIndicator(buff);
@@ -681,6 +1380,15 @@ export class GameScene extends Phaser.Scene {
 
   private onExplore(): void {
     if (this.deck.isEmpty || this.isResolving || this.hasTrapOnGrid()) return;
+
+    if (this.tutorialAwaitingExplore) {
+      this.tutorialAwaitingExplore = false;
+      this.hideTutorialCursor();
+      if (this.tutorialText) {
+        this.tutorialText.destroy();
+        this.tutorialText = null;
+      }
+    }
 
     const onExploreAbilities = this.collectOnExploreAbilities();
     if (onExploreAbilities.length === 0) {
@@ -776,6 +1484,7 @@ export class GameScene extends Phaser.Scene {
       this.updatePlayerStats();
       this.updateDeckVisual();
       this.updateExploreButtonState();
+      this.onCardsPlaced();
       return;
     }
 
@@ -1044,8 +1753,8 @@ export class GameScene extends Phaser.Scene {
           const canRecycle = this.hasEquippedPassive("recycleBowShots");
           // Find all monsters on the grid
           const monsters: Card[] = [];
-          for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
+          for (let r = 0; r < this.grid.rows; r++) {
+            for (let c = 0; c < this.grid.cols; c++) {
               const gc = this.grid.getCardAt(c, r);
               if (gc && gc.cardData.type === CardType.Monster) {
                 monsters.push(gc);
@@ -1125,8 +1834,8 @@ export class GameScene extends Phaser.Scene {
   private findUnguardedLootOnGrid(alreadyClaimed: Set<Card>): Card | null {
     const keyCards: Card[] = [];
     const nonKeyCards: Card[] = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (
           card &&
@@ -1275,6 +1984,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private beginDrag(card: Card): void {
+    this.hideTutorialCursor();
     this.isDragging = true;
     this.isResolving = true;
     card.setHighlight(false);
@@ -1448,8 +2158,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private clearGridHighlights(): void {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gc = this.grid.getCardAt(c, r);
         if (gc) {
           gc.setHighlight(false);
@@ -1652,8 +2362,8 @@ export class GameScene extends Phaser.Scene {
       case "buffMonsterType": {
         const monsterId = current.params.monsterId as string;
         const amount = current.params.amount as number;
-        for (let r = 0; r < ROWS; r++) {
-          for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < this.grid.rows; r++) {
+          for (let c = 0; c < this.grid.cols; c++) {
             const gc = this.grid.getCardAt(c, r);
             if (gc && gc.cardData.id === monsterId) {
               gc.updateValue(gc.cardData.value + amount);
@@ -1850,8 +2560,8 @@ export class GameScene extends Phaser.Scene {
 
   /** Find a trap card at the given world coordinates on the grid. */
   private findTrapAtPoint(x: number, y: number): Card | null {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && gridCard.cardData.type === CardType.Trap) {
           if (Math.abs(x - gridCard.x) < CARD_W / 2 && Math.abs(y - gridCard.y) < CARD_H / 2) {
@@ -1865,8 +2575,8 @@ export class GameScene extends Phaser.Scene {
 
   /** Find a monster card at the given world coordinates on the grid. */
   private findMonsterAtPoint(x: number, y: number): Card | null {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && gridCard.cardData.type === CardType.Monster) {
           if (Math.abs(x - gridCard.x) < CARD_W / 2 && Math.abs(y - gridCard.y) < CARD_H / 2) {
@@ -1880,8 +2590,8 @@ export class GameScene extends Phaser.Scene {
 
   /** Find a chest card at the given world coordinates on the grid. */
   private findChestAtPoint(x: number, y: number): Card | null {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && gridCard.cardData.type === CardType.Chest) {
           if (Math.abs(x - gridCard.x) < CARD_W / 2 && Math.abs(y - gridCard.y) < CARD_H / 2) {
@@ -1895,8 +2605,8 @@ export class GameScene extends Phaser.Scene {
 
   /** Find any card at the given world coordinates on the grid. */
   private findGridCardAtPoint(x: number, y: number): Card | null {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard) {
           if (Math.abs(x - gridCard.x) < CARD_W / 2 && Math.abs(y - gridCard.y) < CARD_H / 2) {
@@ -1917,7 +2627,7 @@ export class GameScene extends Phaser.Scene {
     for (const [dc, dr] of dirs) {
       const nc = cell.col + dc;
       const nr = cell.row + dr;
-      if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS) {
+      if (nc >= 0 && nc < this.grid.cols && nr >= 0 && nr < this.grid.rows) {
         const adjCard = this.grid.getCardAt(nc, nr);
         if (adjCard) adjacent.push(adjCard);
       }
@@ -1945,8 +2655,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private gridHasCard(id: string): boolean {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (card && card.cardData.id === id) return true;
       }
@@ -1956,8 +2666,8 @@ export class GameScene extends Phaser.Scene {
 
   private gridCountCard(id: string): number {
     let count = 0;
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (card && card.cardData.id === id) count++;
       }
@@ -2316,8 +3026,8 @@ export class GameScene extends Phaser.Scene {
    */
   private dimNonParticipants(except: Phaser.GameObjects.Container[]): void {
     const exceptSet = new Set(except);
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && !exceptSet.has(gridCard)) {
           gridCard.setAlpha(0.3);
@@ -2343,8 +3053,8 @@ export class GameScene extends Phaser.Scene {
    * Restore everything after dimNonParticipants.
    */
   private undimAll(): void {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard) {
           gridCard.setAlpha(1);
@@ -2648,8 +3358,8 @@ export class GameScene extends Phaser.Scene {
             }
             // Show red drop-target highlights on all monsters if item has dragOnMonster ability
             if (this.collectAbilities("dragOnMonster", item).length > 0) {
-              for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
+              for (let r = 0; r < this.grid.rows; r++) {
+                for (let c = 0; c < this.grid.cols; c++) {
                   const gc = this.grid.getCardAt(c, r);
                   if (gc && gc.cardData.type === CardType.Monster) {
                     gc.setDropTargetHighlight(true);
@@ -2700,8 +3410,8 @@ export class GameScene extends Phaser.Scene {
             // Highlight trap cards if item has dragOnTrap ability
             if (this.collectAbilities("dragOnTrap", item).length > 0) {
               const trapTarget = this.findTrapAtPoint(world.x, world.y);
-              for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
+              for (let r = 0; r < this.grid.rows; r++) {
+                for (let c = 0; c < this.grid.cols; c++) {
                   const gc = this.grid.getCardAt(c, r);
                   if (gc && gc.cardData.type === CardType.Trap) {
                     gc.setHighlight(gc === trapTarget);
@@ -2713,8 +3423,8 @@ export class GameScene extends Phaser.Scene {
             // Highlight monster cards if item has dragOnMonster ability
             if (this.collectAbilities("dragOnMonster", item).length > 0) {
               const monsterTarget = this.findMonsterAtPoint(world.x, world.y);
-              for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
+              for (let r = 0; r < this.grid.rows; r++) {
+                for (let c = 0; c < this.grid.cols; c++) {
                   const gc = this.grid.getCardAt(c, r);
                   if (gc && gc.cardData.type === CardType.Monster) {
                     gc.setHighlight(gc === monsterTarget);
@@ -2726,8 +3436,8 @@ export class GameScene extends Phaser.Scene {
             // Highlight chest cards if item has dragOnChest ability
             if (this.collectAbilities("dragOnChest", item).length > 0) {
               const chestTarget = this.findChestAtPoint(world.x, world.y);
-              for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
+              for (let r = 0; r < this.grid.rows; r++) {
+                for (let c = 0; c < this.grid.cols; c++) {
                   const gc = this.grid.getCardAt(c, r);
                   if (gc && gc.cardData.type === CardType.Chest) {
                     gc.setHighlight(gc === chestTarget);
@@ -3045,6 +3755,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (card.cardData.type === CardType.Monster) {
+      this.hideTutorialCursor();
+      if (this.tutorialText) {
+        this.tutorialText.destroy();
+        this.tutorialText = null;
+      }
       this.enterCombatMode(card);
       return;
     }
@@ -3143,8 +3858,8 @@ export class GameScene extends Phaser.Scene {
         const monsterId = current.params.monsterId as string;
         const amount = current.params.amount as number;
         // Buff monsters on grid
-        for (let r = 0; r < ROWS; r++) {
-          for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < this.grid.rows; r++) {
+          for (let c = 0; c < this.grid.cols; c++) {
             const gc = this.grid.getCardAt(c, r);
             if (gc && gc.cardData.id === monsterId) {
               gc.updateValue(gc.cardData.value + amount);
@@ -3210,8 +3925,8 @@ export class GameScene extends Phaser.Scene {
     this.combatMonster = card;
 
     // Dim other grid cards
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && gridCard !== card) {
           gridCard.setAlpha(0.3);
@@ -3304,11 +4019,23 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.fightBtn.on("pointerdown", () => {
-      this.executeCombat(card);
+      this.hideTutorialCursor();
+      if (this.currentLevel.isTutorial && this.currentLevelIndex === 0) {
+        this.tutorialCombatSequence(card);
+      } else {
+        this.executeCombat(card);
+      }
     });
 
     // Slide fate deck up
     this.peekFateCard();
+
+    // Tutorial: show pointer on fight button
+    if (this.currentLevel.isTutorial && this.currentLevelIndex === 0) {
+      this.time.delayedCall(300, () => {
+        this.showTutorialPointerTo(card.x, card.y + CARD_H / 2 + 48);
+      });
+    }
   }
 
   private exitCombatMode(): void {
@@ -3323,8 +4050,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Restore all grid card alphas, guarded loot, and chest loot
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard) {
           gridCard.setAlpha(1);
@@ -3374,57 +4101,76 @@ export class GameScene extends Phaser.Scene {
     if (this.combatOverlay) this.combatOverlay.disableInteractive();
 
     this.animateFateCardDraw((modifier) => {
-      const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier());
-      this.playerView.showTempPower(modifiedPower);
+      this.resolveCombatHit(monsterCard, modifier);
+    });
+  }
 
-      // Player attacks monster
-      this.time.delayedCall(100, () => {
-        const origX = this.playerView.x;
-        const origY = this.playerView.y;
-        const attackX = origX + (monsterCard.x - origX) * 0.6;
-        const attackY = origY + (monsterCard.y - origY) * 0.6;
+  private resolveCombatHit(monsterCard: Card, modifier: number): void {
+    const modifiedPower = Math.max(0, this.player.power + this.inventory.powerBonus + modifier + this.getPassivePowerModifier());
+    this.playerView.showTempPower(modifiedPower);
 
-        this.tweens.add({
-          targets: this.playerView,
-          x: attackX,
-          y: attackY,
-          duration: 250,
-          ease: "Power2",
-          onComplete: () => {
-            this.sfx.playRandom(SOUND_GROUPS.swordAttack);
-            const newMonsterValue = Math.max(0, monsterCard.cardData.value - modifiedPower);
-            monsterCard.updateValue(newMonsterValue);
+    this.time.delayedCall(100, () => {
+      const origX = this.playerView.x;
+      const origY = this.playerView.y;
+      const attackX = origX + (monsterCard.x - origX) * 0.6;
+      const attackY = origY + (monsterCard.y - origY) * 0.6;
 
-            this.tweens.add({
-              targets: monsterCard,
-              x: monsterCard.x + 10,
-              duration: 50,
-              yoyo: true,
-              repeat: 3,
-              onComplete: () => {
-                this.tweens.add({
-                  targets: this.playerView,
-                  x: origX,
-                  y: origY,
-                  duration: 250,
-                  ease: "Power2",
-                  onComplete: () => {
-                    if (newMonsterValue > 0) {
-                      this.monsterCounterattack(monsterCard, modifier);
-                    } else {
-                      this.combatCleanup(monsterCard, modifier);
-                    }
-                  },
-                });
-              },
-            });
-          },
-        });
+      this.tweens.add({
+        targets: this.playerView,
+        x: attackX,
+        y: attackY,
+        duration: 250,
+        ease: "Power2",
+        onComplete: () => {
+          this.sfx.playRandom(SOUND_GROUPS.swordAttack);
+          const newMonsterValue = Math.max(0, monsterCard.cardData.value - modifiedPower);
+          monsterCard.updateValue(newMonsterValue);
+
+          this.tweens.add({
+            targets: monsterCard,
+            x: monsterCard.x + 10,
+            duration: 50,
+            yoyo: true,
+            repeat: 3,
+            onComplete: () => {
+              this.tweens.add({
+                targets: this.playerView,
+                x: origX,
+                y: origY,
+                duration: 250,
+                ease: "Power2",
+                onComplete: () => {
+                  if (newMonsterValue > 0) {
+                    this.monsterCounterattack(monsterCard, modifier);
+                  } else {
+                    this.combatCleanup(monsterCard, modifier);
+                  }
+                },
+              });
+            },
+          });
+        },
       });
     });
   }
 
   private monsterCounterattack(
+    monsterCard: Card,
+    fateModifier: number
+  ): void {
+    // Tutorial: show narrative before counterattack
+    if (this.currentLevel.isTutorial && this.currentLevelIndex === 0) {
+      this.showTutorialNarrative([
+        "But that was still not enough.\nNow the Zombie strikes back!",
+      ], () => {
+        this.doMonsterCounterattack(monsterCard, fateModifier);
+      });
+      return;
+    }
+    this.doMonsterCounterattack(monsterCard, fateModifier);
+  }
+
+  private doMonsterCounterattack(
     monsterCard: Card,
     fateModifier: number
   ): void {
@@ -3633,8 +4379,8 @@ export class GameScene extends Phaser.Scene {
       this.player.shuffleFateCardBack(fateModifier);
 
       // Restore alphas for all grid cards, guarded loot, and chest loot
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < this.grid.rows; r++) {
+        for (let c = 0; c < this.grid.cols; c++) {
           const gridCard = this.grid.getCardAt(c, r);
           if (gridCard) {
             gridCard.setAlpha(1);
@@ -3667,6 +4413,22 @@ export class GameScene extends Phaser.Scene {
       // Check game over
       if (this.player.hp <= 0) {
         this.showGameOver();
+        return;
+      }
+
+      // Tutorial: hint to open the door
+      if (this.currentLevel.isTutorial && this.currentLevelIndex === 0) {
+        this.time.delayedCall(600, () => {
+          // Start drag cursor immediately alongside the text
+          const keyCard = this.grid.getOccupiedCards().find(c => c.cardData.isKey);
+          const doorCard = this.grid.getOccupiedCards().find(c => c.cardData.type === CardType.Door);
+          if (keyCard && doorCard) {
+            this.showTutorialDragCursor(keyCard.x, keyCard.y, doorCard.x, doorCard.y);
+          }
+          this.showTutorialNarrative([
+            { text: "Good. Now open the gates with the key.", persistent: true },
+          ]);
+        });
       }
     });
   }
@@ -3676,8 +4438,8 @@ export class GameScene extends Phaser.Scene {
     this.crackingChest = card;
 
     // Dim other grid cards
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && gridCard !== card) {
           gridCard.setAlpha(0.3);
@@ -3784,8 +4546,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Restore all grid card alphas, guarded loot, and chest loot
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard) {
           gridCard.setAlpha(1);
@@ -3876,8 +4638,8 @@ export class GameScene extends Phaser.Scene {
       this.player.shuffleFateCardBack(fateModifier);
 
       // Restore alphas
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < this.grid.rows; r++) {
+        for (let c = 0; c < this.grid.cols; c++) {
           const gridCard = this.grid.getCardAt(c, r);
           if (gridCard) {
             gridCard.setAlpha(1);
@@ -3941,8 +4703,8 @@ export class GameScene extends Phaser.Scene {
     this.disarmingTrap = card;
 
     // Dim other grid cards
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && gridCard !== card) {
           gridCard.setAlpha(0.3);
@@ -4045,8 +4807,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Restore all grid card alphas, guarded loot, and chest loot
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard) {
           gridCard.setAlpha(1);
@@ -4137,8 +4899,8 @@ export class GameScene extends Phaser.Scene {
       this.player.shuffleFateCardBack(fateModifier);
 
       // Restore alphas
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < this.grid.rows; r++) {
+        for (let c = 0; c < this.grid.cols; c++) {
           const gridCard = this.grid.getCardAt(c, r);
           if (gridCard) {
             gridCard.setAlpha(1);
@@ -4178,8 +4940,8 @@ export class GameScene extends Phaser.Scene {
     this.exchangerCard = card;
 
     // Dim other grid cards
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard && gridCard !== card) {
           gridCard.setAlpha(0.3);
@@ -4287,8 +5049,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Restore all grid card alphas, guarded loot, and chest loot
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const gridCard = this.grid.getCardAt(c, r);
         if (gridCard) {
           gridCard.setAlpha(1);
@@ -4407,8 +5169,8 @@ export class GameScene extends Phaser.Scene {
 
       card.resolve(() => {
         // Restore alphas
-        for (let r = 0; r < ROWS; r++) {
-          for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < this.grid.rows; r++) {
+          for (let c = 0; c < this.grid.cols; c++) {
             const gridCard = this.grid.getCardAt(c, r);
             if (gridCard) {
               gridCard.setAlpha(1);
@@ -4476,8 +5238,8 @@ export class GameScene extends Phaser.Scene {
 
     card.resolve(() => {
       // Restore alphas
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r < this.grid.rows; r++) {
+        for (let c = 0; c < this.grid.cols; c++) {
           const gridCard = this.grid.getCardAt(c, r);
           if (gridCard) {
             gridCard.setAlpha(1);
@@ -4509,8 +5271,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private hasTrapOnGrid(): boolean {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (card && card.cardData.type === CardType.Trap) {
           return true;
@@ -4560,8 +5322,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private findDoorOnGrid(): Card | null {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < this.grid.rows; r++) {
+      for (let c = 0; c < this.grid.cols; c++) {
         const card = this.grid.getCardAt(c, r);
         if (card && card.cardData.type === CardType.Door) {
           return card;
@@ -4572,6 +5334,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openDoor(doorCard: Card): void {
+    this.hideTutorialCursor();
+    if (this.tutorialText) { this.tutorialText.destroy(); this.tutorialText = null; }
     this.isResolving = true;
     doorCard.markDoorOpened();
 
@@ -4591,14 +5355,21 @@ export class GameScene extends Phaser.Scene {
         }
 
         this.currentLevelIndex++;
-        this.vignetteFX.setLevel(this.currentLevelIndex);
+        this.vignetteFX.setLevel(Math.max(0, this.gameplayLevelIndex));
         this.tintBackground();
         const nextLevel = this.dungeonLevels[this.currentLevelIndex];
+
+        // Rebuild grid if dimensions changed
+        const newCols = nextLevel.gridSize?.cols ?? 4;
+        const newRows = nextLevel.gridSize?.rows ?? 3;
+        if (newCols !== this.grid.cols || newRows !== this.grid.rows) {
+          this.rebuildGrid(newCols, newRows);
+        }
 
         // Animate card-back sprites from door to deck, then remove door
         this.animateCardsToDeck(doorCard.x, doorCard.y, () => {
           // Build next level's cards and merge into current deck
-          const tempDeck = Deck.fromDungeonLevel(nextLevel, this.currentLevelIndex);
+          const tempDeck = Deck.fromDungeonLevel(nextLevel, this.currentLevelIndex, this.gameplayLevelIndex);
           const newCards = tempDeck.draw(tempDeck.remaining);
           this.deck.mergeCards(newCards);
           this.deck.replaceLoot(tempDeck.drainLoot());
