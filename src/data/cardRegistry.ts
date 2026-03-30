@@ -4,6 +4,7 @@ export const cardRegistry: Record<string, CardData> = {
   // --- Monsters ---
   skeleton_warrior: { id: "skeleton_warrior", goldValue: 6, type: CardType.Monster, name: "Skeleton Warrior", value: 3, description: "A shambling skeleton", image: "Skeleton War" },
   skeleton: { id: "skeleton", goldValue: 2, type: CardType.Monster, name: "Skeleton", value: 1, description: "They are in abundance here...", image: "Skeleton War" },
+  tutorial_zombie: { id: "tutorial_zombie", goldValue: 4, type: CardType.Monster, name: "Zombie", value: 3, description: "Dumb but sturdy", image: "Zombie" },
   zombie: { id: "zombie", goldValue: 4, type: CardType.Monster, name: "Zombie", value: 2, description: "Dumb but sturdy", image: "Zombie" },
   bloated_zombie: { id: "bloated_zombie", goldValue: 6, type: CardType.Monster, name: "Bloated Zombie", value: 2, description: "+1 damage when hits back", image: "Zombie", abilities: [{ abilityId: "bonus_counter_damage", params: { amount: 1 } }] },
   dark_knight: { id: "dark_knight", goldValue: 8, type: CardType.Monster, name: "Dark Knight", value: 4, description: "Elite warrior of the dungeon", image: "dark_knight" },
@@ -106,11 +107,13 @@ export const cardRegistry: Record<string, CardData> = {
   hardened_chest: { id: "hardened_chest", goldValue: 1.67, type: CardType.Chest, name: "Hardened Chest", value: 0, description: "[t]On [agi] Check Fail[/t]: Trap Triggered! 3 Damage", lockDifficulty: 3, trapDamage: 1, image: "hardened_chest" },
 
   // --- Keys ---
+  tomb_key: { id: "tomb_key", goldValue: 0, type: CardType.Treasure, name: "Tomb Key", value: 0, description: "Opens the tomb entrance", slot: "weapon", isKey: true, deckLevel: 0, image: "rusty_key" },
   rusty_key: { id: "rusty_key", goldValue: 0, type: CardType.Treasure, name: "Rusty Key", value: 0, description: "Opens The Dungeon Door", slot: "weapon", isKey: true, deckLevel: 1, image: "rusty_key" },
   temple_key: { id: "temple_key", goldValue: 0, type: CardType.Treasure, name: "Temple Key", value: 0, description: "Opens the temple gate", slot: "weapon", isKey: true, deckLevel: 2, image: "rusty_key" },
   master_key: { id: "master_key", goldValue: 0, type: CardType.Treasure, name: "Master Key", value: 0, description: "Opens the final door", slot: "weapon", isKey: true, deckLevel: 3, image: "rusty_key" },
 
   // --- Doors ---
+  tomb_entrance: { id: "tomb_entrance", goldValue: 0, type: CardType.Door, name: "Tomb Entrance", value: 0, description: "The way into the tomb", deckLevel: 0, image: "door" },
   hall_door: { id: "hall_door", goldValue: 0, type: CardType.Door, name: "Hall Door", value: 0, description: "Open with the key", deckLevel: 1, image: "door" },
   temple_gate: { id: "temple_gate", goldValue: 0, type: CardType.Door, name: "Temple Gate", value: 0, description: "An ornate stone gate", deckLevel: 2, image: "door" },
   final_door: { id: "final_door", goldValue: 0, type: CardType.Door, name: "Final Door", value: 0, description: "The last barrier", deckLevel: 3, image: "door" },
