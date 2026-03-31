@@ -747,8 +747,7 @@ export class GameScene extends Phaser.Scene {
   private showTutorialNarrative(
     messages: (
       | string
-      | { text: string; autoDelay: number }
-      | { text: string; persistent?: boolean; onShow?: () => void; onHide?: () => void }
+      | { text: string; autoDelay?: number; persistent?: boolean; onShow?: () => void; onHide?: () => void }
       | { before: string; highlight: string; shake?: boolean; persistent?: boolean; onShow?: () => void; onHide?: () => void }
     )[],
     onComplete?: () => void
@@ -785,12 +784,15 @@ export class GameScene extends Phaser.Scene {
         if ("persistent" in msg) persistent = !!msg.persistent;
       } else {
         textContainer = this.createTutorialText(GAME_W / 2, 688, msg.text, style, 10001);
-        if ("autoDelay" in msg) autoDelay = msg.autoDelay;
+        if ("autoDelay" in msg && msg.autoDelay) autoDelay = msg.autoDelay;
         if ("persistent" in msg) persistent = !!msg.persistent;
         if ("onShow" in msg) { onShow = msg.onShow; onHide = msg.onHide; }
       }
 
+      let faded = false;
       const fadeOut = () => {
+        if (faded) return;
+        faded = true;
         onHide?.();
         this.tweens.add({
           targets: textContainer, alpha: 0, duration: 400,
@@ -811,7 +813,16 @@ export class GameScene extends Phaser.Scene {
             return;
           }
           if (autoDelay > 0) {
-            this.time.delayedCall(autoDelay, fadeOut);
+            const timer = this.time.delayedCall(autoDelay, fadeOut);
+            // Also allow click to dismiss auto-delay messages
+            this.time.delayedCall(500, () => {
+              const advance = () => {
+                this.input.off("pointerdown", advance);
+                if (timer) timer.remove();
+                fadeOut();
+              };
+              this.input.on("pointerdown", advance);
+            });
           } else {
             this.time.delayedCall(500, () => {
               const advance = () => {
@@ -907,31 +918,50 @@ export class GameScene extends Phaser.Scene {
 
     // Tutorial level 0: after first explore, show combat narrative
     if (this.currentLevelIndex === 0 && this.deck.isEmpty) {
-      this.time.delayedCall(600, () => {
-        // Find the zombie card on the grid for highlight
-        const zombieCard = this.grid.getOccupiedCards().find(
-          c => c.cardData.type === CardType.Monster
-        );
+      const zombieCard = this.grid.getOccupiedCards().find(
+        c => c.cardData.type === CardType.Monster
+      );
 
-        this.isResolving = true;
-        this.showTutorialNarrative([
-          { text: "The Formidable Zombie is Guarding the Entrance.", autoDelay: 2000 },
-          {
-            text: "The Hero's power is less than the Zombie's.\nBut our Hero is tougher.",
-            onShow: () => this.showTutorialHighlight(zombieCard ?? null),
-            onHide: () => this.hideTutorialHighlight(),
+      this.isResolving = true;
+
+      // Show first text immediately, below the grid
+      const style: Phaser.Types.GameObjects.Text.TextStyle = {
+        fontSize: "32px", fontFamily: "monospace", color: "#ccbbaa",
+        align: "center", wordWrap: { width: 1200 },
+      };
+      const gridBottomY = this.grid.worldPos(0, this.grid.rows - 1).y + CARD_H / 2;
+      const firstText = this.createTutorialText(
+        GAME_W / 2, gridBottomY + 60,
+        "The Formidable Zombie is Guarding the Entrance.", style, 10001
+      );
+      this.tweens.add({ targets: firstText, alpha: 1, duration: 800, ease: "Sine.easeIn" });
+
+      // After 2s, fade first text and show the rest at the normal position
+      this.time.delayedCall(2800, () => {
+        this.tweens.add({
+          targets: firstText, alpha: 0, duration: 400,
+          onComplete: () => {
+            firstText.destroy();
+            this.showTutorialNarrative([
+              {
+                text: "The Hero's power is less than the Zombie's.\nBut our Hero is tougher.",
+                autoDelay: 5000,
+                onShow: () => this.showTutorialHighlight(zombieCard ?? null),
+                onHide: () => this.hideTutorialHighlight(),
+              },
+              {
+                before: "Defeat the zombie. Take the key.\nEnter ",
+                highlight: "The Tomb of Fate",
+                shake: true,
+                persistent: true,
+                onShow: () => {
+                  this.isResolving = false;
+                  if (zombieCard) this.showTutorialPointerTo(zombieCard.x, zombieCard.y);
+                },
+              },
+            ]);
           },
-          {
-            before: "Defeat the zombie. Take the key.\nEnter ",
-            highlight: "The Tomb of Fate",
-            shake: true,
-            persistent: true,
-            onShow: () => {
-              this.isResolving = false;
-              if (zombieCard) this.showTutorialPointerTo(zombieCard.x, zombieCard.y);
-            },
-          },
-        ]);
+        });
       });
     }
   }
@@ -1007,7 +1037,7 @@ export class GameScene extends Phaser.Scene {
     // Text 1: "Fate has always something to say..."
     const text1 = this.createTutorialText(
       GAME_W / 2, 688,
-      "Fate always has something to say.\nLet's see what it has here",
+      "Fate always has something to say.\nLet's see what it has for you this time",
       style, 10001
     );
     this.tweens.add({
@@ -4161,7 +4191,7 @@ export class GameScene extends Phaser.Scene {
     // Tutorial: show narrative before counterattack
     if (this.currentLevel.isTutorial && this.currentLevelIndex === 0) {
       this.showTutorialNarrative([
-        "But that was still not enough.\nNow the Zombie strikes back!",
+        { text: "But that was still not enough.\nNow the Zombie strikes back!", autoDelay: 5000 },
       ], () => {
         this.doMonsterCounterattack(monsterCard, fateModifier);
       });
