@@ -22,6 +22,7 @@ function weightedSample(entries: DeckEntry[], size: number): CardData[] {
 export class Deck {
   private cards: CardData[] = [];
   private lootPool: CardData[] = [];
+  private isOrdered = false;
   onShuffle: (() => void) | null = null;
 
   constructor(config: DeckEntry[]) {
@@ -33,6 +34,21 @@ export class Deck {
 
   static fromDungeonLevel(level: DungeonLevel, levelIndex: number, gameplayLevelIndex = levelIndex): Deck {
     const deck = new Deck([]);
+
+    if (level.orderedCards) {
+      // Fixed card order — no weighted sampling, no shuffle
+      deck.cards = level.orderedCards.map(id => {
+        const card = getCard(id);
+        if (id === level.boss) card.isBoss = true;
+        return card;
+      });
+      if (level.orderedLoot) {
+        deck.lootPool = level.orderedLoot.map(id => getCard(id));
+      }
+      deck.isOrdered = true;
+      return deck;
+    }
+
     deck.cards = weightedSample(level.cards, DUNGEON_DECK_SIZE);
 
     // Count loot consumers (non-boss monsters + chests)
@@ -126,6 +142,7 @@ export class Deck {
   }
 
   private shuffle(): void {
+    if (this.isOrdered) return;
     // Fisher-Yates
     for (let i = this.cards.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));

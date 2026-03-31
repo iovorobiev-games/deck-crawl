@@ -964,6 +964,34 @@ export class GameScene extends Phaser.Scene {
         });
       });
     }
+
+    // Tutorial level 1: after first explore, show agility/lock narrative
+    if (this.currentLevelIndex === 1 && this.deck.remaining === 3) {
+      this.time.delayedCall(600, () => {
+        this.isResolving = true;
+
+        // Find chest and trap cards for lock icon cutouts
+        const chestCard = this.grid.getOccupiedCards().find(
+          c => c.cardData.type === CardType.Chest
+        );
+        const trapCard = this.grid.getOccupiedCards().find(
+          c => c.cardData.type === CardType.Trap
+        );
+
+        this.showTutorialNarrative([
+          {
+            text: "Hero uses agility to break locks\nand disarm traps",
+            autoDelay: 5000,
+            onShow: () => this.showTutorialHighlightAgility(chestCard ?? null, trapCard ?? null),
+            onHide: () => this.hideTutorialHighlight(),
+          },
+          {
+            text: "Or the Hero can take the lockpick\nfrom the scrawny skeleton",
+            onShow: () => { this.isResolving = false; },
+          },
+        ]);
+      });
+    }
   }
 
   /** Dark overlay with rectangular cutouts to spotlight specific areas. */
@@ -991,6 +1019,38 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Erase cutout rectangles from the overlay
+    for (const c of cutouts) {
+      const rect = this.add.rectangle(0, 0, c.w, c.h, 0xffffff).setOrigin(0).setVisible(false);
+      rt.erase(rect, c.x, c.y);
+      rect.destroy();
+    }
+
+    this.tutorialHighlight = rt;
+  }
+
+  /** Dark overlay with cutouts for lock icons on chest/trap and player agility. */
+  private showTutorialHighlightAgility(chestCard: Card | null, trapCard: Card | null): void {
+    const rt = this.add.renderTexture(0, 0, GAME_W, GAME_H)
+      .setOrigin(0).setDepth(9999);
+    rt.fill(0x000000, 0.6);
+
+    const cutouts: { x: number; y: number; w: number; h: number }[] = [];
+
+    // Player agility stat: PlayerView at (867.5, 910), agilityGroup at (112, -113)
+    const agiX = 867.5 + 112;
+    const agiY = 910 - 113;
+    const agiW = 117 + 16;
+    const agiH = 89 + 16;
+    cutouts.push({ x: agiX - agiW / 2, y: agiY - agiH / 2, w: agiW, h: agiH });
+
+    // Lock icons on chest and trap cards: bottom-right of card at (CARD_W/2 - 9, CARD_H/2 - 16)
+    for (const card of [chestCard, trapCard]) {
+      if (!card) continue;
+      const lockX = card.x + (CARD_W / 2 - 9);
+      const lockY = card.y + (CARD_H / 2 - 16);
+      cutouts.push({ x: lockX - 28, y: lockY - 28, w: 56, h: 56 });
+    }
+
     for (const c of cutouts) {
       const rect = this.add.rectangle(0, 0, c.w, c.h, 0xffffff).setOrigin(0).setVisible(false);
       rt.erase(rect, c.x, c.y);
@@ -5398,11 +5458,17 @@ export class GameScene extends Phaser.Scene {
 
         // Animate card-back sprites from door to deck, then remove door
         this.animateCardsToDeck(doorCard.x, doorCard.y, () => {
-          // Build next level's cards and merge into current deck
+          // Build next level's deck
           const tempDeck = Deck.fromDungeonLevel(nextLevel, this.currentLevelIndex, this.gameplayLevelIndex);
-          const newCards = tempDeck.draw(tempDeck.remaining);
-          this.deck.mergeCards(newCards);
-          this.deck.replaceLoot(tempDeck.drainLoot());
+          if (nextLevel.orderedCards) {
+            // Ordered levels replace the deck to preserve card sequence
+            tempDeck.onShuffle = this.deck.onShuffle;
+            this.deck = tempDeck;
+          } else {
+            const newCards = tempDeck.draw(tempDeck.remaining);
+            this.deck.mergeCards(newCards);
+            this.deck.replaceLoot(tempDeck.drainLoot());
+          }
 
           this.currentLevelKey = getCard(nextLevel.key);
 
