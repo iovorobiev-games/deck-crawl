@@ -26,6 +26,10 @@ export const cardRegistry: Record<string, CardData> = {
   lesser_health_potion: { id: "lesser_health_potion", goldValue: 4, type: CardType.Potion, name: "Lesser Health Potion", value: 2, description: "[t]On Self:[/t] Heals 2[hp]", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "healing", params: { amount: 2 } }] },
   minor_health_potion: { id: "minor_health_potion", goldValue: 6, type: CardType.Potion, name: "Minor Health Potion", value: 3, description: "[t]On Self:[/t] Heals 3[hp]", slot: "backpack", image: "healing_potion", abilities: [{ abilityId: "healing", params: { amount: 3 } }] },
 
+  // --- Tutorial cards ---
+  tutorial_trap: { id: "tutorial_trap", goldValue: 0, type: CardType.Trap, name: "Tripwire", value: 0, description: "Blocks Explore.\n[t]On [agi] Check Fail:[/t] Damage: 1", lockDifficulty: 1, trapDamage: 1, image: "bear_trap" },
+  tutorial_chest: { id: "tutorial_chest", goldValue: 0, type: CardType.Chest, name: "Old Chest", value: 0, description: "[t]On [agi] Check Fail[/t]: Trap Triggered! 1 Damage", lockDifficulty: 1, trapDamage: 1, image: "wooden_chest" },
+
   // --- Traps ---
   spike_trap: { id: "spike_trap", goldValue: 2.67, type: CardType.Trap, name: "Spike Trap", value: 2, description: "Blocks Explore. \n[t]On [agi] Check Fail:[/t] Deals 2 damage", lockDifficulty: 2, trapDamage: 2, image: "bear_trap" },
   spike_trap_heavy: { id: "spike_trap_heavy", goldValue: 6.67, type: CardType.Trap, name: "Spike Trap", value: 4, description: "Blocks Explore. \n[t]On [agi] Check Fail:[/t] Deals 4 damage", lockDifficulty: 3, trapDamage: 4, image: "pressure_plate" },

@@ -26,6 +26,10 @@ export interface DungeonLevel {
   isTutorial?: boolean;
   /** Custom grid dimensions for this level (defaults to 4×3). */
   gridSize?: { cols: number; rows: number };
+  /** Fixed card order (bypasses weighted sampling and shuffling). */
+  orderedCards?: string[];
+  /** Fixed loot pool in exact draw order (bypasses random generation). */
+  orderedLoot?: string[];
 }
 
 export interface DungeonConfig {
@@ -52,11 +56,20 @@ export const dungeonConfig: DungeonConfig = {
       flavorText: "",
       cards: [],
       loot: { pool: [], bufferSize: 0 },
-      boss: "tutorial_zombie",
+      boss: "skeleton",
       key: "tomb_key",
       door: "tomb_entrance",
       isTutorial: true,
       gridSize: { cols: 4, rows: 1 },
+      orderedCards: [
+        "tutorial_trap",
+        "tutorial_chest",
+        "skeleton_archer",
+        "tomb_entrance",
+        "skeleton",
+        "lesser_health_potion",
+      ],
+      orderedLoot: ["lockpick", "minor_health_potion"],
     },
     {
       name: "Greeting Hall",
