@@ -786,7 +786,8 @@ export class GameScene extends Phaser.Scene {
         textContainer = this.createTutorialText(GAME_W / 2, 688, msg.text, style, 10001);
         if ("autoDelay" in msg && msg.autoDelay) autoDelay = msg.autoDelay;
         if ("persistent" in msg) persistent = !!msg.persistent;
-        if ("onShow" in msg) { onShow = msg.onShow; onHide = msg.onHide; }
+        if ("onShow" in msg) onShow = msg.onShow;
+        if ("onHide" in msg) onHide = msg.onHide;
       }
 
       let faded = false;
@@ -978,16 +979,18 @@ export class GameScene extends Phaser.Scene {
           c => c.cardData.type === CardType.Trap
         );
 
+        // Show overlay with cutouts for lock/agility icons
+        this.showTutorialHighlightAgility(chestCard ?? null, trapCard ?? null);
+
         this.showTutorialNarrative([
           {
             text: "Hero uses agility to break locks\nand disarm traps",
             autoDelay: 5000,
-            onShow: () => this.showTutorialHighlightAgility(chestCard ?? null, trapCard ?? null),
             onHide: () => this.hideTutorialHighlight(),
           },
           {
             text: "Or the Hero can take the lockpick\nfrom the scrawny skeleton",
-            onShow: () => { this.isResolving = false; },
+            onHide: () => { this.isResolving = false; },
           },
         ]);
       });
@@ -996,66 +999,46 @@ export class GameScene extends Phaser.Scene {
 
   /** Dark overlay with rectangular cutouts to spotlight specific areas. */
   private showTutorialHighlight(zombieCard: Card | null): void {
-    const rt = this.add.renderTexture(0, 0, GAME_W, GAME_H)
-      .setOrigin(0).setDepth(9999);
-    rt.fill(0x000000, 0.6);
-
-    // Cutout areas
-    const cutouts: { x: number; y: number; w: number; h: number }[] = [];
-
-    // Player power stat: PlayerView at (867.5, 910), powerGroup at (-95, -105)
-    // icon_power sprite is 117x89
-    const playerPowerX = 867.5 - 95;
-    const playerPowerY = 910 - 105;
-    const pw = 117 + 16;
-    const ph = 89 + 16;
-    cutouts.push({ x: playerPowerX - pw / 2, y: playerPowerY - ph / 2, w: pw, h: ph });
-
-    // Zombie card power icon: bottom-left of card
-    if (zombieCard) {
-      const cardPowerX = zombieCard.x + (-CARD_W / 2 + 15);
-      const cardPowerY = zombieCard.y + (CARD_H / 2 - 12);
-      cutouts.push({ x: cardPowerX - 28, y: cardPowerY - 28, w: 56, h: 56 });
-    }
-
-    // Erase cutout rectangles from the overlay
-    for (const c of cutouts) {
-      const rect = this.add.rectangle(0, 0, c.w, c.h, 0xffffff).setOrigin(0).setVisible(false);
-      rt.erase(rect, c.x, c.y);
-      rect.destroy();
-    }
-
-    this.tutorialHighlight = rt;
+    this.showTutorialOverlay([
+      // Player power stat: PlayerView at (867.5, 910), powerGroup at (-95, -105)
+      { x: 867.5 - 95 - (117 + 16) / 2, y: 910 - 105 - (89 + 16) / 2, w: 117 + 16, h: 89 + 16 },
+      // Zombie card power icon: bottom-left of card
+      ...(zombieCard ? [{
+        x: zombieCard.x + (-CARD_W / 2 + 15) - 28,
+        y: zombieCard.y + (CARD_H / 2 - 12) - 28, w: 56, h: 56,
+      }] : []),
+    ]);
   }
 
   /** Dark overlay with cutouts for lock icons on chest/trap and player agility. */
   private showTutorialHighlightAgility(chestCard: Card | null, trapCard: Card | null): void {
+    const lockCards = [chestCard, trapCard].filter(Boolean) as Card[];
+    this.showTutorialOverlay([
+      // Player agility stat: PlayerView at (867.5, 910), agilityGroup at (112, -113)
+      { x: 867.5 + 112 - (117 + 16) / 2, y: 910 - 113 - (89 + 16) / 2, w: 117 + 16, h: 89 + 16 },
+      // Lock icons on chest and trap cards: bottom-right at (CARD_W/2 - 9, CARD_H/2 - 16)
+      ...lockCards.map(card => ({
+        x: card.x + (CARD_W / 2 - 9) - 28,
+        y: card.y + (CARD_H / 2 - 16) - 28, w: 56, h: 56,
+      })),
+    ]);
+  }
+
+  /** Create a dark overlay with rectangular cutouts. Blocks all game input. */
+  private showTutorialOverlay(cutouts: { x: number; y: number; w: number; h: number }[]): void {
+    this.hideTutorialHighlight();
     const rt = this.add.renderTexture(0, 0, GAME_W, GAME_H)
       .setOrigin(0).setDepth(9999);
     rt.fill(0x000000, 0.6);
-
-    const cutouts: { x: number; y: number; w: number; h: number }[] = [];
-
-    // Player agility stat: PlayerView at (867.5, 910), agilityGroup at (112, -113)
-    const agiX = 867.5 + 112;
-    const agiY = 910 - 113;
-    const agiW = 117 + 16;
-    const agiH = 89 + 16;
-    cutouts.push({ x: agiX - agiW / 2, y: agiY - agiH / 2, w: agiW, h: agiH });
-
-    // Lock icons on chest and trap cards: bottom-right of card at (CARD_W/2 - 9, CARD_H/2 - 16)
-    for (const card of [chestCard, trapCard]) {
-      if (!card) continue;
-      const lockX = card.x + (CARD_W / 2 - 9);
-      const lockY = card.y + (CARD_H / 2 - 16);
-      cutouts.push({ x: lockX - 28, y: lockY - 28, w: 56, h: 56 });
-    }
 
     for (const c of cutouts) {
       const rect = this.add.rectangle(0, 0, c.w, c.h, 0xffffff).setOrigin(0).setVisible(false);
       rt.erase(rect, c.x, c.y);
       rect.destroy();
     }
+
+    // Make overlay interactive to block clicks from reaching game objects below
+    rt.setInteractive(new Phaser.Geom.Rectangle(0, 0, GAME_W, GAME_H), Phaser.Geom.Rectangle.Contains);
 
     this.tutorialHighlight = rt;
   }
@@ -1075,6 +1058,7 @@ export class GameScene extends Phaser.Scene {
     const rt = this.add.renderTexture(0, 0, GAME_W, GAME_H)
       .setOrigin(0).setDepth(9999);
     rt.fill(0x000000, 0.6);
+    rt.setInteractive(new Phaser.Geom.Rectangle(0, 0, GAME_W, GAME_H), Phaser.Geom.Rectangle.Contains);
 
     // One big cutout covering player portrait + stats + fate deck
     // Portrait at (867.5, 910), fate deck at (1073.5, 914)
@@ -1134,7 +1118,10 @@ export class GameScene extends Phaser.Scene {
         this.tweens.add({
           targets: text2, alpha: 1, duration: 800, ease: "Sine.easeIn",
           onComplete: () => {
+            let dismissed = false;
             const dismiss = () => {
+              if (dismissed) return;
+              dismissed = true;
               this.input.off("pointerdown", dismiss);
               // Fade overlay and text
               this.tweens.add({
@@ -1147,8 +1134,14 @@ export class GameScene extends Phaser.Scene {
                 },
               });
             };
+            const timer = this.time.delayedCall(7000, dismiss);
             this.time.delayedCall(500, () => {
-              this.input.on("pointerdown", dismiss);
+              const clickDismiss = () => {
+                this.input.off("pointerdown", clickDismiss);
+                if (timer) timer.remove();
+                dismiss();
+              };
+              this.input.on("pointerdown", clickDismiss);
             });
           },
         });
