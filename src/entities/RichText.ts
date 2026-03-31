@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { FONT_CARD } from "../fonts";
 
 // Styling constants
 const CARD_NAME_COLOR = "#f0c060";
@@ -35,7 +36,7 @@ function fontString(fontSize: number, style: TextStyle): string {
   if (style === "card") parts.push("bold");
   if (style === "trigger") parts.push("italic");
   parts.push(`${fontSize}px`);
-  parts.push("monospace");
+  parts.push(FONT_CARD);
   return parts.join(" ");
 }
 
@@ -214,7 +215,7 @@ export function createRichDescription(
       } else {
         const t = scene.add.text(x, y, item.text!, {
           fontSize: `${fontSize}px`,
-          fontFamily: "monospace",
+          fontFamily: FONT_CARD,
           color: colorFor(item.style, baseColor),
           fontStyle: phaserFontStyle(item.style),
         }).setOrigin(0, 0.5);

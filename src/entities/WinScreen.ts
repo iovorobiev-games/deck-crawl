@@ -3,6 +3,7 @@ import { Player } from "../systems/Player";
 import { Inventory, SLOT_DEFS } from "../systems/Inventory";
 import { CardData } from "./CardData";
 import { SpriteButton } from "./SpriteButton";
+import { FONT_UI } from "../fonts";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -27,7 +28,7 @@ export class WinScreen extends Phaser.GameObjects.Container {
     const title = scene.add
       .text(GAME_W / 2, 240, "VICTORY!", {
         fontSize: "96px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ddaa22",
         fontStyle: "bold",
       })
@@ -38,7 +39,7 @@ export class WinScreen extends Phaser.GameObjects.Container {
     const subtitle = scene.add
       .text(GAME_W / 2, 320, "You escaped the dungeon!", {
         fontSize: "32px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ccbb88",
       })
       .setOrigin(0.5);
@@ -48,7 +49,7 @@ export class WinScreen extends Phaser.GameObjects.Container {
     const goldText = scene.add
       .text(GAME_W / 2, 400, `Gold: ${player.gold}`, {
         fontSize: "40px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ffdd44",
         fontStyle: "bold",
       })
@@ -63,7 +64,7 @@ export class WinScreen extends Phaser.GameObjects.Container {
         const lootLine = scene.add
           .text(GAME_W / 2, lootY, `${def.label}: ${item.name} (+${item.value})`, {
             fontSize: "28px",
-            fontFamily: "monospace",
+            fontFamily: FONT_UI,
             color: "#cccccc",
           })
           .setOrigin(0.5);
