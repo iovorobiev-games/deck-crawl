@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { CardData, CardType, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
 import { getAbility } from "../data/abilityRegistry";
 import { createRichDescription } from "./RichText";
+import { FONT_CARD, FONT_UI } from "../fonts";
 
 export const CARD_W = 171;
 export const CARD_H = 202;
@@ -67,7 +68,7 @@ export class Card extends Phaser.GameObjects.Container {
     // 4. Title text on the top stripe
     this.nameText = this.scene.add.text(0, TITLE_Y, this.cardData.name, {
       fontSize: "14px",
-      fontFamily: "monospace",
+      fontFamily: FONT_CARD,
       color: CardTitleColorMap[type],
       fontStyle: "bold",
       align: "center",
@@ -86,7 +87,7 @@ export class Card extends Phaser.GameObjects.Container {
       const label = this.cardData.tag.charAt(0).toUpperCase() + this.cardData.tag.slice(1);
       const tagText = this.scene.add.text(0, tagY, label, {
         fontSize: "11px",
-        fontFamily: "monospace",
+        fontFamily: FONT_CARD,
         color: "#fff",
         fontStyle: "bold",
       }).setOrigin(0.5);
@@ -114,7 +115,7 @@ export class Card extends Phaser.GameObjects.Container {
       // Center of that rect relative to icon center: (+3.5, -3.5)
       this.powerValueText = this.scene.add.text(iconX + 3.5, iconY - 3.5, `${displayValue}`, {
         fontSize: "20px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
       }).setOrigin(0.5);
@@ -130,7 +131,7 @@ export class Card extends Phaser.GameObjects.Container {
       this.add(this.shieldIcon);
       this.shieldValueText = this.scene.add.text(iconX, iconY - 4, `${armourAbility.params.amount}`, {
         fontSize: "20px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
       }).setOrigin(0.5);
@@ -145,7 +146,7 @@ export class Card extends Phaser.GameObjects.Container {
       this.add(this.lockIcon);
       this.lockValueText = this.scene.add.text(iconX, iconY + 4, `${d.lockDifficulty}`, {
         fontSize: "20px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
       }).setOrigin(0.5);
@@ -276,7 +277,7 @@ export class Card extends Phaser.GameObjects.Container {
       if (!this.buffText) {
         this.buffText = this.scene.add.text(CARD_W / 2 - 8, DESCR_Y - 14, "", {
           fontSize: "11px",
-          fontFamily: "monospace",
+          fontFamily: FONT_UI,
           color: "#ff6644",
           fontStyle: "bold",
         }).setOrigin(1, 0.5);

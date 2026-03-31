@@ -3,6 +3,7 @@ import { Inventory, SLOT_DEFS, SlotDef } from "../systems/Inventory";
 import { CardData, CardType, CardColorMap, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
 import { CARD_W as FULL_CARD_W, CARD_H as FULL_CARD_H } from "./Card";
 import { createRichDescription } from "./RichText";
+import { FONT_CARD, FONT_UI } from "../fonts";
 
 const SLOT_W = 157;
 const SLOT_H = 186;
@@ -89,7 +90,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
     if (label) {
       const labelText = this.scene.add.text(0, -109, label, {
         fontSize: "20px",
-        fontFamily: "monospace",
+        fontFamily: FONT_CARD,
         color: "#35160e",
         fontStyle: "bold",
         align: "center",
@@ -196,7 +197,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
     // Title text
     const nameText = this.scene.add.text(0, TITLE_Y, item.name, {
       fontSize: "14px",
-      fontFamily: "monospace",
+      fontFamily: FONT_CARD,
       color: CardTitleColorMap[item.type],
       fontStyle: "bold",
       align: "center",
@@ -222,7 +223,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
       mc.add(this.scene.add.image(iconX, iconY, "icon_card_power"));
       mc.add(this.scene.add.text(iconX + 3.5, iconY - 3.5, `${displayPower}`, {
         fontSize: "20px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
       }).setOrigin(0.5));
@@ -236,7 +237,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
       mc.add(this.scene.add.image(iconX, iconY, "icon_shield"));
       mc.add(this.scene.add.text(iconX, iconY - 4, `${armourAbility.params.amount}`, {
         fontSize: "20px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
       }).setOrigin(0.5));

@@ -19,10 +19,19 @@ import { getVfx, VfxTarget } from "../effects/vfxRegistry";
 import { SoundManager, SOUND_KEYS, SOUND_GROUPS } from "../systems/SoundManager";
 import { stripMarkup } from "../entities/RichText";
 import { SpriteButton } from "../entities/SpriteButton";
+import { FONT_TUTORIAL, FONT_UI } from "../fonts";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
 const TREASURE_OFFSET_Y = 32;
+
+const TUTORIAL_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  fontSize: "32px",
+  fontFamily: FONT_TUTORIAL,
+  color: "#ccbbaa",
+  align: "center",
+  wordWrap: { width: 1200 },
+};
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -147,14 +156,14 @@ export class GameScene extends Phaser.Scene {
   private createHUD(): void {
     this.deckText = this.add.text(0, 320, "", {
       fontSize: "28px",
-      fontFamily: "monospace",
+      fontFamily: FONT_UI,
       color: "#aaaacc",
     }).setOrigin(0.5, 0);
     this.deckGroup.add(this.deckText);
 
     this.goldText = this.add.text(0, 460, "", {
       fontSize: "28px",
-      fontFamily: "monospace",
+      fontFamily: FONT_UI,
       color: "#ddaa22",
     }).setOrigin(0.5, 0).setVisible(false);
     this.deckGroup.add(this.goldText);
@@ -163,7 +172,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHUD(): void {
-    this.deckText.setText(`Deck: ${this.deck.remaining} cards`);
+    this.deckText.setText(`Dungeon Deck: ${this.deck.remaining} cards`);
     this.goldText.setText(`Gold: ${this.player.gold}`);
     this.playerView?.updateGold(this.player.gold);
   }
@@ -198,18 +207,18 @@ export class GameScene extends Phaser.Scene {
     this.deckVisual = [];
     if (this.deck.isEmpty) return;
 
-    // Stacked card backs — relative to deckGroup
+    // Stacked card backs — vertical only, top card drawn last (highest depth)
     const layers = Math.min(3, Math.ceil(this.deck.remaining / 5));
     for (let i = 0; i < layers; i++) {
-      const offset = i * 4;
-      const img = this.add.image(offset, 200 + offset, "card_back");
+      const offsetY = (layers - 1 - i) * 4;
+      const img = this.add.image(0, 200 + offsetY, "card_back");
       this.deckGroup.add(img);
       this.deckVisual.push(img);
     }
   }
 
   private createExploreButton(): void {
-    this.exploreBtn = new SpriteButton(this, 0, 398, 160, 56, "EXPLORE");
+    this.exploreBtn = new SpriteButton(this, 0, 398, 200, 56, "EXPLORE");
     this.deckGroup.add(this.exploreBtn);
     this.exploreBtn.on("pointerdown", () => this.onExplore());
   }
@@ -306,7 +315,7 @@ export class GameScene extends Phaser.Scene {
             const modText = this.add
               .text(0, 4, modLabel, {
                 fontSize: "72px",
-                fontFamily: "monospace",
+                fontFamily: FONT_UI,
                 color: "#f6d4b1",
                 fontStyle: "bold",
               })
@@ -453,11 +462,8 @@ export class GameScene extends Phaser.Scene {
     ).setDepth(10000);
 
     const textStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+      ...TUTORIAL_TEXT_STYLE,
       fontSize: "36px",
-      fontFamily: "monospace",
-      color: "#ccbbaa",
-      align: "center",
-      wordWrap: { width: 1200 },
     };
 
     // Step 1: "The Horrors lie in the Tomb of Fate" fades in (no banner)
@@ -752,13 +758,7 @@ export class GameScene extends Phaser.Scene {
     )[],
     onComplete?: () => void
   ): void {
-    const style: Phaser.Types.GameObjects.Text.TextStyle = {
-      fontSize: "32px",
-      fontFamily: "monospace",
-      color: "#ccbbaa",
-      align: "center",
-      wordWrap: { width: 1200 },
-    };
+    const style = TUTORIAL_TEXT_STYLE;
 
     let index = 0;
     const showNext = () => {
@@ -839,7 +839,7 @@ export class GameScene extends Phaser.Scene {
     showNext();
   }
 
-  /** Tutorial text with a highlighted/shaking portion overlaid on the base text. */
+  /** Tutorial text with a highlighted/shaking portion on the last line. */
   private createTutorialTextRich(
     x: number, y: number,
     msg: { before: string; highlight: string; shake?: boolean },
@@ -849,42 +849,61 @@ export class GameScene extends Phaser.Scene {
     const pad = 16;
     const container = this.add.container(x, y).setDepth(depth).setAlpha(0);
 
-    // Full message for measurement, base text shows only the non-highlighted part
     const fullMessage = msg.before + msg.highlight;
-    const spacer = " ".repeat(msg.highlight.length);
-    const baseText = this.add.text(0, 0, msg.before + spacer, style).setOrigin(0.5);
-
-    // Measure monospace char width
-    const charMeasure = this.add.text(0, 0, "M", style).setVisible(false);
-    const charW = charMeasure.width;
-    charMeasure.destroy();
-
-    // Find highlight position on the last line
     const lines = fullMessage.split("\n");
     const lastLine = lines[lines.length - 1];
-    const highlightStart = lastLine.indexOf(msg.highlight);
-    const highlightCenterChar = highlightStart + msg.highlight.length / 2;
-    const lineCenterChar = lastLine.length / 2;
-    const offsetX = (highlightCenterChar - lineCenterChar) * charW;
+    const prefix = lastLine.substring(0, lastLine.indexOf(msg.highlight));
 
-    // Y: last line relative to centered text
-    const lineH = baseText.height / lines.length;
-    const offsetY = ((lines.length - 1) / 2) * lineH;
+    // Measure line dimensions
+    const lineMeasures = lines.map(l => {
+      const m = this.add.text(0, 0, l, style).setVisible(false);
+      const w = m.width; const h = m.height;
+      m.destroy();
+      return { w, h };
+    });
+    const lineH = lineMeasures[0].h;
+    const totalH = lineH * lines.length;
+    const maxW = Math.max(...lineMeasures.map(m => m.w));
 
-    // Red overlay — one text per character so each shakes independently
+    const prefixMeasure = this.add.text(0, 0, prefix, style).setVisible(false);
+    const prefixW = prefixMeasure.width;
+    prefixMeasure.destroy();
+
+    const lastLineW = lineMeasures[lines.length - 1].w;
+    const lastLineY = ((lines.length - 1) - (lines.length - 1) / 2) * lineH;
+
+    // Render lines before the last as a single centered text block
+    const elements: Phaser.GameObjects.GameObject[] = [];
+    if (lines.length > 1) {
+      const upperLines = lines.slice(0, -1).join("\n");
+      const upperText = this.add.text(0, -lastLineY / 2, upperLines, style).setOrigin(0.5);
+      elements.push(upperText);
+    }
+
+    // Render the prefix of the last line (no overlap with highlight)
+    if (prefix.length > 0) {
+      const prefixText = this.add.text(-lastLineW / 2, lastLineY, prefix, style).setOrigin(0, 0.5);
+      elements.push(prefixText);
+    }
+
+    // Highlight characters — individually positioned for shake effect
     const highlightStyle = { ...style, color: "#ee4444", fontStyle: "bold" };
     const charTexts: Phaser.GameObjects.Text[] = [];
-    const startX = offsetX - (msg.highlight.length / 2) * charW + charW / 2;
+    let curX = prefixW;
     for (let i = 0; i < msg.highlight.length; i++) {
-      const ch = this.add.text(startX + i * charW, offsetY, msg.highlight[i], highlightStyle)
+      const cm = this.add.text(0, 0, msg.highlight[i], style).setVisible(false);
+      const cw = cm.width;
+      cm.destroy();
+      const ch = this.add.text(curX + cw / 2 - lastLineW / 2, lastLineY, msg.highlight[i], highlightStyle)
         .setOrigin(0.5);
       charTexts.push(ch);
+      curX += cw;
     }
 
     const bg = this.add.image(0, 0, "tutorial_text_bg");
-    bg.setDisplaySize(baseText.width + pad * 2, baseText.height + pad * 2);
+    bg.setDisplaySize(maxW + pad * 2, totalH + pad * 2);
 
-    container.add([bg, baseText, ...charTexts]);
+    container.add([bg, ...elements, ...charTexts]);
 
     if (msg.shake) {
       const amp = 1.5;
@@ -926,10 +945,7 @@ export class GameScene extends Phaser.Scene {
       this.isResolving = true;
 
       // Show first text immediately, below the grid
-      const style: Phaser.Types.GameObjects.Text.TextStyle = {
-        fontSize: "32px", fontFamily: "monospace", color: "#ccbbaa",
-        align: "center", wordWrap: { width: 1200 },
-      };
+      const style = TUTORIAL_TEXT_STYLE;
       const gridBottomY = this.grid.worldPos(0, this.grid.rows - 1).y + CARD_H / 2;
       const firstText = this.createTutorialText(
         GAME_W / 2, gridBottomY + 60,
@@ -1070,13 +1086,7 @@ export class GameScene extends Phaser.Scene {
     rt.erase(cutRect, cutX, cutY);
     cutRect.destroy();
 
-    const style: Phaser.Types.GameObjects.Text.TextStyle = {
-      fontSize: "32px",
-      fontFamily: "monospace",
-      color: "#ccbbaa",
-      align: "center",
-      wordWrap: { width: 1200 },
-    };
+    const style = TUTORIAL_TEXT_STYLE;
 
     // Text 1: "Fate has always something to say..."
     const text1 = this.createTutorialText(
@@ -1196,7 +1206,7 @@ export class GameScene extends Phaser.Scene {
   private createLevelIndicator(): void {
     this.levelIndicator = this.add.text(0, 20, "", {
       fontSize: "22px",
-      fontFamily: "monospace",
+      fontFamily: FONT_UI,
       color: "#ddaa22",
       fontStyle: "bold",
     }).setOrigin(0.5, 0);
@@ -1204,7 +1214,7 @@ export class GameScene extends Phaser.Scene {
 
     this.levelFlavorText = this.add.text(0, 48, "", {
       fontSize: "16px",
-      fontFamily: "monospace",
+      fontFamily: FONT_UI,
       color: "#8888aa",
       fontStyle: "italic",
     }).setOrigin(0.5, 0);
@@ -2278,7 +2288,7 @@ export class GameScene extends Phaser.Scene {
 
   private showEquipFirstFeedback(x: number, y: number): void {
     const txt = this.add.text(x, y - 40, "Equip first!", {
-      fontFamily: "serif",
+      fontFamily: FONT_UI,
       fontSize: "28px",
       color: "#ffcc00",
       stroke: "#000000",
@@ -3375,7 +3385,7 @@ export class GameScene extends Phaser.Scene {
     const modText = this.add
       .text(0, 0, modLabel, {
         fontSize: "40px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: modColor,
         fontStyle: "bold",
       })
@@ -4072,7 +4082,7 @@ export class GameScene extends Phaser.Scene {
     const btnText = this.add
       .text(0, 0, "FIGHT", {
         fontSize: "32px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ffffff",
         fontStyle: "bold",
       })
@@ -4347,7 +4357,7 @@ export class GameScene extends Phaser.Scene {
       // Floating absorbed damage text
       const floatText = this.add.text(slotPos.x, slotPos.y, `-${absorbed}`, {
         fontSize: "28px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ff4444",
         fontStyle: "bold",
       }).setOrigin(0.5).setDepth(9000);
@@ -4581,7 +4591,7 @@ export class GameScene extends Phaser.Scene {
     const btnText = this.add
       .text(0, 0, "CRACK", {
         fontSize: "32px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ffffff",
         fontStyle: "bold",
       })
@@ -4842,7 +4852,7 @@ export class GameScene extends Phaser.Scene {
     const btnText = this.add
       .text(0, 0, "DISARM", {
         fontSize: "32px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ffffff",
         fontStyle: "bold",
       })
@@ -5083,7 +5093,7 @@ export class GameScene extends Phaser.Scene {
     const btnText = this.add
       .text(0, 0, "OFFER", {
         fontSize: "32px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ffffff",
         fontStyle: "bold",
       })
@@ -5212,7 +5222,7 @@ export class GameScene extends Phaser.Scene {
       const modText = this.add
         .text(0, 0, modLabel, {
           fontSize: "40px",
-          fontFamily: "monospace",
+          fontFamily: FONT_UI,
           color: modColor,
           fontStyle: "bold",
         })

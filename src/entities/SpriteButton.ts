@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { FONT_UI } from "../fonts";
 
 const DEFAULT_TOP_OFFSET = 8;
 const DEFAULT_SLICE_INSET = 18;
@@ -35,7 +36,7 @@ export class SpriteButton extends Phaser.GameObjects.Container {
     const topOffset = config?.topOffset ?? DEFAULT_TOP_OFFSET;
     const inset = config?.sliceInset ?? DEFAULT_SLICE_INSET;
     const fontSize = config?.fontSize ?? "28px";
-    const fontFamily = config?.fontFamily ?? "monospace";
+    const fontFamily = config?.fontFamily ?? FONT_UI;
     const fontColor = config?.fontColor ?? "#6b4f42";
     const fontStyle = config?.fontStyle ?? "bold";
 

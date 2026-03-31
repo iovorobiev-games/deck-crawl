@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { Player } from "../systems/Player";
+import { FONT_UI } from "../fonts";
 
 const PLAYER_W = 168;
 const PLAYER_H = 198;
@@ -49,7 +50,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.powerText = this.scene.add
       .text(4, -4, "", {
         fontSize: "48px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
       })
@@ -63,7 +64,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.hpText = this.scene.add
       .text(0, -4, "", {
         fontSize: "32px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#f6d4b1",
         fontStyle: "bold",
       })
@@ -77,7 +78,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.agilityText = this.scene.add
       .text(-20, 2, "", {
         fontSize: "48px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
       })
@@ -96,7 +97,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.goldText = this.scene.add
       .text(0, 4, "0", {
         fontSize: "32px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#f6d4b1",
         fontStyle: "bold",
       })
@@ -151,7 +152,7 @@ export class PlayerView extends Phaser.GameObjects.Container {
     this.healPreviewText = this.scene.add
       .text(0, -PLAYER_H / 2 - 20, description, {
         fontSize: "28px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#44ff66",
         fontStyle: "bold",
       })

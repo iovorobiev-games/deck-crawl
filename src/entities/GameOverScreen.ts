@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { SpriteButton } from "./SpriteButton";
+import { FONT_UI } from "../fonts";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -24,7 +25,7 @@ export class GameOverScreen extends Phaser.GameObjects.Container {
     const title = scene.add
       .text(GAME_W / 2, GAME_H / 2 - 80, "GAME OVER", {
         fontSize: "96px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#cc3333",
         fontStyle: "bold",
       })

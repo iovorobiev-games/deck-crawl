@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { FONT_UI } from "../fonts";
 
 const GAME_W = 1920;
 const GAME_H = 1080;
@@ -60,7 +61,7 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
     const closeBtn = scene.add
       .text(x + panelW / 2 - 20, y - panelH / 2 + 8, "\u2715", {
         fontSize: "28px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color: "#ff5555",
         fontStyle: "bold",
       })
@@ -114,7 +115,7 @@ export class FateDeckPopup extends Phaser.GameObjects.Container {
     const txt = scene.add
       .text(0, 0, label, {
         fontSize: "40px",
-        fontFamily: "monospace",
+        fontFamily: FONT_UI,
         color,
         fontStyle: "bold",
       })
