@@ -1,12 +1,13 @@
 import Phaser from "phaser";
 import { BootScene } from "./scenes/BootScene";
+import { MainMenuScene } from "./scenes/MainMenuScene";
 import { GameScene } from "./scenes/GameScene";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.WEBGL,
   parent: "game",
-  backgroundColor: "#0e0e1a",
-  scene: [BootScene, GameScene],
+  backgroundColor: "#000000",
+  scene: [BootScene, MainMenuScene, GameScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

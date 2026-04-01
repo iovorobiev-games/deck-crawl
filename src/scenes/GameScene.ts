@@ -89,9 +89,14 @@ export class GameScene extends Phaser.Scene {
   private tutorialText: Phaser.GameObjects.Container | null = null;
   private tutorialHighlight: Phaser.GameObjects.RenderTexture | null = null;
   private tutorialCursorToken = 0;
+  private skipTutorial = false;
 
   constructor() {
     super({ key: "GameScene" });
+  }
+
+  init(data: { skipTutorial?: boolean }): void {
+    this.skipTutorial = data?.skipTutorial ?? false;
   }
 
   create(): void {
@@ -110,12 +115,12 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(6);
 
     this.dungeonLevels = dungeonConfig.levels;
-    this.currentLevelIndex = 0;
-    const firstLevel = this.dungeonLevels[0];
+    this.currentLevelIndex = this.skipTutorial ? this.tutorialLevelCount : 0;
+    const firstLevel = this.dungeonLevels[this.currentLevelIndex];
     const gridCols = firstLevel.gridSize?.cols ?? 4;
     const gridRows = firstLevel.gridSize?.rows ?? 3;
     this.grid = new Grid(GAME_W, GAME_H, gridCols, gridRows);
-    this.initLevel(0);
+    this.initLevel(this.currentLevelIndex);
     this.tintBackground();
 
     this.inventory = new Inventory();

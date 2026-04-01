@@ -130,13 +130,14 @@ export class BootScene extends Phaser.Scene {
     gfx.generateTexture("particle_circle", 16, 16);
     gfx.destroy();
 
-    // Wait for custom fonts to load before starting the game
-    Promise.all([
+    const fontReady = Promise.all([
       document.fonts.load('16px "Bonescript"'),
       document.fonts.load('16px "Dungeon Mode"'),
       document.fonts.load('16px "Antiquity Print"'),
-    ]).then(() => {
-      this.scene.start("GameScene");
+    ]);
+    const timeout = new Promise<void>(r => setTimeout(r, 2000));
+    Promise.race([fontReady, timeout]).then(() => {
+      this.scene.start("MainMenuScene");
     });
   }
 }
