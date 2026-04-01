@@ -1426,12 +1426,8 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Apply equipped bow bonuses to a single card's power display if it's a bow shot. */
   private applyLevelScaling(card: CardData): void {
-    const powerBonus = this.currentLevelIndex * 2;
-    if (powerBonus > 0 && card.type === CardType.Monster) {
-      card.value += powerBonus;
-    }
+    Deck.applyLevelScaling(card, this.gameplayLevelIndex);
   }
 
   private applyBowShotBonus(card: Card): void {

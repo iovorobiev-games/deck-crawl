@@ -25,6 +25,14 @@ export class Deck {
   private isOrdered = false;
   onShuffle: (() => void) | null = null;
 
+  /** Scale monster power by dungeon depth: +2 per gameplay level above the first. */
+  static applyLevelScaling(card: CardData, gameplayLevelIndex: number): void {
+    const powerBonus = Math.max(0, gameplayLevelIndex) * 2;
+    if (powerBonus > 0 && card.type === CardType.Monster) {
+      card.value += powerBonus;
+    }
+  }
+
   constructor(config: DeckEntry[]) {
     if (config.length > 0) {
       this.cards = weightedSample(config, DUNGEON_DECK_SIZE);
@@ -69,14 +77,8 @@ export class Deck {
     deck.cards.push(bossCard);
     deck.cards.push(getCard(level.door));
 
-    // Scale monster power by dungeon depth: +2 per gameplay level above the first
-    const powerBonus = Math.max(0, gameplayLevelIndex) * 2;
-    if (powerBonus > 0) {
-      for (const card of deck.cards) {
-        if (card.type === CardType.Monster) {
-          card.value += powerBonus;
-        }
-      }
+    for (const card of deck.cards) {
+      Deck.applyLevelScaling(card, gameplayLevelIndex);
     }
 
     deck.shuffle();
