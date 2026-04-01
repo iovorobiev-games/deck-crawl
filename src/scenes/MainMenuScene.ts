@@ -26,6 +26,7 @@ export class MainMenuScene extends Phaser.Scene {
   private mainText!: Phaser.GameObjects.Text;
   private cyanText!: Phaser.GameObjects.Text;
   private glitchTimer!: Phaser.Time.TimerEvent;
+  private tutorialChecked = false;
 
   constructor() {
     super({ key: "MainMenuScene" });
@@ -33,8 +34,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   create(): void {
     this.buildTitle();
-    this.buildEnterButton();
-    this.scheduleGlitch();
+    this.animateIntro();
   }
 
   /* ------------------------------------------------------------------ */
@@ -42,35 +42,60 @@ export class MainMenuScene extends Phaser.Scene {
   /* ------------------------------------------------------------------ */
 
   private buildTitle(): void {
+    const startY = -100;
     const style: Phaser.Types.GameObjects.Text.TextStyle = {
       fontSize: TITLE_SIZE,
       fontFamily: TITLE_FONT,
       color: TITLE_COLOR,
     };
 
-    // Chromatic-aberration layers
+    // Chromatic-aberration layers — start off-screen
     this.redText = this.add
-      .text(GAME_W / 2 - CHROMA_OFFSET, TITLE_Y, "TOMB OF FATE", {
+      .text(GAME_W / 2 - CHROMA_OFFSET, startY, "TOMB OF FATE", {
         ...style,
         color: "#ff0000",
       })
       .setOrigin(0.5)
-      .setAlpha(CHROMA_ALPHA)
+      .setAlpha(0)
       .setBlendMode(Phaser.BlendModes.ADD);
 
     this.cyanText = this.add
-      .text(GAME_W / 2 + CHROMA_OFFSET, TITLE_Y, "TOMB OF FATE", {
+      .text(GAME_W / 2 + CHROMA_OFFSET, startY, "TOMB OF FATE", {
         ...style,
         color: "#00ffff",
       })
       .setOrigin(0.5)
-      .setAlpha(CHROMA_ALPHA)
+      .setAlpha(0)
       .setBlendMode(Phaser.BlendModes.ADD);
 
-    // Main text on top
+    // Main text on top — start off-screen
     this.mainText = this.add
-      .text(GAME_W / 2, TITLE_Y, "TOMB OF FATE", style)
-      .setOrigin(0.5);
+      .text(GAME_W / 2, startY, "TOMB OF FATE", style)
+      .setOrigin(0.5)
+      .setAlpha(0);
+  }
+
+  private animateIntro(): void {
+    const targets = [this.mainText, this.redText, this.cyanText];
+
+    // Drop title from top
+    this.tweens.add({
+      targets,
+      y: TITLE_Y,
+      alpha: { getStart: (_t: unknown, _k: unknown, _v: unknown, i: number) => i === 0 ? 0 : 0, getEnd: (_t: unknown, _k: unknown, _v: unknown, i: number) => i === 0 ? 1 : CHROMA_ALPHA },
+      duration: 400,
+      ease: "Power2.easeIn",
+      onComplete: () => {
+        // Camera shake on land
+        this.cameras.main.shake(300, 0.012);
+
+        // Start glitch loop after shake
+        this.scheduleGlitch();
+        this.time.delayedCall(1000, () => {
+          this.buildEnterButton();
+        });
+      },
+    });
   }
 
   /* ------------------------------------------------------------------ */
@@ -124,30 +149,99 @@ export class MainMenuScene extends Phaser.Scene {
         fontFamily: "Bonescript",
         color: "#eede89",
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setAlpha(0);
 
     // Underscore line
     const bounds = enterText.getBounds();
     const line = this.add.graphics();
     line.lineStyle(2, 0xeede89);
     line.lineBetween(bounds.left, bounds.bottom + 4, bounds.right, bounds.bottom + 4);
+    line.setAlpha(0);
 
-    // Slow blink
-    this.tweens.add({
-      targets: [enterText, line],
-      alpha: 0.2,
-      duration: 1500,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.easeInOut",
-    });
+    const fadeTargets: Phaser.GameObjects.GameObject[] = [enterText, line];
 
     // Make clickable
     enterText.setInteractive({ useHandCursor: true });
     enterText.on("pointerdown", () => {
       const hasPlayed = localStorage.getItem(LS_KEY) === "true";
       localStorage.setItem(LS_KEY, "true");
-      this.scene.start("GameScene", { skipTutorial: hasPlayed });
+      const skipTutorial = hasPlayed && !this.tutorialChecked;
+      this.scene.start("GameScene", { skipTutorial });
     });
+
+    // Tutorial toggle — only for returning players
+    const hasPlayed = localStorage.getItem(LS_KEY) === "true";
+    if (hasPlayed) {
+      this.buildTutorialToggle(fadeTargets);
+    }
+
+    // Fade in, then start blinking
+    this.tweens.add({
+      targets: fadeTargets,
+      alpha: 1,
+      duration: 800,
+      ease: "Sine.easeIn",
+      onComplete: () => {
+        this.tweens.add({
+          targets: [enterText, line],
+          alpha: 0.2,
+          duration: 1500,
+          yoyo: true,
+          repeat: -1,
+          ease: "Sine.easeInOut",
+        });
+      },
+    });
+  }
+
+  private buildTutorialToggle(fadeTargets: Phaser.GameObjects.GameObject[]): void {
+    const toggleY = BUTTON_Y + 70;
+    const boxSize = 24;
+    const gap = 12;
+
+    // Measure label first to compute total width
+    const label = this.add
+      .text(0, toggleY, "Tutorial", {
+        fontSize: "28px",
+        fontFamily: "Bonescript",
+        color: "#ccbbaa",
+      })
+      .setOrigin(0, 0.5)
+      .setAlpha(0);
+
+    const totalW = boxSize + gap + label.width;
+    const startX = GAME_W / 2 - totalW / 2;
+    const boxCenterX = startX + boxSize / 2;
+
+    label.setX(startX + boxSize + gap);
+
+    // Checkbox
+    const checkGfx = this.add.graphics().setAlpha(0);
+
+    const drawBox = (checked: boolean) => {
+      checkGfx.clear();
+      checkGfx.lineStyle(2, 0xccbbaa);
+      checkGfx.strokeRect(boxCenterX - boxSize / 2, toggleY - boxSize / 2, boxSize, boxSize);
+      if (checked) {
+        checkGfx.lineStyle(3, 0xeede89);
+        checkGfx.lineBetween(boxCenterX - 6, toggleY, boxCenterX - 1, toggleY + 6);
+        checkGfx.lineBetween(boxCenterX - 1, toggleY + 6, boxCenterX + 8, toggleY - 6);
+      }
+    };
+    drawBox(false);
+
+    // Hit area for the whole toggle
+    const hitZone = this.add
+      .zone(startX, toggleY, totalW, boxSize + 16)
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+
+    hitZone.on("pointerdown", () => {
+      this.tutorialChecked = !this.tutorialChecked;
+      drawBox(this.tutorialChecked);
+    });
+
+    fadeTargets.push(label, checkGfx);
   }
 }
