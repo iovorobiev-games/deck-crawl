@@ -26,6 +26,12 @@ const GAME_W = 1920;
 const GAME_H = 1080;
 const TREASURE_OFFSET_Y = 32;
 
+const LEVEL_INTRO_TEXTS: string[] = [
+  "Level 1/3: Cultist holds the Key to the depths",
+  "Level 2/3: Vengeful Revenant protects the key\nto the Crypt Lord's lair",
+  "Final Level! Crypt Lord hides the key.\nDestroy Phylactery to make him mortal\nand find the Key",
+];
+
 const TUTORIAL_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontSize: "32px",
   fontFamily: FONT_TUTORIAL,
@@ -166,7 +172,7 @@ export class GameScene extends Phaser.Scene {
     if (this.currentLevel.isTutorial) {
       this.runTutorialIntro();
     } else {
-      this.drawAndPlaceCards(3);
+      this.showLevelIntro(() => this.drawAndPlaceCards(3));
     }
   }
 
@@ -1242,11 +1248,12 @@ export class GameScene extends Phaser.Scene {
 
   private updateLevelIndicator(): void {
     const level = this.currentLevel;
+    const totalGameplayLevels = this.dungeonLevels.length - this.tutorialLevelCount;
     if (level.isTutorial) {
       this.levelIndicator.setText(level.name);
       this.levelFlavorText.setText(level.flavorText);
     } else {
-      this.levelIndicator.setText(`Level ${this.gameplayLevelIndex + 1}: ${level.name}`);
+      this.levelIndicator.setText(`Level ${this.gameplayLevelIndex + 1}/${totalGameplayLevels}: ${level.name}`);
       this.levelFlavorText.setText(level.flavorText);
     }
   }
@@ -5537,14 +5544,58 @@ export class GameScene extends Phaser.Scene {
           const cell = this.grid.findCard(doorCard);
           if (cell) this.grid.removeCard(cell.col, cell.row);
           doorCard.resolve(() => {
-            // Re-enable explore button
-            this.enableExploreButton();
-
-            this.isResolving = false;
-            this.drawAndPlaceCards(3);
+            // Show level intro text, then deal cards
+            this.showLevelIntro(() => {
+              this.enableExploreButton();
+              this.isResolving = false;
+              this.drawAndPlaceCards(3);
+            });
           });
         });
       }, doorCard);
+    });
+  }
+
+  private showLevelIntro(onComplete: () => void): void {
+    const introText = LEVEL_INTRO_TEXTS[this.gameplayLevelIndex];
+    if (!introText) {
+      onComplete();
+      return;
+    }
+
+    // Center text vertically on the grid area
+    const topY = this.grid.worldPos(0, 0).y;
+    const bottomY = this.grid.worldPos(0, this.grid.rows - 1).y;
+    const gridCenterY = (topY + bottomY) / 2;
+
+    const overlay = this.add.rectangle(
+      GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000
+    ).setAlpha(0).setDepth(10000);
+
+    const text = this.add.text(
+      GAME_W / 2, gridCenterY, introText,
+      { ...TUTORIAL_TEXT_STYLE, fontSize: "36px" }
+    ).setOrigin(0.5).setAlpha(0).setDepth(10001);
+
+    // Fade in overlay + text over 1s
+    this.tweens.add({
+      targets: overlay, alpha: 0.85, duration: 1000, ease: "Sine.easeIn",
+    });
+    this.tweens.add({
+      targets: text, alpha: 1, duration: 1000, ease: "Sine.easeIn",
+      onComplete: () => {
+        // Hold for 4s, then fade out over 1s
+        this.time.delayedCall(4000, () => {
+          this.tweens.add({
+            targets: [overlay, text], alpha: 0, duration: 1000,
+            onComplete: () => {
+              overlay.destroy();
+              text.destroy();
+              onComplete();
+            },
+          });
+        });
+      },
     });
   }
 
