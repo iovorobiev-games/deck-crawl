@@ -12,7 +12,10 @@ const ART_MAX_H = 110;
 const ART_CENTER_Y = -8;
 const DESCR_BG_W = 163;
 const DESCR_BG_H = 74;
-const TITLE_Y = -CARD_H / 2 + 6 + 16; // 6px margin from top + half of 32px rect
+const TITLE_RECT_H = 32;
+const TITLE_Y = -CARD_H / 2 + 6 + TITLE_RECT_H / 2;
+const TITLE_MAX_W = 100; // narrower to avoid stat icon overlap
+const TITLE_MAX_H = TITLE_RECT_H - 4; // usable text height
 const DESCR_Y = CARD_H / 2 - DESCR_BG_H / 2 - 6;
 
 export class Card extends Phaser.GameObjects.Container {
@@ -65,15 +68,8 @@ export class Card extends Phaser.GameObjects.Container {
     this.descrSprite = this.scene.add.image(0, DESCR_Y, CardDescrMap[type]);
     this.add(this.descrSprite);
 
-    // 4. Title text on the top stripe
-    this.nameText = this.scene.add.text(0, TITLE_Y, this.cardData.name, {
-      fontSize: "14px",
-      fontFamily: FONT_CARD,
-      color: CardTitleColorMap[type],
-      fontStyle: "bold",
-      align: "center",
-      wordWrap: { width: 148 },
-    }).setOrigin(0.5);
+    // 4. Title text on the top stripe — auto-sized to fit
+    this.nameText = this.createFittedTitle(this.cardData.name, CardTitleColorMap[type]);
     this.add(this.nameText);
 
     // 5. Mechanical description text on description BG (rich text)
@@ -101,19 +97,22 @@ export class Card extends Phaser.GameObjects.Container {
   private createStatIcons(): void {
     const d = this.cardData;
 
-    // Power icon — bottom-left corner of card
-    // Show for monsters, equippable items that grant power, and bow shot cards
+    // Stat icons sit at the bottom edge of the art area, straddling the
+    // art/description boundary.  A dark backing circle keeps them readable
+    // against any art.
+    const statY = -CARD_H / 2 + 8 + 18;  // top-left, shifted down by half icon
+    const leftX = -CARD_W / 2 + 14;
+    const rightX = CARD_W / 2 - 12;
+
+    // Power icon — bottom-left of art
     const bowAbility = d.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
     const hasPower = d.type === CardType.Monster || (d.tag === "weapon" && !d.isKey) || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey) || bowAbility;
     if (hasPower) {
-      const iconX = -CARD_W / 2 + 15;
-      const iconY = CARD_H / 2 - 12;
-      this.powerIcon = this.scene.add.image(iconX, iconY, "icon_card_power");
+      this.addStatBacking(leftX, statY);
+      this.powerIcon = this.scene.add.image(leftX, statY, "icon_card_power").setFlipX(true);
       this.add(this.powerIcon);
       const displayValue = bowAbility ? (bowAbility.params.amount as number) : d.value;
-      // Text sits in a 32x32 rect: margins top 4, left 18, right 11, bottom 11
-      // Center of that rect relative to icon center: (+3.5, -3.5)
-      this.powerValueText = this.scene.add.text(iconX + 3.5, iconY - 3.5, `${displayValue}`, {
+      this.powerValueText = this.scene.add.text(leftX - 3.5, statY - 3.5, `${displayValue}`, {
         fontSize: "20px",
         fontFamily: FONT_UI,
         color: "#240a0e",
@@ -122,14 +121,12 @@ export class Card extends Phaser.GameObjects.Container {
       this.add(this.powerValueText);
     }
 
-    // Shield icon — bottom-right corner of card
+    // Shield icon — bottom-right of art
     const armourAbility = d.abilities?.find(a => a.abilityId === "armour");
     if (armourAbility) {
-      const iconX = CARD_W / 2 - 9;
-      const iconY = CARD_H / 2 - 12;
-      this.shieldIcon = this.scene.add.image(iconX, iconY, "icon_shield");
+      this.shieldIcon = this.scene.add.image(rightX, statY, "icon_shield");
       this.add(this.shieldIcon);
-      this.shieldValueText = this.scene.add.text(iconX, iconY - 4, `${armourAbility.params.amount}`, {
+      this.shieldValueText = this.scene.add.text(rightX, statY - 4, `${armourAbility.params.amount}`, {
         fontSize: "20px",
         fontFamily: FONT_UI,
         color: "#240a0e",
@@ -138,13 +135,11 @@ export class Card extends Phaser.GameObjects.Container {
       this.add(this.shieldValueText);
     }
 
-    // Lock icon — bottom-right corner of card (for cards with lockDifficulty)
+    // Lock icon — bottom-right of art (for cards with lockDifficulty)
     if (d.lockDifficulty != null) {
-      const iconX = CARD_W / 2 - 9;
-      const iconY = CARD_H / 2 - 16;
-      this.lockIcon = this.scene.add.image(iconX, iconY, "icon_lock");
+      this.lockIcon = this.scene.add.image(rightX, statY, "icon_lock");
       this.add(this.lockIcon);
-      this.lockValueText = this.scene.add.text(iconX, iconY + 4, `${d.lockDifficulty}`, {
+      this.lockValueText = this.scene.add.text(rightX, statY + 4, `${d.lockDifficulty}`, {
         fontSize: "20px",
         fontFamily: FONT_UI,
         color: "#240a0e",
@@ -152,6 +147,32 @@ export class Card extends Phaser.GameObjects.Container {
       }).setOrigin(0.5);
       this.add(this.lockValueText);
     }
+  }
+
+  private addStatBacking(x: number, y: number): void {
+    const gfx = this.scene.add.graphics();
+    gfx.fillStyle(0x000000, 0.4);
+    gfx.fillCircle(x, y, 18);
+    this.add(gfx);
+  }
+
+  private createFittedTitle(name: string, color: string): Phaser.GameObjects.Text {
+    let fontSize = 14;
+    const text = this.scene.add.text(0, TITLE_Y, name, {
+      fontSize: `${fontSize}px`,
+      fontFamily: FONT_CARD,
+      color,
+      fontStyle: "bold",
+      align: "center",
+      wordWrap: { width: TITLE_MAX_W },
+    }).setOrigin(0.5);
+
+    // Shrink font until text fits the title rect height
+    while (text.height > TITLE_MAX_H && fontSize > 8) {
+      fontSize--;
+      text.setFontSize(fontSize);
+    }
+    return text;
   }
 
   private rebuildDescription(text: string): void {

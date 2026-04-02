@@ -19,6 +19,7 @@ import { getVfx, VfxTarget } from "../effects/vfxRegistry";
 import { SoundManager, SOUND_KEYS, SOUND_GROUPS } from "../systems/SoundManager";
 import { stripMarkup } from "../entities/RichText";
 import { SpriteButton } from "../entities/SpriteButton";
+import { CardPreview } from "../entities/CardPreview";
 import { FONT_TUTORIAL, FONT_UI } from "../fonts";
 
 const GAME_W = 1920;
@@ -79,6 +80,7 @@ export class GameScene extends Phaser.Scene {
   private poisonedWeapons: { slotName: string; amount: number }[] = [];
   private dragTargetMonster: Card | null = null;
   private hoverPreviewCard: Card | null = null;
+  private cardPreview!: CardPreview;
   private vignetteFX!: VignettePostFX;
   private lastUsedScrollId: string | null = null;
   private sfx!: SoundManager;
@@ -135,6 +137,16 @@ export class GameScene extends Phaser.Scene {
     this.createPlayerView();
     this.inventoryView = new InventoryView(this, this.inventory);
     this.setupSlotDiscard();
+
+    // Card preview panel — aligned with grid top, to its right
+    const topRight = this.grid.worldPos(this.grid.cols - 1, 0);
+    const gridRightEdge = topRight.x + CARD_W / 2;
+    const gridTopEdge = topRight.y - CARD_H / 2;
+    const previewH = CARD_H * 1.5;
+    const previewX = gridRightEdge + 36 + (CARD_W * 1.5) / 2;
+    const previewY = gridTopEdge + previewH / 2;
+    this.cardPreview = new CardPreview(this, previewX, previewY);
+    this.cardPreview.setDepth(10000);
 
     this.inventory.on("statsChanged", () => this.updatePlayerStats());
 
@@ -1023,10 +1035,10 @@ export class GameScene extends Phaser.Scene {
     this.showTutorialOverlay([
       // Player power stat: PlayerView at (867.5, 910), powerGroup at (-95, -105)
       { x: 867.5 - 95 - (117 + 16) / 2, y: 910 - 105 - (89 + 16) / 2, w: 117 + 16, h: 89 + 16 },
-      // Zombie card power icon: bottom-left of card
+      // Zombie card power icon: top-left of card art
       ...(zombieCard ? [{
-        x: zombieCard.x + (-CARD_W / 2 + 15) - 28,
-        y: zombieCard.y + (CARD_H / 2 - 12) - 28, w: 56, h: 56,
+        x: zombieCard.x + (-CARD_W / 2 + 14) - 28,
+        y: zombieCard.y + (-CARD_H / 2 + 26) - 28, w: 56, h: 56,
       }] : []),
     ]);
   }
@@ -1037,10 +1049,10 @@ export class GameScene extends Phaser.Scene {
     this.showTutorialOverlay([
       // Player agility stat: PlayerView at (867.5, 910), agilityGroup at (112, -113)
       { x: 867.5 + 112 - (117 + 16) / 2, y: 910 - 113 - (89 + 16) / 2, w: 117 + 16, h: 89 + 16 },
-      // Lock icons on chest and trap cards: bottom-right at (CARD_W/2 - 9, CARD_H/2 - 16)
+      // Lock icons on chest and trap cards: top-right of card art
       ...lockCards.map(card => ({
-        x: card.x + (CARD_W / 2 - 9) - 28,
-        y: card.y + (CARD_H / 2 - 16) - 28, w: 56, h: 56,
+        x: card.x + (CARD_W / 2 - 12) - 28,
+        y: card.y + (-CARD_H / 2 + 26) - 28, w: 56, h: 56,
       })),
     ]);
   }
@@ -2055,13 +2067,16 @@ export class GameScene extends Phaser.Scene {
       if (!this.isResolving && !this.isDragging) {
         card.setHighlight(true);
         this.showHoverPreview(card);
+        this.cardPreview.show(card.cardData);
       }
     });
     card.on("pointerout", () => {
       card.setHighlight(false);
       this.hideHoverPreview();
+      this.cardPreview.hide();
     });
     card.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.cardPreview.show(card.cardData);
       if (this.isResolving) return;
       if (this.guardedByMonster.has(card)) return;
       if (this.isDraggable(card)) {
@@ -3449,10 +3464,19 @@ export class GameScene extends Phaser.Scene {
       const container = this.inventoryView.getSlotContainer(def.name);
       if (!container) continue;
 
+      container.on("pointerover", () => {
+        const item = this.inventory.getItem(def.name);
+        if (item) this.cardPreview.show(item);
+      });
+      container.on("pointerout", () => {
+        this.cardPreview.hide();
+      });
+
       container.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
         if (this.isResolving || this.isDragging) return;
         const item = this.inventory.getItem(def.name);
         if (!item) return;
+        this.cardPreview.show(item);
 
         const startPos = { x: pointer.x, y: pointer.y };
         let ghost: Phaser.GameObjects.Container | null = null;

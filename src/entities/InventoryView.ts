@@ -194,34 +194,50 @@ export class InventoryView extends Phaser.GameObjects.Container {
     const descrSprite = this.scene.add.image(0, DESCR_Y, CardDescrMap[item.type]);
     mc.add(descrSprite);
 
-    // Title text
+    // Title text — auto-sized to fit
+    const TITLE_MAX_W = 100;
+    const TITLE_MAX_H = 28;
+    let titleFontSize = 14;
     const nameText = this.scene.add.text(0, TITLE_Y, item.name, {
-      fontSize: "14px",
+      fontSize: `${titleFontSize}px`,
       fontFamily: FONT_CARD,
       color: CardTitleColorMap[item.type],
       fontStyle: "bold",
       align: "center",
-      wordWrap: { width: 148 },
+      wordWrap: { width: TITLE_MAX_W },
     }).setOrigin(0.5);
+    while (nameText.height > TITLE_MAX_H && titleFontSize > 8) {
+      titleFontSize--;
+      nameText.setFontSize(titleFontSize);
+    }
     mc.add(nameText);
 
-    // Description text (rich text)
+    // Description text (rich text) — same constraints as Card.ts
     const descrContainer = createRichDescription(this.scene, item.description || "", {
       maxWidth: DESCR_BG_W - 16,
       fontSize: 13,
       baseColor: "#ddd",
+      maxHeight: DESCR_BG_H - 8,
+      minFontSize: 8,
     });
     descrContainer.setPosition(0, DESCR_Y);
     mc.add(descrContainer);
 
-    // Power icon — bottom-left
+    // Stat icons — on art area, at the art/description boundary
+    const statY = -FULL_CARD_H / 2 + 8 + 18;
+    const leftX = -FULL_CARD_W / 2 + 14;
+    const rightX = FULL_CARD_W / 2 - 12;
+
+    // Power icon — bottom-left of art
     const displayPower = item.value + powerBonus;
     const hasPower = item.type === CardType.Monster || (item.tag === "weapon" && !item.isKey) || (item.slot && item.slot !== "backpack" && displayPower > 0 && !item.isKey);
     if (hasPower) {
-      const iconX = -FULL_CARD_W / 2 + 15;
-      const iconY = FULL_CARD_H / 2 - 12;
-      mc.add(this.scene.add.image(iconX, iconY, "icon_card_power"));
-      mc.add(this.scene.add.text(iconX + 3.5, iconY - 3.5, `${displayPower}`, {
+      const bg = this.scene.add.graphics();
+      bg.fillStyle(0x000000, 0.4);
+      bg.fillCircle(leftX, statY, 18);
+      mc.add(bg);
+      mc.add(this.scene.add.image(leftX, statY, "icon_card_power").setFlipX(true));
+      mc.add(this.scene.add.text(leftX - 3.5, statY - 3.5, `${displayPower}`, {
         fontSize: "20px",
         fontFamily: FONT_UI,
         color: "#240a0e",
@@ -229,13 +245,11 @@ export class InventoryView extends Phaser.GameObjects.Container {
       }).setOrigin(0.5));
     }
 
-    // Shield icon — bottom-right
+    // Shield icon — bottom-right of art
     const armourAbility = item.abilities?.find(a => a.abilityId === "armour");
     if (armourAbility) {
-      const iconX = FULL_CARD_W / 2 - 9;
-      const iconY = FULL_CARD_H / 2 - 12;
-      mc.add(this.scene.add.image(iconX, iconY, "icon_shield"));
-      mc.add(this.scene.add.text(iconX, iconY - 4, `${armourAbility.params.amount}`, {
+      mc.add(this.scene.add.image(rightX, statY, "icon_shield"));
+      mc.add(this.scene.add.text(rightX, statY - 4, `${armourAbility.params.amount}`, {
         fontSize: "20px",
         fontFamily: FONT_UI,
         color: "#240a0e",
