@@ -81,6 +81,7 @@ export class GameScene extends Phaser.Scene {
   private currentLevelKey: CardData | null = null;
   private levelIndicator!: Phaser.GameObjects.Text;
   private levelFlavorText!: Phaser.GameObjects.Text;
+  private levelObjectiveText!: Phaser.GameObjects.Text;
   private backgroundImage!: Phaser.GameObjects.Image;
   private discardedCardIds: Set<string> = new Set();
   private poisonedWeapons: { slotName: string; amount: number }[] = [];
@@ -1245,6 +1246,14 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     this.deckGroup.add(this.levelFlavorText);
 
+    this.levelObjectiveText = this.add.text(0, 70, "", {
+      fontSize: "18px",
+      fontFamily: FONT_UI,
+      color: "#621a4c",
+      fontStyle: "bold",
+    }).setOrigin(0.5, 0);
+    this.deckGroup.add(this.levelObjectiveText);
+
     this.updateLevelIndicator();
   }
 
@@ -1254,9 +1263,25 @@ export class GameScene extends Phaser.Scene {
     if (level.isTutorial) {
       this.levelIndicator.setText(level.name);
       this.levelFlavorText.setText(level.flavorText);
+      this.levelObjectiveText.setText("");
+      this.tweens.killTweensOf(this.levelObjectiveText);
     } else {
       this.levelIndicator.setText(`Level ${this.gameplayLevelIndex + 1}/${totalGameplayLevels}: ${level.name}`);
       this.levelFlavorText.setText(level.flavorText);
+
+      if (this.gameplayLevelIndex === totalGameplayLevels - 1) {
+        this.levelObjectiveText.setText("Destroy Crypt Lord!");
+        this.tweens.add({
+          targets: this.levelObjectiveText,
+          x: { from: -2, to: 2 },
+          duration: 80,
+          yoyo: true,
+          repeat: -1,
+        });
+      } else {
+        this.levelObjectiveText.setText("");
+        this.tweens.killTweensOf(this.levelObjectiveText);
+      }
     }
   }
 
@@ -3189,6 +3214,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
     this.levelFlavorText.setAlpha(0.3);
+    this.levelObjectiveText.setAlpha(0.3);
   }
 
   /**
@@ -3217,6 +3243,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
     this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
   }
 
   /**
@@ -4111,6 +4138,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
     this.levelFlavorText.setAlpha(0.3);
+    this.levelObjectiveText.setAlpha(0.3);
 
     // Bring monster to top
     card.setDepth(4500);
@@ -4229,6 +4257,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
     this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
     // Reset monster depth
     if (this.combatMonster) {
@@ -4556,6 +4585,7 @@ export class GameScene extends Phaser.Scene {
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
       // Slide fate deck down and restore power display
       this.animateFateCardResolve();
@@ -4620,6 +4650,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
     this.levelFlavorText.setAlpha(0.3);
+    this.levelObjectiveText.setAlpha(0.3);
 
     // Bring chest to top
     card.setDepth(4500);
@@ -4725,6 +4756,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
     this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
     // Reset chest depth
     if (this.crackingChest) {
@@ -4815,6 +4847,7 @@ export class GameScene extends Phaser.Scene {
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
       this.animateFateCardResolve();
       this.playerView.restoreAgility(this.player);
@@ -4881,6 +4914,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
     this.levelFlavorText.setAlpha(0.3);
+    this.levelObjectiveText.setAlpha(0.3);
 
     // Bring trap to top
     card.setDepth(4500);
@@ -4986,6 +5020,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
     this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
     // Reset trap depth
     if (this.disarmingTrap) {
@@ -5076,6 +5111,7 @@ export class GameScene extends Phaser.Scene {
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
       this.animateFateCardResolve();
       this.playerView.restoreAgility(this.player);
@@ -5117,6 +5153,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(0.3);
     this.levelIndicator.setAlpha(0.3);
     this.levelFlavorText.setAlpha(0.3);
+    this.levelObjectiveText.setAlpha(0.3);
 
     // Bring card to top
     card.setDepth(4500);
@@ -5227,6 +5264,7 @@ export class GameScene extends Phaser.Scene {
     this.exploreBtn.setAlpha(1);
     this.levelIndicator.setAlpha(1);
     this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
     // Reset card depth
     if (this.exchangerCard) {
@@ -5345,6 +5383,7 @@ export class GameScene extends Phaser.Scene {
         this.exploreBtn.setAlpha(1);
         this.levelIndicator.setAlpha(1);
         this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
         if (cellPos) {
           const targetPos = this.grid.worldPos(cellPos.col, cellPos.row);
@@ -5414,6 +5453,7 @@ export class GameScene extends Phaser.Scene {
       this.exploreBtn.setAlpha(1);
       this.levelIndicator.setAlpha(1);
       this.levelFlavorText.setAlpha(1);
+    this.levelObjectiveText.setAlpha(1);
 
       this.isResolving = false;
       this.exchangerCard = null;
