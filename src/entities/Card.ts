@@ -42,6 +42,10 @@ export class Card extends Phaser.GameObjects.Container {
       new Phaser.Geom.Rectangle(0, 0, CARD_W, CARD_H),
       Phaser.Geom.Rectangle.Contains
     );
+
+    this.on("pointerover", this.raiseDescription, this);
+    this.on("pointerout", this.lowerDescription, this);
+
     scene.add.existing(this);
   }
 
@@ -308,6 +312,20 @@ export class Card extends Phaser.GameObjects.Container {
         this.dropTargetGfx = null;
       }
     }
+  }
+
+  private raiseDescription(): void {
+    this.bringToTop(this.descrSprite);
+    this.bringToTop(this.descrContainer);
+  }
+
+  private lowerDescription(): void {
+    if (this.powerIcon) this.bringToTop(this.powerIcon);
+    if (this.powerValueText) this.bringToTop(this.powerValueText);
+    if (this.shieldIcon) this.bringToTop(this.shieldIcon);
+    if (this.shieldValueText) this.bringToTop(this.shieldValueText);
+    if (this.lockIcon) this.bringToTop(this.lockIcon);
+    if (this.lockValueText) this.bringToTop(this.lockValueText);
   }
 
   setHighlight(on: boolean): void {
