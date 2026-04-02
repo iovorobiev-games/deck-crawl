@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { CRTPostFX } from "../pipelines/CRTPostFX";
 
 
 
@@ -33,6 +34,10 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    const renderer = this.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
+    renderer.pipelines.addPostPipeline("CRTPostFX", CRTPostFX);
+    this.cameras.main.setPostPipeline(CRTPostFX);
+
     this.buildTitle();
     this.animateIntro();
   }
