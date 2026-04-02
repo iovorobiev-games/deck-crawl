@@ -216,7 +216,7 @@ export class InventoryView extends Phaser.GameObjects.Container {
 
     // Power icon — bottom-left
     const displayPower = item.value + powerBonus;
-    const hasPower = item.type === CardType.Monster || (item.slot && item.slot !== "backpack" && displayPower > 0 && !item.isKey);
+    const hasPower = item.type === CardType.Monster || (item.tag === "weapon" && !item.isKey) || (item.slot && item.slot !== "backpack" && displayPower > 0 && !item.isKey);
     if (hasPower) {
       const iconX = -FULL_CARD_W / 2 + 15;
       const iconY = FULL_CARD_H / 2 - 12;

@@ -104,7 +104,7 @@ export class Card extends Phaser.GameObjects.Container {
     // Power icon — bottom-left corner of card
     // Show for monsters, equippable items that grant power, and bow shot cards
     const bowAbility = d.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
-    const hasPower = d.type === CardType.Monster || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey) || bowAbility;
+    const hasPower = d.type === CardType.Monster || (d.tag === "weapon" && !d.isKey) || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey) || bowAbility;
     if (hasPower) {
       const iconX = -CARD_W / 2 + 15;
       const iconY = CARD_H / 2 - 12;
