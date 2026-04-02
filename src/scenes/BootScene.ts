@@ -128,6 +128,10 @@ export class BootScene extends Phaser.Scene {
     gfx.fillStyle(0xffffff);
     gfx.fillCircle(8, 8, 8);
     gfx.generateTexture("particle_circle", 16, 16);
+    gfx.clear();
+    gfx.fillStyle(0xffffff);
+    gfx.fillRect(0, 0, 16, 16);
+    gfx.generateTexture("particle_square", 16, 16);
     gfx.destroy();
 
     const fontReady = Promise.all([

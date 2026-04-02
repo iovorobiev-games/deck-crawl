@@ -94,6 +94,9 @@ export class MainMenuScene extends Phaser.Scene {
         // Camera shake on land
         this.cameras.main.shake(300, 0.012);
 
+        // Dust burst rising from bottom of title
+        this.emitDust();
+
         // Start glitch loop after shake
         this.scheduleGlitch();
         this.time.delayedCall(1000, () => {
@@ -101,6 +104,23 @@ export class MainMenuScene extends Phaser.Scene {
         });
       },
     });
+  }
+
+  private emitDust(): void {
+    const bounds = this.mainText.getBounds();
+    const emitter = this.add.particles(0, 0, "particle_square", {
+      x: { min: bounds.left, max: bounds.right },
+      y: bounds.bottom - bounds.height * 0.2,
+      speedY: { min: -200, max: -60 },
+      speedX: { min: -30, max: 30 },
+      scale: { start: 1.2, end: 0 },
+      alpha: { start: 0.6, end: 0 },
+      tint: 0xccbbaa,
+      lifespan: 1000,
+      quantity: 40,
+      emitting: false,
+    });
+    emitter.explode(40);
   }
 
   /* ------------------------------------------------------------------ */
