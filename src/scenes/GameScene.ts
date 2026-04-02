@@ -1393,17 +1393,41 @@ export class GameScene extends Phaser.Scene {
     this.updatePlayerStats();
   }
 
-  /** Revert all active poison effects after combat. */
+  /** Revert poison from weapons that are currently in hand slots after combat. */
   private revertPoison(): void {
-    for (const { slotName, amount } of this.poisonedWeapons) {
-      const weapon = this.inventory.getItem(slotName);
-      if (weapon && weapon.poisoned) {
-        weapon.value = Math.max(0, weapon.value - amount);
+    const isHandSlot = (s: string) => s === "weapon1" || s === "weapon2";
+    const remaining: typeof this.poisonedWeapons = [];
+    for (const entry of this.poisonedWeapons) {
+      const weapon = this.inventory.getItem(entry.slotName);
+      if (weapon && weapon.poisoned && isHandSlot(entry.slotName)) {
+        // Weapon is in hand — consume poison
+        weapon.value = Math.max(0, weapon.value - entry.amount);
         weapon.poisoned = false;
+      } else {
+        // Weapon not in hand — keep poison for next combat
+        remaining.push(entry);
       }
     }
-    this.poisonedWeapons = [];
+    this.poisonedWeapons = remaining;
     this.updatePlayerStats();
+  }
+
+  /** Update poison slot tracking when a weapon moves between inventory slots. */
+  private handlePoisonOnMove(item: CardData, fromSlot: string, toSlot: string | null): void {
+    if (!item.poisoned) return;
+    const idx = this.poisonedWeapons.findIndex(p => p.slotName === fromSlot);
+    if (idx === -1) return;
+
+    if (toSlot) {
+      // Update slot tracking to follow the weapon
+      this.poisonedWeapons[idx].slotName = toSlot;
+    } else {
+      // Discarded — clean up poison tracking
+      const { amount } = this.poisonedWeapons[idx];
+      item.value = Math.max(0, item.value - amount);
+      item.poisoned = false;
+      this.poisonedWeapons.splice(idx, 1);
+    }
   }
 
   /** Update power display on all bow shot cards on the grid to reflect equipped bonuses. */
@@ -3745,6 +3769,7 @@ export class GameScene extends Phaser.Scene {
             // Dropped on a compatible empty slot — move item
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
+            this.handlePoisonOnMove(item, def.name, overSlot);
             const displaced = this.inventory.unequip(def.name);
             this.inventory.equip(overSlot, item);
             // Fire onEquip for the moved item in its new slot (skip for backpack slots)
@@ -3798,6 +3823,8 @@ export class GameScene extends Phaser.Scene {
             // Dropped on an occupied compatible slot — swap items
             ghost.destroy();
             this.inventoryView.setSlotContentAlpha(def.name, 1);
+            this.handlePoisonOnMove(item, def.name, overSlot);
+            this.handlePoisonOnMove(otherItem, overSlot, def.name);
             this.inventory.swap(def.name, overSlot);
             // Fire onEquip for items landing in non-backpack (hand) slots
             const draggedEquipAbilities = overSlot.startsWith("backpack") ? [] : this.collectAbilities("onEquip", item);
@@ -3813,6 +3840,7 @@ export class GameScene extends Phaser.Scene {
             this.inventoryView.setSlotContentAlpha(def.name, 1);
           } else {
             // Dropped on empty space — discard
+            this.handlePoisonOnMove(item, def.name, null);
             this.discardedCardIds.add(item.id);
             const discardAbilities = this.collectAbilities("onDiscard", item);
             const discardSlotPos = this.inventoryView.getSlotWorldPos(def.name);
