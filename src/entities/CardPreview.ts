@@ -109,15 +109,11 @@ export class CardPreview extends Phaser.GameObjects.Container {
 
     // Power icon
     const bowAbility = d.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
-    const hasPower = d.type === CardType.Monster || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey) || bowAbility;
+    const hasPower = d.type === CardType.Monster || (d.tag === "weapon" && !d.isKey) || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey) || bowAbility;
     if (hasPower) {
-      const gfx = this.scene.add.graphics();
-      gfx.fillStyle(0x000000, 0.4);
-      gfx.fillCircle(leftX, statY, 18 * S);
-      this.add(gfx);
-      this.add(this.scene.add.image(leftX, statY, "icon_card_power").setFlipX(true).setScale(S));
+      this.add(this.scene.add.image(leftX, statY, "icon_big_power").setFlipX(true));
       const val = bowAbility ? (bowAbility.params.amount as number) : d.value;
-      this.add(this.scene.add.text(leftX - 3.5 * S, statY - 3.5 * S, `${val}`, {
+      this.add(this.scene.add.text(leftX, statY - 3.5 * S, `${val}`, {
         fontSize: "30px",
         fontFamily: FONT_UI,
         color: "#240a0e",
@@ -141,7 +137,7 @@ export class CardPreview extends Phaser.GameObjects.Container {
     if (d.agilityBonus) {
       const agiX = rightX + 4 * S;
       const agiY = statY - 4 * S;
-      this.add(this.scene.add.image(agiX, agiY, "icon_card_agility").setScale(S));
+      this.add(this.scene.add.image(agiX, agiY, "icon_big_agility"));
       this.add(this.scene.add.text(agiX - 12 * S, agiY + 2 * S, `${d.agilityBonus}`, {
         fontSize: "30px",
         fontFamily: FONT_UI,
@@ -152,7 +148,7 @@ export class CardPreview extends Phaser.GameObjects.Container {
 
     // Lock icon
     if (d.lockDifficulty != null) {
-      this.add(this.scene.add.image(rightX, statY, "icon_lock").setScale(S));
+      this.add(this.scene.add.image(rightX, statY, "icon_big_lock"));
       this.add(this.scene.add.text(rightX, statY + 4 * S, `${d.lockDifficulty}`, {
         fontSize: "30px",
         fontFamily: FONT_UI,

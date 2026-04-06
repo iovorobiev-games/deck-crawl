@@ -62,6 +62,11 @@ export class BootScene extends Phaser.Scene {
     this.load.image("descr_treasure", "sprites/treasure_descr_bg.PNG");
     this.load.image("descr_event", "sprites/event_descr.PNG");
 
+    // Big preview stat icons
+    this.load.image("icon_big_power", "sprites/Power_big.png");
+    this.load.image("icon_big_agility", "sprites/Agility_big.png");
+    this.load.image("icon_big_lock", "sprites/Lock_big.png");
+
     // Card art sprites
     this.load.image("Skeleton War", "sprites/Skeleton War.PNG");
     this.load.image("swarm_of_bats", "sprites/swarm_of_bats.PNG");
