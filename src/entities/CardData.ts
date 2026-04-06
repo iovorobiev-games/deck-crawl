@@ -73,6 +73,30 @@ export const CardDescrMap: Record<CardType, string> = {
   [CardType.Event]: "descr_event",
 };
 
+/** Maps CardType to the big-preview background sprite texture key. */
+export const CardBigBackgroundMap: Record<CardType, string> = {
+  [CardType.Monster]: "bg_big",
+  [CardType.Trap]: "bg_big",
+  [CardType.Chest]: "bg_big",
+  [CardType.Treasure]: "bg_big_tr",
+  [CardType.Potion]: "bg_big_tr",
+  [CardType.Scroll]: "bg_big_tr",
+  [CardType.Door]: "bg_big_tr",
+  [CardType.Event]: "bg_big",
+};
+
+/** Maps CardType to the big-preview description-area background sprite texture key. */
+export const CardBigDescrMap: Record<CardType, string> = {
+  [CardType.Monster]: "descr_big",
+  [CardType.Trap]: "descr_big",
+  [CardType.Chest]: "descr_big",
+  [CardType.Treasure]: "descr_big_tr",
+  [CardType.Potion]: "descr_big_tr",
+  [CardType.Scroll]: "descr_big_tr",
+  [CardType.Door]: "descr_big_tr",
+  [CardType.Event]: "descr_big",
+};
+
 /** Per-type title text color for readability against each background. */
 export const CardTitleColorMap: Record<CardType, string> = {
   [CardType.Monster]: "#ffdddd",

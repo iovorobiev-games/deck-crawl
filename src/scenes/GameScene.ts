@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { Card, CARD_W, CARD_H } from "../entities/Card";
+import { Card, CARD_W, CARD_H, BIG_CARD_W, BIG_CARD_H } from "../entities/Card";
 import { PlayerView } from "../entities/PlayerView";
 import { FateDeckPopup } from "../entities/FateDeckPopup";
 import { GameOverScreen } from "../entities/GameOverScreen";
@@ -2054,10 +2054,10 @@ export class GameScene extends Phaser.Scene {
     const linkedId = this.getLinkedCardId(card);
     if (!linkedId) return;
     const previewData = getCard(linkedId);
-    const previewX = card.x + CARD_W + 12;
-    const showRight = previewX + CARD_W / 2 <= GAME_W;
-    const x = showRight ? previewX : card.x - CARD_W - 12;
-    const preview = new Card(this, x, card.y, previewData);
+    const previewX = card.x + CARD_W / 2 + BIG_CARD_W / 2 + 12;
+    const showRight = previewX + BIG_CARD_W / 2 <= GAME_W;
+    const x = showRight ? previewX : card.x - CARD_W / 2 - BIG_CARD_W / 2 - 12;
+    const preview = new Card(this, x, card.y, previewData, { bigPreview: true });
     preview.setAlpha(0.9);
     preview.setDepth(50);
     preview.disableInteractive();

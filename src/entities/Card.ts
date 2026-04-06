@@ -1,11 +1,13 @@
 import Phaser from "phaser";
-import { CardData, CardType, CardBackgroundMap, CardDescrMap, CardTitleColorMap } from "./CardData";
+import { CardData, CardType, CardBackgroundMap, CardDescrMap, CardBigBackgroundMap, CardBigDescrMap, CardTitleColorMap } from "./CardData";
 import { getAbility } from "../data/abilityRegistry";
 import { createRichDescription } from "./RichText";
 import { FONT_CARD, FONT_UI } from "../fonts";
 
 export const CARD_W = 171;
 export const CARD_H = 202;
+export const BIG_CARD_W = 234;
+export const BIG_CARD_H = 276;
 
 const ART_MAX_W = 130;
 const ART_MAX_H = 110;
@@ -18,9 +20,22 @@ const TITLE_MAX_W = 100; // narrower to avoid stat icon overlap
 const TITLE_MAX_H = TITLE_RECT_H - 4; // usable text height
 const DESCR_Y = CARD_H / 2 - DESCR_BG_H / 2 - 6;
 
+// Big preview layout
+const BIG_ART_MAX_W = 178;
+const BIG_ART_MAX_H = 150;
+const BIG_ART_CENTER_Y = -11;
+const BIG_DESCR_BG_W = 229;
+const BIG_DESCR_BG_H = 102;
+const BIG_TITLE_RECT_H = 44;
+const BIG_TITLE_Y = -BIG_CARD_H / 2 + 8 + BIG_TITLE_RECT_H / 2;
+const BIG_TITLE_MAX_W = 137;
+const BIG_TITLE_MAX_H = BIG_TITLE_RECT_H - 4;
+const BIG_DESCR_Y = BIG_CARD_H / 2 - BIG_DESCR_BG_H / 2 - 8;
+
 export class Card extends Phaser.GameObjects.Container {
   cardData: CardData;
   guardedLoot: Card | null = null;
+  readonly big: boolean;
   private bgSprite!: Phaser.GameObjects.Image;
   private cardImage: Phaser.GameObjects.Image | null = null;
   private descrSprite!: Phaser.GameObjects.Image;
@@ -38,13 +53,16 @@ export class Card extends Phaser.GameObjects.Container {
   private lockIcon: Phaser.GameObjects.Image | null = null;
   private lockValueText: Phaser.GameObjects.Text | null = null;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, data: CardData) {
+  constructor(scene: Phaser.Scene, x: number, y: number, data: CardData, options?: { bigPreview?: boolean }) {
     super(scene, x, y);
     this.cardData = data;
-    this.setSize(CARD_W, CARD_H);
+    this.big = options?.bigPreview ?? false;
+    const w = this.big ? BIG_CARD_W : CARD_W;
+    const h = this.big ? BIG_CARD_H : CARD_H;
+    this.setSize(w, h);
     this.createVisual();
     this.setInteractive(
-      new Phaser.Geom.Rectangle(0, 0, CARD_W, CARD_H),
+      new Phaser.Geom.Rectangle(0, 0, w, h),
       Phaser.Geom.Rectangle.Contains
     );
     scene.add.existing(this);
@@ -52,22 +70,30 @@ export class Card extends Phaser.GameObjects.Container {
 
   private createVisual(): void {
     const type = this.cardData.type;
+    const b = this.big;
+    const artMaxW = b ? BIG_ART_MAX_W : ART_MAX_W;
+    const artMaxH = b ? BIG_ART_MAX_H : ART_MAX_H;
+    const artCY = b ? BIG_ART_CENTER_Y : ART_CENTER_Y;
+    const dY = b ? BIG_DESCR_Y : DESCR_Y;
+    const ch = b ? BIG_CARD_H : CARD_H;
 
     // 1. Background sprite
-    this.bgSprite = this.scene.add.image(0, 0, CardBackgroundMap[type]);
+    const bgMap = b ? CardBigBackgroundMap : CardBackgroundMap;
+    this.bgSprite = this.scene.add.image(0, 0, bgMap[type]);
     this.add(this.bgSprite);
 
     // 2. Card art image (if defined)
     if (this.cardData.image) {
-      this.cardImage = this.scene.add.image(0, ART_CENTER_Y, this.cardData.image);
+      this.cardImage = this.scene.add.image(0, artCY, this.cardData.image);
       const tex = this.cardImage.texture.getSourceImage();
-      const scale = Math.min(ART_MAX_W / tex.width, ART_MAX_H / tex.height);
+      const scale = Math.min(artMaxW / tex.width, artMaxH / tex.height);
       this.cardImage.setScale(scale);
       this.add(this.cardImage);
     }
 
     // 3. Description BG sprite — anchored to bottom of card
-    this.descrSprite = this.scene.add.image(0, DESCR_Y, CardDescrMap[type]);
+    const descrMap = b ? CardBigDescrMap : CardDescrMap;
+    this.descrSprite = this.scene.add.image(0, dY, descrMap[type]);
     this.add(this.descrSprite);
 
     // 4. Title text on the top stripe — auto-sized to fit
@@ -79,7 +105,7 @@ export class Card extends Phaser.GameObjects.Container {
 
     // 6. Tag badge (centered near bottom of card, Event cards only)
     if (this.cardData.tag && this.cardData.type === CardType.Event) {
-      const tagY = CARD_H / 2 - 2;
+      const tagY = ch / 2 - 2;
       const tagBg = this.scene.add.image(0, tagY, "tag_bg");
       this.add(tagBg);
       const label = this.cardData.tag.charAt(0).toUpperCase() + this.cardData.tag.slice(1);
@@ -98,24 +124,28 @@ export class Card extends Phaser.GameObjects.Container {
 
   private createStatIcons(): void {
     const d = this.cardData;
+    const b = this.big;
+    const cw = b ? BIG_CARD_W : CARD_W;
+    const ch = b ? BIG_CARD_H : CARD_H;
+    const fontSize = b ? "27px" : "20px";
 
-    // Stat icons sit at the bottom edge of the art area, straddling the
-    // art/description boundary.  A dark backing circle keeps them readable
-    // against any art.
-    const statY = -CARD_H / 2 + 8 + 18;  // top-left, shifted down by half icon
-    const leftX = -CARD_W / 2 + 14;
-    const rightX = CARD_W / 2 - 12;
+    // Stat icons sit at the top edge of the card.
+    const statY = -ch / 2 + (b ? 11 : 8) + (b ? 25 : 18);
+    const leftX = -cw / 2 + (b ? 19 : 14);
+    const rightX = cw / 2 - (b ? 16 : 12);
 
-    // Power icon — bottom-left of art
+    // Power icon — top-left
     const bowAbility = d.abilities?.find(a => getAbility(a.abilityId).effect === "reduceRandomEnemyPower");
     const hasPower = d.type === CardType.Monster || (d.tag === "weapon" && !d.isKey) || (d.slot && d.slot !== "backpack" && d.value > 0 && !d.isKey) || bowAbility;
     if (hasPower) {
-      this.addStatBacking(leftX, statY);
-      this.powerIcon = this.scene.add.image(leftX, statY, "icon_card_power").setFlipX(true);
+      if (!b) this.addStatBacking(leftX, statY);
+      this.powerIcon = this.scene.add.image(leftX, statY, b ? "icon_big_power" : "icon_card_power").setFlipX(true);
       this.add(this.powerIcon);
       const displayValue = bowAbility ? (bowAbility.params.amount as number) : d.value;
-      this.powerValueText = this.scene.add.text(leftX - 3.5, statY - 3.5, `${displayValue}`, {
-        fontSize: "20px",
+      const offX = b ? -5 : -3.5;
+      const offY = b ? -5 : -3.5;
+      this.powerValueText = this.scene.add.text(leftX + offX, statY + offY, `${displayValue}`, {
+        fontSize,
         fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
@@ -123,13 +153,13 @@ export class Card extends Phaser.GameObjects.Container {
       this.add(this.powerValueText);
     }
 
-    // Shield icon — bottom-right of art
+    // Shield icon — top-right
     const armourAbility = d.abilities?.find(a => a.abilityId === "armour");
     if (armourAbility) {
       this.shieldIcon = this.scene.add.image(rightX, statY, "icon_shield");
       this.add(this.shieldIcon);
-      this.shieldValueText = this.scene.add.text(rightX, statY - 4, `${armourAbility.params.amount}`, {
-        fontSize: "20px",
+      this.shieldValueText = this.scene.add.text(rightX, statY - (b ? 5 : 4), `${armourAbility.params.amount}`, {
+        fontSize,
         fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
@@ -137,14 +167,14 @@ export class Card extends Phaser.GameObjects.Container {
       this.add(this.shieldValueText);
     }
 
-    // Agility icon — bottom-right of art (for cards with agilityBonus)
+    // Agility icon — top-right (for cards with agilityBonus)
     if (d.agilityBonus) {
-      const agiX = rightX + 4;
-      const agiY = statY - 4;
-      this.agilityIcon = this.scene.add.image(agiX, agiY, "icon_card_agility");
+      const agiX = rightX + (b ? 5 : 4);
+      const agiY = statY - (b ? 5 : 4);
+      this.agilityIcon = this.scene.add.image(agiX, agiY, b ? "icon_big_agility" : "icon_card_agility");
       this.add(this.agilityIcon);
-      this.agilityValueText = this.scene.add.text(agiX - 12, agiY + 2, `${d.agilityBonus}`, {
-        fontSize: "20px",
+      this.agilityValueText = this.scene.add.text(agiX - (b ? 16 : 12), agiY + (b ? 3 : 2), `${d.agilityBonus}`, {
+        fontSize,
         fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
@@ -152,12 +182,12 @@ export class Card extends Phaser.GameObjects.Container {
       this.add(this.agilityValueText);
     }
 
-    // Lock icon — bottom-right of art (for cards with lockDifficulty)
+    // Lock icon — top-right (for cards with lockDifficulty)
     if (d.lockDifficulty != null) {
-      this.lockIcon = this.scene.add.image(rightX, statY, "icon_lock");
+      this.lockIcon = this.scene.add.image(rightX, statY, b ? "icon_big_lock" : "icon_lock");
       this.add(this.lockIcon);
-      this.lockValueText = this.scene.add.text(rightX, statY + 4, `${d.lockDifficulty}`, {
-        fontSize: "20px",
+      this.lockValueText = this.scene.add.text(rightX, statY + (b ? 5 : 4), `${d.lockDifficulty}`, {
+        fontSize,
         fontFamily: FONT_UI,
         color: "#240a0e",
         fontStyle: "bold",
@@ -174,18 +204,21 @@ export class Card extends Phaser.GameObjects.Container {
   }
 
   private createFittedTitle(name: string, color: string): Phaser.GameObjects.Text {
-    let fontSize = 14;
-    const text = this.scene.add.text(0, TITLE_Y, name, {
+    const b = this.big;
+    let fontSize = b ? 19 : 14;
+    const tY = b ? BIG_TITLE_Y : TITLE_Y;
+    const maxW = b ? BIG_TITLE_MAX_W : TITLE_MAX_W;
+    const maxH = b ? BIG_TITLE_MAX_H : TITLE_MAX_H;
+    const text = this.scene.add.text(0, tY, name, {
       fontSize: `${fontSize}px`,
       fontFamily: FONT_CARD,
       color,
       fontStyle: "bold",
       align: "center",
-      wordWrap: { width: TITLE_MAX_W },
+      wordWrap: { width: maxW },
     }).setOrigin(0.5);
 
-    // Shrink font until text fits the title rect height
-    while (text.height > TITLE_MAX_H && fontSize > 8) {
+    while (text.height > maxH && fontSize > 8) {
       fontSize--;
       text.setFontSize(fontSize);
     }
@@ -196,14 +229,18 @@ export class Card extends Phaser.GameObjects.Container {
     if (this.descrContainer) {
       this.descrContainer.destroy();
     }
+    const b = this.big;
+    const dbgW = b ? BIG_DESCR_BG_W : DESCR_BG_W;
+    const dbgH = b ? BIG_DESCR_BG_H : DESCR_BG_H;
+    const dY = b ? BIG_DESCR_Y : DESCR_Y;
     this.descrContainer = createRichDescription(this.scene, text, {
-      maxWidth: DESCR_BG_W - 16,
-      fontSize: 13,
+      maxWidth: dbgW - 16,
+      fontSize: b ? 18 : 13,
       baseColor: "#ddd",
-      maxHeight: DESCR_BG_H - 8,
-      minFontSize: 8,
+      maxHeight: dbgH - 8,
+      minFontSize: b ? 11 : 8,
     });
-    this.descrContainer.setPosition(0, DESCR_Y);
+    this.descrContainer.setPosition(0, dY);
     this.add(this.descrContainer);
   }
 
