@@ -494,6 +494,8 @@ export class GameScene extends Phaser.Scene {
       GAME_W / 2, GAME_H / 2, "The Horrors lie in the Tomb of Fate", textStyle
     ).setOrigin(0.5).setAlpha(0).setDepth(10001);
 
+    this.sfx.play(SOUND_KEYS.eerieDarkSynth);
+
     this.tweens.add({
       targets: text1, alpha: 1, duration: 2000, ease: "Sine.easeIn",
       onComplete: () => {
@@ -534,20 +536,17 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({
       targets: text2, alpha: 1, duration: 1000, ease: "Sine.easeIn",
       onComplete: () => {
-        // Delay 0.5s → Steps sound → Delay 0.5s → Player panel slides up
+        // Delay 0.5s → Steps sound + player panel slide up together
         this.time.delayedCall(500, () => {
-          this.sfx.playRandom(SOUND_GROUPS.stoneWalk);
-
-          this.time.delayedCall(500, () => {
-            this.tutorialSlidePlayerPanel(() => {
-              // Delay 1s → text slides down between grid and panel
-              this.time.delayedCall(1000, () => {
-                this.tweens.add({
-                  targets: text2, y: 688, duration: 800, ease: "Power2",
-                  onComplete: () => {
-                    this.tutorialRevealDeckAndGrid();
-                  },
-                });
+          this.sfx.playRandomSequential(SOUND_GROUPS.stoneWalk, 4, 300);
+          this.tutorialSlidePlayerPanel(() => {
+            // Delay 1s → text slides down between grid and panel
+            this.time.delayedCall(1000, () => {
+              this.tweens.add({
+                targets: text2, y: 688, duration: 800, ease: "Power2",
+                onComplete: () => {
+                  this.tutorialRevealDeckAndGrid();
+                },
               });
             });
           });
@@ -605,6 +604,9 @@ export class GameScene extends Phaser.Scene {
         // Grid items pop up with scale animation
         this.gridBgGraphics.forEach((img, i) => {
           img.setScale(0).setVisible(true);
+          this.time.delayedCall(i * 100, () => {
+            this.sfx.playRandom(SOUND_GROUPS.cardDraw);
+          });
           this.tweens.add({
             targets: img,
             scale: 1, duration: 300, ease: "Back.easeOut",
