@@ -47,6 +47,10 @@ export const SOUND_KEYS = {
   vibraphoneMystery: "vibraphone_mystery",
   holySpell04: "holy_spell_04",
   holySpell06: "holy_spell_06",
+
+  // UI / Title
+  titleImpact: "title_impact",
+  eerieDarkSynth: "eerie_dark_synth",
 } as const;
 
 /** Grouped sound keys for random selection. */
@@ -88,6 +92,8 @@ export const SOUND_FILES: Record<string, string> = {
   [SOUND_KEYS.vibraphoneMystery]: "sounds/vibraphone_mystery.wav",
   [SOUND_KEYS.holySpell04]: "sounds/Holy Spell Cast Blast 04 HQ.wav",
   [SOUND_KEYS.holySpell06]: "sounds/Holy Spell Cast Blast 06 HQ.wav",
+  [SOUND_KEYS.titleImpact]: "sounds/title_impact.mp3",
+  [SOUND_KEYS.eerieDarkSynth]: "sounds/02 DSGNErie, Dark, Synth.wav",
 };
 
 export class SoundManager {

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { CRTPostFX } from "../pipelines/CRTPostFX";
+import { SOUND_KEYS } from "../systems/SoundManager";
 
 
 
@@ -82,6 +83,11 @@ export class MainMenuScene extends Phaser.Scene {
 
   private animateIntro(): void {
     const targets = [this.mainText, this.redText, this.cyanText];
+
+    // Play slam sound slightly before the title lands
+    this.time.delayedCall(250, () => {
+      this.sound.play(SOUND_KEYS.titleImpact, { volume: 0.6 });
+    });
 
     // Drop title from top
     this.tweens.add({
