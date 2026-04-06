@@ -33,6 +33,8 @@ export class Card extends Phaser.GameObjects.Container {
   private powerValueText: Phaser.GameObjects.Text | null = null;
   private shieldIcon: Phaser.GameObjects.Image | null = null;
   private shieldValueText: Phaser.GameObjects.Text | null = null;
+  private agilityIcon: Phaser.GameObjects.Image | null = null;
+  private agilityValueText: Phaser.GameObjects.Text | null = null;
   private lockIcon: Phaser.GameObjects.Image | null = null;
   private lockValueText: Phaser.GameObjects.Text | null = null;
 
@@ -133,6 +135,21 @@ export class Card extends Phaser.GameObjects.Container {
         fontStyle: "bold",
       }).setOrigin(0.5);
       this.add(this.shieldValueText);
+    }
+
+    // Agility icon — bottom-right of art (for cards with agilityBonus)
+    if (d.agilityBonus) {
+      const agiX = rightX + 4;
+      const agiY = statY - 4;
+      this.agilityIcon = this.scene.add.image(agiX, agiY, "icon_card_agility");
+      this.add(this.agilityIcon);
+      this.agilityValueText = this.scene.add.text(agiX - 12, agiY + 2, `${d.agilityBonus}`, {
+        fontSize: "20px",
+        fontFamily: FONT_UI,
+        color: "#240a0e",
+        fontStyle: "bold",
+      }).setOrigin(0.5);
+      this.add(this.agilityValueText);
     }
 
     // Lock icon — bottom-right of art (for cards with lockDifficulty)

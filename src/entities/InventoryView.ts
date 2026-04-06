@@ -257,6 +257,19 @@ export class InventoryView extends Phaser.GameObjects.Container {
       }).setOrigin(0.5));
     }
 
+    // Agility icon — bottom-right of art (for cards with agilityBonus)
+    if (item.agilityBonus) {
+      const agiX = rightX + 4;
+      const agiY = statY - 4;
+      mc.add(this.scene.add.image(agiX, agiY, "icon_card_agility"));
+      mc.add(this.scene.add.text(agiX - 12, agiY + 2, `${item.agilityBonus}`, {
+        fontSize: "20px",
+        fontFamily: FONT_UI,
+        color: "#240a0e",
+        fontStyle: "bold",
+      }).setOrigin(0.5));
+    }
+
     mc.setScale(s);
     return mc;
   }

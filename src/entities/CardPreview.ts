@@ -137,6 +137,19 @@ export class CardPreview extends Phaser.GameObjects.Container {
       }).setOrigin(0.5));
     }
 
+    // Agility icon
+    if (d.agilityBonus) {
+      const agiX = rightX + 4 * S;
+      const agiY = statY - 4 * S;
+      this.add(this.scene.add.image(agiX, agiY, "icon_card_agility").setScale(S));
+      this.add(this.scene.add.text(agiX - 12 * S, agiY + 2 * S, `${d.agilityBonus}`, {
+        fontSize: "30px",
+        fontFamily: FONT_UI,
+        color: "#240a0e",
+        fontStyle: "bold",
+      }).setOrigin(0.5));
+    }
+
     // Lock icon
     if (d.lockDifficulty != null) {
       this.add(this.scene.add.image(rightX, statY, "icon_lock").setScale(S));
