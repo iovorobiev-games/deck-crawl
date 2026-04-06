@@ -37,6 +37,9 @@ export class Card extends Phaser.GameObjects.Container {
   private agilityValueText: Phaser.GameObjects.Text | null = null;
   private lockIcon: Phaser.GameObjects.Image | null = null;
   private lockValueText: Phaser.GameObjects.Text | null = null;
+  private auraTimer: Phaser.Time.TimerEvent | null = null;
+  private auraRings: Phaser.GameObjects.Graphics[] = [];
+  private auraUpdateHandler: (() => void) | null = null;
 
   constructor(scene: Phaser.Scene, x: number, y: number, data: CardData) {
     super(scene, x, y);
@@ -48,6 +51,7 @@ export class Card extends Phaser.GameObjects.Container {
       Phaser.Geom.Rectangle.Contains
     );
     scene.add.existing(this);
+    this.startAura();
   }
 
   private createVisual(): void {
@@ -364,5 +368,92 @@ export class Card extends Phaser.GameObjects.Container {
         this.highlightGfx = null;
       }
     }
+  }
+
+  /* ---- Stat-drain aura (pulsing rings + shimmer) ---- */
+
+  private hasStatDrain(): boolean {
+    if (!this.cardData.abilities) return false;
+    return this.cardData.abilities.some(ab => {
+      const def = getAbility(ab.abilityId);
+      return def.trigger === "passive"
+        && (def.effect === "modifyAgility" || def.effect === "modifyPower")
+        && (ab.params.amount as number) < 0;
+    });
+  }
+
+  private startAura(): void {
+    if (!this.hasStatDrain()) return;
+
+    const color = 0xcc3333;
+
+    // Spawn expanding oval rings periodically
+    this.auraTimer = this.scene.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => this.spawnAuraRing(color),
+    });
+
+    // Keep aura rings positioned on the card each frame
+    this.auraUpdateHandler = () => {
+      const d = this.depth - 1;
+      for (const ring of this.auraRings) {
+        ring.setPosition(this.x, this.y);
+        ring.setDepth(d);
+      }
+    };
+    this.scene.events.on("update", this.auraUpdateHandler);
+  }
+
+  private spawnAuraRing(color: number): void {
+    // Draw a circle with gradient thickness: multiple concentric
+    // circles with decreasing alpha to simulate a soft 16px edge
+    const ring = this.scene.add.graphics();
+    const baseRadius = CARD_W * 0.6;
+    const layers = 16;
+    for (let i = 0; i < layers; i++) {
+      const t = i / (layers - 1); // 0 (inner) → 1 (outer)
+      const alpha = 0.7 * (1 - t);
+      ring.lineStyle(2, color, alpha);
+      ring.strokeCircle(0, 0, baseRadius + i);
+    }
+    ring.setPosition(this.x, this.y);
+    ring.setDepth(this.depth - 1);
+    ring.setScale(0.7);
+    ring.setAlpha(0.6);
+
+    this.auraRings.push(ring);
+
+    this.scene.tweens.add({
+      targets: ring,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      alpha: 0,
+      duration: 3000,
+      ease: "Sine.easeOut",
+      onComplete: () => {
+        ring.destroy();
+        const idx = this.auraRings.indexOf(ring);
+        if (idx !== -1) this.auraRings.splice(idx, 1);
+      },
+    });
+  }
+
+  private stopAura(): void {
+    if (this.auraTimer) {
+      this.auraTimer.destroy();
+      this.auraTimer = null;
+    }
+    for (const ring of this.auraRings) ring.destroy();
+    this.auraRings = [];
+    if (this.auraUpdateHandler) {
+      this.scene.events.off("update", this.auraUpdateHandler);
+      this.auraUpdateHandler = null;
+    }
+  }
+
+  destroy(fromScene?: boolean): void {
+    this.stopAura();
+    super.destroy(fromScene);
   }
 }
