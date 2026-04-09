@@ -89,9 +89,9 @@ export class InventoryView extends Phaser.GameObjects.Container {
     const label = SLOT_LABEL_MAP[def.name];
     if (label) {
       const labelText = this.scene.add.text(0, -109, label, {
-        fontSize: "20px",
+        fontSize: "16px",
         fontFamily: FONT_CARD,
-        color: "#35160e",
+        color: "#f0d5b5",
         fontStyle: "bold",
         align: "center",
       }).setOrigin(0.5);
